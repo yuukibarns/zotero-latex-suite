@@ -23,7 +23,9 @@
 			fp.init(window, folder ? "Select a snippets folder" : "Select a snippets file",
 				folder ? fp.modeGetFolder : fp.modeOpen);
 			if (!folder) {
-				fp.appendFilter("JavaScript", "*.js");
+				// .md too: obsidian-latex-suite users keep snippets in the vault, where
+				// a .md file is editable in Obsidian itself. Contents are JS either way.
+				fp.appendFilter("Snippets", "*.js; *.md");
 				fp.appendFilters(fp.filterAll);
 			}
 			if ((await fp.show()) !== fp.returnOK) return;

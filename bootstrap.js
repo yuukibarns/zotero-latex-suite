@@ -24,7 +24,7 @@ const PREF = "extensions.zotero.latexSuite.settings";
 const FIELDS = [
 	{ group: "Snippet files", key: "loadSnippetsFromFile", type: "bool", default: false,
 		label: "Load snippets from a file",
-		hint: "Point at a .js file, or a folder of them \u2014 an obsidian-latex-suite snippets file works as-is. Re-read whenever it changes on disk." },
+		hint: "Point at a .js or .md file, or a folder of them \u2014 an obsidian-latex-suite snippets file works as-is. Re-read whenever it changes on disk." },
 	{ group: "Snippet files", key: "snippetsFileLocation", type: "file", default: "",
 		label: "Snippets file" },
 	{ group: "Snippet files", key: "loadSnippetVariablesFromFile", type: "bool", default: false,
