@@ -12,7 +12,7 @@ import { runSnippets } from "./features/run_snippets";
 import { runAutoFraction } from "./features/autofraction";
 import { shouldTaboutByCloseBracket, tabout } from "./features/tabout";
 import { addCellMatrixShortcut, exitMatrixShortcut, newlineMatrixShortcut, priorityTaboutMatrixShortcut } from "./features/matrix_shortcuts";
-import { clearTabstops, setSelectionToNextTabstop } from "./snippets/snippet_management";
+import { clearTabstops, clearTabstopsIfElsewhere, hasTabstops, setSelectionToNextTabstop } from "./snippets/snippet_management";
 import { Snippet } from "./snippets/snippets";
 import { Context } from "./utils/context";
 import { installAnnotationRendering } from "./reader/annotations";
@@ -266,6 +266,15 @@ function install() {
 	window.document.addEventListener("keydown", onKeydown, true);
 	window.document.addEventListener("beforeinput", onBeforeInput, true);
 
+	/* Marks are drawn over the text, so nothing takes them down on its own when
+	 * the caret leaves the snippet — clicking out of an equation, or closing it,
+	 * would otherwise leave them painted over the rendered result. Only while a
+	 * snippet is actually in flight; selectionchange fires constantly. */
+	const onSelectionChange = () => {
+		if (hasTabstops()) clearTabstopsIfElsewhere(currentBuffer(window)?.owner);
+	};
+	window.document.addEventListener("selectionchange", onSelectionChange);
+
 	// The caret in each comment, so a stolen keystroke can be put back.
 	const stopTracking = isReaderWindow(window) ? trackCommentSelection(window) : null;
 
@@ -274,6 +283,7 @@ function install() {
 		stopTracking?.();
 		window.document.removeEventListener("keydown", onKeydown, true);
 		window.document.removeEventListener("beforeinput", onBeforeInput, true);
+		window.document.removeEventListener("selectionchange", onSelectionChange);
 		clearTabstops();
 		stopRendering?.();
 		stopRendering = null;

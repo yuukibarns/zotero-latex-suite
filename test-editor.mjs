@@ -149,6 +149,22 @@ export function run() {
 		ls.clearTabstops();
 	}
 
+	/* --- leaving the equation finishes the snippet, marks and all --- */
+	{
+		const settings = settingsFor(`export default [{trigger: "//", replacement: "\\\\frac{$0}{$1}$2", options: "mA"}]`);
+		const view = mathView("/");
+		ls.runSnippets(winFor(view), { snippets: automatic(settings), key: "/" }, settings);
+		assert.strictEqual(ls.hasTabstops(), true, "a snippet with tabstops is in flight");
+
+		// The caret is still in the equation: nothing to finish.
+		ls.clearTabstopsIfElsewhere(ls.PMBuffer.forMath(view, "math_inline").owner);
+		assert.strictEqual(ls.hasTabstops(), true, "still in the same buffer");
+
+		// Out of it — the note around it, or nothing focused at all.
+		ls.clearTabstopsIfElsewhere(undefined);
+		assert.strictEqual(ls.hasTabstops(), false, "leaving the buffer drops the tabstops");
+	}
+
 	/* --- placeholders are selected, and typing into one keeps the later ones valid --- */
 	{
 		const settings = settingsFor(

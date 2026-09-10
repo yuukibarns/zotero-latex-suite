@@ -221,7 +221,7 @@ const { FIELDS } = require("./bootstrap.js");
 		},
 	};
 	new Function("window", "navigator", "console", bundle)(win, { userAgent: "Mac" }, console);
-	assert.deepStrictEqual(events, ["+keydown", "+beforeinput"]);
+	assert.deepStrictEqual(events, ["+keydown", "+beforeinput", "+selectionchange"]);
 	assert.strictEqual(win.__latexSuiteInstalled, true);
 	assert.ok(win.__latexSuite.settings.snippets.length > 200);
 
@@ -243,7 +243,10 @@ const { FIELDS } = require("./bootstrap.js");
 	assert.ok(win.__latexSuite.settings.snippets.length > 200);
 
 	win.__latexSuiteUninstall();
-	assert.deepStrictEqual(events, ["+keydown", "+beforeinput", "-keydown", "-beforeinput"]);
+	assert.deepStrictEqual(events, [
+		"+keydown", "+beforeinput", "+selectionchange",
+		"-keydown", "-beforeinput", "-selectionchange",
+	]);
 	assert.strictEqual(win.__latexSuiteInstalled, undefined);
 
 	const editor = await import("./test-editor.mjs");

@@ -88,6 +88,16 @@ export function hasTabstops() {
 	return active !== null;
 }
 
+/**
+ * The caret moved. Tabbing through a snippet only means anything while the
+ * caret is still in the buffer it was expanded in, so leaving one — closing an
+ * equation, clicking into the note around it, focusing something else entirely
+ * — finishes that snippet and takes its marks down with it.
+ */
+export function clearTabstopsIfElsewhere(owner: object | null | undefined) {
+	if (active && active.owner !== owner) clearTabstops();
+}
+
 /** Replace `[from, to)` in `buffer` with a snippet result, then select tabstop 0. */
 export function expandSnippet(buffer: Buffer, from: number, to: number, result: ResultInsert): boolean {
 	const nested = withinPendingTabstop(buffer.owner, buffer.positionAt(from), buffer.positionAt(to));
