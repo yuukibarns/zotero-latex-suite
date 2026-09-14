@@ -256,7 +256,7 @@ const { FIELDS } = require("./bootstrap.js");
 	compat.run();
 
 	const dom = await import("./test-dom.mjs");
-	dom.run();
+	await dom.run();
 
 	console.log("all tests passed");
 })().catch((e) => {

@@ -16,6 +16,7 @@ import { clearTabstops, clearTabstopsIfElsewhere, hasTabstops, setSelectionToNex
 import { Snippet } from "./snippets/snippets";
 import { Context } from "./utils/context";
 import { installAnnotationRendering } from "./reader/annotations";
+import { installPopupEnlarge } from "./reader/popup_enlarge";
 
 declare const window: any;
 
@@ -277,10 +278,12 @@ function install() {
 
 	// The caret in each comment, so a stolen keystroke can be put back.
 	const stopTracking = isReaderWindow(window) ? trackCommentSelection(window) : null;
+	const stopPopupEnlarge = isReaderWindow(window) ? installPopupEnlarge(window) : null;
 
 	// Called from bootstrap.js when the plugin is disabled or updated.
 	window.__latexSuiteUninstall = () => {
 		stopTracking?.();
+		stopPopupEnlarge?.();
 		window.document.removeEventListener("keydown", onKeydown, true);
 		window.document.removeEventListener("beforeinput", onBeforeInput, true);
 		window.document.removeEventListener("selectionchange", onSelectionChange);

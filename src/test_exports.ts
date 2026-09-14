@@ -16,3 +16,4 @@ export { autoEnlargeBrackets } from "./features/auto_enlarge_brackets";
 export { runAutoFraction } from "./features/autofraction";
 export { renderMath, unrenderMath, syncRender, isRendered } from "./render/math";
 export { segmentsOf, domPointAt, offsetOfPoint, selectionOffsets, setCaret } from "./render/segments";
+export { installPopupEnlarge } from "./reader/popup_enlarge";

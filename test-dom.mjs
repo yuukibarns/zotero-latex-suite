@@ -18,7 +18,7 @@ function field(html) {
 	return { dom, el, window: dom.window };
 }
 
-export function run() {
+export async function run() {
 	/* --- the text model --- */
 	{
 		const { el } = field("abc $x$ def");
@@ -108,6 +108,41 @@ export function run() {
 		assert.strictEqual(rendered(5), 0, "caret inside: stays source");
 		assert.strictEqual(rendered(4), 0, "caret at the opening delimiter: stays source");
 		assert.strictEqual(rendered(7), 0, "caret at the closing delimiter: stays source");
+	}
+
+	/* --- the popup's enlarge button --- */
+	{
+		// Zotero's markup: the popup div is React's, classes and inline transform included.
+		const popupHTML = `<div class="view-popup annotation-popup page-popup-bottom-center" style="transform: translate(10px, 20px)">
+			<div class="preview"><header><div class="start"></div><div class="end"><button class="more"></button></div></header>
+			<div class="comment"><div class="content" contenteditable="true"></div></div></div></div>`;
+		const dom = new JSDOM(`<body><div id="reader-ui"></div>${popupHTML}</body>`);
+		const doc = dom.window.document;
+		const stop = ls.installPopupEnlarge(dom.window);
+
+		const popup = doc.querySelector(".annotation-popup");
+		const button = doc.querySelector(".latex-suite-enlarge");
+		assert.ok(button, "an open popup gets the button");
+		assert.strictEqual(button.previousElementSibling.className, "more", "it sits past Zotero's own menu, in the corner");
+		assert.strictEqual(popup.hasAttribute("data-latex-suite-big"), false, "normal size by default");
+
+		button.click();
+		assert.strictEqual(popup.hasAttribute("data-latex-suite-big"), true, "click enlarges");
+		assert.strictEqual(button.getAttribute("aria-pressed"), "true");
+		assert.ok(popup.classList.contains("page-popup-bottom-center"), "React's classes are left alone");
+		button.click();
+		assert.strictEqual(popup.hasAttribute("data-latex-suite-big"), false, "click again restores");
+
+		// A popup opened later — the usual case — gets one too, and only one.
+		doc.body.insertAdjacentHTML("beforeend", popupHTML);
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		assert.strictEqual(doc.querySelectorAll(".latex-suite-enlarge").length, 2, "one button per popup");
+
+		button.click();
+		stop();
+		assert.strictEqual(doc.querySelectorAll(".latex-suite-enlarge").length, 0, "uninstall removes the buttons");
+		assert.strictEqual(doc.querySelectorAll("[data-latex-suite-big]").length, 0, "and restores enlarged popups");
+		assert.strictEqual(doc.getElementById("latex-suite-popup-enlarge"), null, "and its stylesheet");
 	}
 
 	console.log("dom-layer tests passed");
