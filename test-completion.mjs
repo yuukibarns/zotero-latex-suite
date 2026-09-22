@@ -48,6 +48,14 @@ for (const source of ['alp', '\\alp', 'x+alp']) {
 }
 assert.equal(ls.tokenAt(ls.PMBuffer.forMath(mathView('alpha', 2), 'math_inline'), 2), null);
 assert.equal(ls.tokenAt(ls.PMBuffer.forMath(mathView('a'), 'math_inline'), 2), null);
+for (const kind of ['math_inline', 'math_display']) {
+ for (const source of [String.raw`\text{alp`, String.raw`\text{hello {alp`, String.raw`\text{\textbf{alp`, String.raw`\text{escaped \} alp`, String.raw`\text{escaped \{ alp`, String.raw`\text {alp`, String.raw`\textrm{alp`, String.raw`\mbox{alp`, String.raw`\textcolor{alp`]) {
+  assert.equal(ls.tokenAt(ls.PMBuffer.forMath(mathView(source),kind),2),null,source);
+ }
+ for (const source of [String.raw`\text{hello}alp`, String.raw`\frac{alp`, String.raw`\frac{x}{alp`, String.raw`\textcolor{red}{alp`, String.raw`\\text{alp`]) {
+  assert.equal(ls.tokenAt(ls.PMBuffer.forMath(mathView(source),kind),2)?.query,'alp',source);
+ }
+}
 assert.equal(ls.tokenAt({...ls.PMBuffer.forMath(mathView('alp'), 'math_inline'),inMath:false},2),null);
 assert.equal(ls.tokenAt({...ls.PMBuffer.forMath(mathView('alp'), 'math_inline'),inMath:true,dollarMath:true},2),null);
 assert.equal(ls.replacementOf('\\#').insert, '\\#');
@@ -118,6 +126,13 @@ assert.equal(key('ArrowUp').defaultPrevented,true);
 assert.equal(key('Enter').defaultPrevented,true);
 assert.equal(view.state.doc.textContent,'\\alpha'); assert.equal(popup(),null);
 function reset(s='alp') {view.dispatch(view.state.tr.insertText(s,0,view.state.doc.content.size));}
+reset(String.raw`\text{alp`);await input();assert.equal(popup(),null);
+assert.equal(key('Enter').defaultPrevented,false);
+reset(String.raw`\text{hello}alp`);await input();assert.ok(popup());
+key('Enter');assert.equal(view.state.doc.textContent,String.raw`\text{hello}\alpha`);
+reset();await input();assert.ok(popup());
+reset(String.raw`\text{alp`);assert.equal(key('Enter').defaultPrevented,false);
+assert.equal(view.state.doc.textContent,String.raw`\text{alp`);
 reset();await input();key('ArrowLeft');
 doc.dispatchEvent(new win.Event('selectionchange'));await tick();assert.equal(popup(),null);
 await input();assert.ok(popup());

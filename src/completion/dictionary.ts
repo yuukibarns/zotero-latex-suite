@@ -1,6 +1,7 @@
 import defaults from "./commands.json";
 import { Buffer } from "../editor/buffer";
 import { ResultInsert } from "../snippets/luasnip_api/node";
+import { Context } from "../utils/context";
 
 export type Command = { displayName: string; replacement: string };
 export const DEFAULT_COMMANDS: Command[] = defaults;
@@ -19,6 +20,10 @@ export function tokenAt(buffer: Buffer, minimum: number) {
 	if (!match) return null;
 	const query = match[0].replace(/^\\/, "");
 	if (query.length < minimum) return null;
+	// Share the snippet engine's brace-aware text/metadata argument detection.
+	// tokenAt is also called on acceptance, so a stale popup cannot bypass this.
+	const { mode } = Context.fromBuffer(buffer);
+	if (mode.textEnv || mode.snippetlessEnv) return null;
 	return { from: match.index, to: buffer.to, query, text: match[0] };
 }
 export function candidates(commands: Command[], query: string): Command[] {

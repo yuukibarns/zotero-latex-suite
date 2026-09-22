@@ -59,7 +59,7 @@ export function normalizeMathPaste(source: string): string {
 export function installMathPaste(win: Window) {
 	const onPaste = (event: ClipboardEvent) => {
 		const data = event.clipboardData;
-		if (!data || data.files.length || data.types.includes("zotero/annotation")) return;
+		if (!data || data.files.length || Array.from(data.types).includes("zotero/annotation")) return;
 		if (getActiveMathView(win.document)) return; // already editing raw LaTeX
 		const core = getEditorCore(win), view = core?.view;
 		if (!view || view.editable === false || !view.dom.contains(win.document.activeElement)) return;
