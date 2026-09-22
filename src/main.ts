@@ -19,6 +19,7 @@ import { installAnnotationRendering } from "./reader/annotations";
 import { installPopupEnlarge } from "./reader/popup_enlarge";
 import { installCompletion } from "./completion/controller";
 import { DEFAULT_COMMANDS, parseCommands } from "./completion/dictionary";
+import { installMathPaste } from "./features/paste_math";
 
 declare const window: any;
 
@@ -230,6 +231,7 @@ function install() {
 	window[FLAG] = true;
 
 	loadSettings(window.__latexSuiteSettings);
+	const stopMathPaste = isReaderWindow(window) ? null : installMathPaste(window);
 
 	// Set when we handled a printable key, so the insertion it would otherwise
 	// have caused can be cancelled again at `beforeinput`. Belt and braces:
@@ -294,6 +296,7 @@ function install() {
 
 	// Called from bootstrap.js when the plugin is disabled or updated.
 	window.__latexSuiteUninstall = () => {
+		stopMathPaste?.();
 		completion?.destroy();
 		completion = null;
 		stopTracking?.();

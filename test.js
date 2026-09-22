@@ -222,7 +222,7 @@ const { FIELDS } = require("./bootstrap.js");
 		},
 	};
 	new Function("window", "navigator", "console", bundle)(win, { userAgent: "Mac" }, console);
-	assert.deepStrictEqual(events, ["+keydown", "+beforeinput", "+selectionchange"]);
+	assert.deepStrictEqual(events, ["+paste", "+keydown", "+beforeinput", "+selectionchange"]);
 	assert.strictEqual(win.__latexSuiteInstalled, true);
 	assert.ok(win.__latexSuite.settings.snippets.length > 200);
 
@@ -245,8 +245,8 @@ const { FIELDS } = require("./bootstrap.js");
 
 	win.__latexSuiteUninstall();
 	assert.deepStrictEqual(events, [
-		"+keydown", "+beforeinput", "+selectionchange",
-		"-keydown", "-beforeinput", "-selectionchange",
+		"+paste", "+keydown", "+beforeinput", "+selectionchange",
+		"-paste", "-keydown", "-beforeinput", "-selectionchange",
 	]);
 	assert.strictEqual(win.__latexSuiteInstalled, undefined);
 

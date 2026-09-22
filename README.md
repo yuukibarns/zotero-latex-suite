@@ -79,6 +79,17 @@ Run `npm run typecheck`, `npm run build`, and `npm test` to validate the extensi
 
 ### Existing features
 
+### Pasting ChatGPT math
+
+Plain-text pastes containing `\(...\)` or `\[...\]` are normalized to dollar
+delimiters and passed to Zotero 10's own Markdown importer. This creates native
+equation nodes and retains its Markdown table/list handling. Code spans, fenced
+and indented code, existing dollar math, and unmatched delimiters are left alone.
+Pasting into an equation or code block retains normal behavior. Rich HTML and
+image/annotation pastes are not intercepted; use Paste without Formatting when
+copying LaTeX source from a rich-text page. Conversion uses private Zotero editor
+internals and falls back to normal paste if its Markdown importer is unavailable.
+
 - **Live rendering in annotations** — `$…$` and `$$…$$` in a comment are drawn
   as you write, everywhere annotations appear. The equation the cursor is inside
   stays as source so you can keep editing it; click a rendered one to get back
