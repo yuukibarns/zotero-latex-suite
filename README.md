@@ -1,5 +1,22 @@
 # LaTeX Suite for Zotero
 
+Completion fork maintained by **yuukibarns**, based on
+[Pavel Ievlev's Zotero LaTeX Suite](https://github.com/ievlevpn/zotero-latex-suite).
+Original licenses and attribution are retained, including Obsidian LaTeX Suite
+and Completr contributions.
+
+## Fork builds and releases
+
+GitHub Actions typechecks, builds, tests, and uploads a `latex-suite-completion`
+artifact on pushes to `master` and `feat/**`, and on pull requests. Download the
+artifact from the workflow run and extract the XPI to install it.
+
+For a public release, set `manifest.json`'s version, commit it, and push a matching
+`v<version>` tag to this fork. CI publishes the XPI and SHA-256 checksum as GitHub
+Release assets only after all checks pass. Use this workflow rather than the
+original upstream `release.sh`. Packaged previews use the fork's empty update
+feed; publishing a release does not yet enable automatic in-app updates.
+
 **Write LaTeX in your PDF annotations and see it rendered as you type.** Zotero
 renders equations in notes but not in annotation comments, where most reading
 notes actually get written — so a comment reading `the bound $\|x\|_2 \leq 1$

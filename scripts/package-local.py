@@ -9,7 +9,6 @@ output = Path(sys.argv[1]).resolve()
 output.parent.mkdir(parents=True, exist_ok=True)
 manifest = json.loads((root / "manifest.json").read_text())
 manifest["name"] = "LaTeX Suite (Completion Preview)"
-manifest["version"] = "0.5.3.1"
 # Zotero requires an update URL even for local builds. An empty fork-owned
 # feed prevents the official release stream from replacing this preview.
 manifest["applications"]["zotero"]["update_url"] = "https://raw.githubusercontent.com/yuukibarns/zotero-latex-suite/feat/latex-completion/completion-updates.json"
