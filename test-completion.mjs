@@ -105,7 +105,14 @@ const key = (name,extra={})=>{const e=new win.KeyboardEvent('keydown',{key:name,
 const popup = ()=>doc.getElementById('latex-suite-completion');
 doc.dispatchEvent(new win.Event('selectionchange'));await tick();assert.equal(popup(),null);
 win.dispatchEvent(new win.Event('resize'));await tick();assert.equal(popup(),null);
-await input(); assert.ok(popup());
+// ProseMirror can consume input and commit its state after the DOM event.
+reset('al');
+const consumeInput = e => e.stopPropagation();
+el.addEventListener('input', consumeInput);
+el.dispatchEvent(new win.InputEvent('input',{bubbles:true,inputType:'insertText',data:'p'}));
+reset('alp');
+await tick(); assert.ok(popup(), 'typing opens completion despite delayed editor state and consumed bubbling');
+el.removeEventListener('input', consumeInput);
 assert.equal(key('ArrowDown').defaultPrevented,true);
 assert.equal(key('ArrowUp').defaultPrevented,true);
 assert.equal(key('Enter').defaultPrevented,true);

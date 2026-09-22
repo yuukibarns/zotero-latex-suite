@@ -16,7 +16,7 @@ export function installCompletion(win: Window, commands: Command[], minimum: num
 	let dismissed = "", owner: object | null = null, key = "", selected = 0;
 	let items: Command[] = [];
 	let target: Element | null = null;
-	let pendingInput: { owner: object; key: string } | null = null;
+	let pendingInput: { owner: object } | null = null;
 	const identity = (b: Buffer) => `${b.from}:${b.to}:${b.text}`;
 	function close() {
 		pendingInput = null;
@@ -40,7 +40,9 @@ export function installCompletion(win: Window, commands: Command[], minimum: num
 		const b = currentBuffer(win), token = b && tokenAt(b, minimum);
 		if (!b || !token || !b.caretRect) { close(); owner = null; dismissed = ""; return; }
 		const nextKey = identity(b);
-		const edited = pendingInput?.owner === b.owner && pendingInput.key === nextKey;
+		// Input may precede ProseMirror's DOM-observer transaction. Read the
+		// resulting text here, not during input; only editor identity is stable.
+		const edited = pendingInput?.owner === b.owner;
 		pendingInput = null;
 		// Selection, focus, scroll and resize can maintain an existing popup,
 		// but only text input can open it or move it to a changed token.
@@ -79,6 +81,10 @@ export function installCompletion(win: Window, commands: Command[], minimum: num
 	}
 	function keydown(e: KeyboardEvent) {
 		if (composing || e.isComposing || e.keyCode === 229) { close(); return false; }
+		if (["ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"].includes(e.key)
+			|| (!items.length && ["ArrowUp", "ArrowDown", "Tab", "Escape", "Enter"].includes(e.key))) {
+			close(); return false;
+		}
 		if (!items.length) return false;
 		if (e.key === "Tab" || (e.key === "Enter" && e.shiftKey)) { suppress(); return false; }
 		if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return false;
@@ -97,13 +103,15 @@ export function installCompletion(win: Window, commands: Command[], minimum: num
 		if (!insertion && !(type.startsWith("delete") && items.length)) { close(); return; }
 		const b = currentBuffer(win);
 		if (!b) { close(); return; }
-		blocked = false; pendingInput = { owner: b.owner, key: identity(b) }; schedule();
+		blocked = false; pendingInput = { owner: b.owner }; schedule();
 	};
 	const start = () => { composing = true; close(); };
 	const end = () => { composing = false; input(); };
 	const blur = () => { close(); };
+	const pointer = (e: Event) => { if (!popup.contains(e.target as Node)) close(); };
 	const listeners: [EventTarget, string, EventListener, boolean][] = [
-		[doc, "input", input, false], [doc, "selectionchange", schedule, false],
+		[doc, "input", input, true], [doc, "selectionchange", schedule, false],
+		[doc, "pointerdown", pointer, true],
 		[doc, "compositionstart", start, true], [doc, "compositionend", end, true],
 		[doc, "focusout", blur, true], [doc, "scroll", schedule, true], [win, "resize", schedule, false],
 	];
