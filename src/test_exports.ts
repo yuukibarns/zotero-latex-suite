@@ -17,3 +17,6 @@ export { runAutoFraction } from "./features/autofraction";
 export { renderMath, unrenderMath, syncRender, isRendered } from "./render/math";
 export { segmentsOf, domPointAt, offsetOfPoint, selectionOffsets, setCaret } from "./render/segments";
 export { installPopupEnlarge } from "./reader/popup_enlarge";
+export { DEFAULT_COMMANDS, parseCommands, candidates, tokenAt, replacementOf } from "./completion/dictionary";
+export { installCompletion } from "./completion/controller";
+export { expandCompletion } from "./snippets/snippet_management";

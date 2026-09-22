@@ -22,6 +22,10 @@ const PREF = "extensions.zotero.latexSuite.settings";
  * These exist so the settings pane can show what a field falls back to.
  * test.js fails if the two drift apart. */
 const FIELDS = [
+	{ group: "Completion", key: "completionEnabled", type: "bool", default: true, label: "Enable completion in note equations" },
+	{ group: "Completion", key: "completionMinLength", type: "number", default: 2, label: "Minimum completion prefix length" },
+	{ group: "Completion", key: "loadCompletionFromFile", type: "bool", default: false, label: "Load custom completion dictionary" },
+	{ group: "Completion", key: "completionFileLocation", type: "file", default: "", label: "Completion JSON file", hint: "Completr latex_commands.json format. Replaces the built-in dictionary." },
 	{ group: "Snippet files", key: "loadSnippetsFromFile", type: "bool", default: false,
 		label: "Load snippets from a file",
 		hint: "Point at a .js or .md file, or a folder of them \u2014 an obsidian-latex-suite snippets file works as-is. Re-read whenever it changes on disk." },
@@ -126,6 +130,7 @@ let payloadJSON = null;
  * engine runs in a content window and cannot read files, so the contents are
  * read here and travel with the settings. */
 const SOURCES = [
+	{ key: "completionCommands", enabledKey: "loadCompletionFromFile", pathKey: "completionFileLocation" },
 	{ key: "snippets", enabledKey: "loadSnippetsFromFile", pathKey: "snippetsFileLocation" },
 	{ key: "snippetVariables", enabledKey: "loadSnippetVariablesFromFile", pathKey: "snippetVariablesFileLocation" },
 ];
@@ -227,7 +232,13 @@ async function refreshFileSources() {
 
 		try {
 			const { sources } = await readSourceAt(path);
-			fileSources.set(source.key, { path, text: sources.length === 1 ? sources[0] : sources, stamp, error: null });
+			let text = sources.length === 1 ? sources[0] : sources;
+			if (source.key === "completionCommands") {
+				if (sources.length !== 1 || Zotero.File.pathToFile(path).isDirectory()) throw new Error("Choose one completion JSON file");
+				text = JSON.parse(sources[0]);
+				if (!Array.isArray(text) || text.some(x => typeof x !== "string" && (!x || typeof x.displayName !== "string" || !x.displayName || /[\r\n]/.test(x.displayName) || typeof x.replacement !== "string")) || text.some(x => typeof x === "string" && (!x || /[\r\n]/.test(x)))) throw new Error("Invalid completion dictionary entries");
+			}
+			fileSources.set(source.key, { path, text, stamp, error: null });
 			changed = true;
 		} catch (e) {
 			fileSources.set(source.key, { path, text: previous?.text ?? null, stamp: null, error: String(e) });

@@ -5,12 +5,15 @@
   "scripts": {
     "build": "node esbuild.config.mjs",
     "watch": "node esbuild.config.mjs --watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node test.js && node test-completion.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.25.0",
     "jsdom": "^30.0.1",
     "katex": "^0.18.4",
+    "katex-zotero": "npm:katex@0.16.22",
+    "prosemirror-history": "^1.4.1",
     "prosemirror-model": "^1.25.11",
     "prosemirror-state": "^1.4.4",
     "typescript": "^5.7.0"

@@ -17,6 +17,8 @@ import { Snippet } from "./snippets/snippets";
 import { Context } from "./utils/context";
 import { installAnnotationRendering } from "./reader/annotations";
 import { installPopupEnlarge } from "./reader/popup_enlarge";
+import { installCompletion } from "./completion/controller";
+import { DEFAULT_COMMANDS, parseCommands } from "./completion/dictionary";
 
 declare const window: any;
 
@@ -25,6 +27,8 @@ const FLAG = "__latexSuiteInstalled";
 const MODIFIER_KEYS = new Set(["Shift", "Control", "Alt", "Meta", "CapsLock", "AltGraph", "Dead"]);
 
 let settings: Settings | null = null;
+let completion: ReturnType<typeof installCompletion> | null = null;
+let completionCommands = DEFAULT_COMMANDS;
 let automaticSnippets: Snippet[] = [];
 
 /* Last few keystrokes we acted on, for diagnosing misbehaviour in a real note:
@@ -91,6 +95,13 @@ function loadSettings(json: string | undefined) {
 	}
 
 	automaticSnippets = settings ? settings.snippets.filter((s) => s.options.automatic) : [];
+	completion?.destroy();
+	completion = null;
+	try { completionCommands = raw.completionCommands === undefined ? DEFAULT_COMMANDS : parseCommands(raw.completionCommands); }
+	catch (e) { console.error("latex-suite: invalid completion dictionary; retaining previous commands", e); }
+	if (raw.completionEnabled && !isReaderWindow(window)) {
+		completion = installCompletion(window, completionCommands, Math.max(1, Math.floor(Number(raw.completionMinLength) || 2)));
+	}
 	manualByKey = new Map();
 	clearTabstops();
 	syncAnnotationRendering();
@@ -134,6 +145,7 @@ function handleKeydown(event: KeyboardEvent): boolean {
 
 	// Fires on every chord; there is nothing here that a bare modifier can trigger.
 	if (MODIFIER_KEYS.has(event.key)) return false;
+	if (completion?.keydown(event)) return true;
 
 	const core = getEditorCore(window);
 	if (core?.view) rememberSelectionClass(core.view);
@@ -164,14 +176,14 @@ function handleKeydown(event: KeyboardEvent): boolean {
 
 	// 1. Automatic snippets, on any plain printable key.
 	if (settings.snippetsEnabled && event.key.length === 1 && !event.ctrlKey && !event.metaKey) {
-		if (runSnippets(window, { snippets: automaticSnippets, key: event.key }, settings, buffer)) return true;
+		if (runSnippets(window, { snippets: automaticSnippets, key: event.key }, settings, buffer)) { completion?.suppress(); return true; }
 	}
 
 	// 2. Manual snippets (Tab by default, or the snippet's own triggerKey).
 	if (settings.snippetsEnabled) {
 		const manual = manualSnippetsFor(key);
 		trace.manual = manual.length;
-		if (manual.length && runSnippets(window, { snippets: manual }, settings, buffer)) return true;
+		if (manual.length && runSnippets(window, { snippets: manual }, settings, buffer)) { completion?.suppress(); return true; }
 	}
 
 	// 3./4. Tabstops.
@@ -282,6 +294,8 @@ function install() {
 
 	// Called from bootstrap.js when the plugin is disabled or updated.
 	window.__latexSuiteUninstall = () => {
+		completion?.destroy();
+		completion = null;
 		stopTracking?.();
 		stopPopupEnlarge?.();
 		window.document.removeEventListener("keydown", onKeydown, true);

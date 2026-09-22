@@ -121,7 +121,8 @@ export function expandSnippet(buffer: Buffer, from: number, to: number, result: 
 	const owner = buffer.owner;
 	buffer.watch((map) => {
 		if (active && active.owner === owner) {
-			active.groups = active.groups.map((group) => group.map(map));
+			for (const snippet of stack) if (snippet.owner === owner)
+				snippet.groups = snippet.groups.map((group) => group.map(map));
 			paintMarks();
 		}
 	});
@@ -136,6 +137,14 @@ export function expandSnippet(buffer: Buffer, from: number, to: number, result: 
 	doc?.addEventListener("scroll", paintMarks, true);
 	paintMarks();
 	return true;
+}
+
+/** Plain completions must not terminate the snippet being filled. */
+export function expandCompletion(buffer: Buffer, from: number, to: number, result: ResultInsert) {
+	buffer.closeHistory?.();
+	if (result.tabstops.length) expandSnippet(buffer, from, to, result);
+	else buffer.replaceRange(from, to, result.insert);
+	buffer.closeHistory?.();
 }
 
 /** Tab / Shift-Tab between tabstops. Returns false when there is nowhere to go. */

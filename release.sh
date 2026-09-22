@@ -10,10 +10,10 @@ XPI="latex-suite.xpi"
 VER=$(node -p "require('./manifest.json').version")
 
 npm run build
-node test.js
+npm test
 
 rm -f "$XPI"
-zip -q -r "$XPI" manifest.json bootstrap.js icon.svg prefs.xhtml prefs.js prefs.css LICENSE \
+zip -q -r "$XPI" manifest.json bootstrap.js icon.svg prefs.xhtml prefs.js prefs.css LICENSE COMPLETR-LICENSE \
 	build/content-script.js build/render.js vendor/ \
 	src/default_snippets.js src/default_snippet_variables.js
 

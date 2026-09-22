@@ -14,6 +14,8 @@ export type BufferKind = "math_inline" | "math_display" | "text" | "code";
 export type Range = { from: number; to: number };
 
 export interface Buffer {
+	caretRect?(): { left: number; right: number; top: number; bottom: number };
+	closeHistory?(): void;
 	/** identity of the thing being edited, so stale tabstops can be spotted */
 	readonly owner: object;
 	readonly kind: BufferKind;

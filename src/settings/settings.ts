@@ -14,6 +14,11 @@ import DEFAULT_SNIPPET_VARIABLES_SOURCE from "../default_snippet_variables.js?ra
 export type SnippetDebugLevel = "off" | "info" | "verbose";
 
 export interface RawSettings {
+	completionEnabled: boolean;
+	completionMinLength: number;
+	loadCompletionFromFile: boolean;
+	completionFileLocation: string;
+	completionCommands?: unknown;
 	/** JavaScript source: `export default [ … ]`. An array when several files. */
 	snippets: string | string[];
 	/** JavaScript source: `export default { … }`. An array when several files. */
@@ -77,6 +82,10 @@ export const DEFAULT_SNIPPETS = DEFAULT_SNIPPETS_SOURCE;
 export const DEFAULT_SNIPPET_VARIABLES = DEFAULT_SNIPPET_VARIABLES_SOURCE;
 
 export const DEFAULT_SETTINGS: RawSettings = {
+	completionEnabled: true,
+	completionMinLength: 2,
+	loadCompletionFromFile: false,
+	completionFileLocation: "",
 	snippets: DEFAULT_SNIPPETS,
 	snippetVariables: DEFAULT_SNIPPET_VARIABLES,
 

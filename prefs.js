@@ -146,7 +146,7 @@
 		/* Whether a file actually loads is the whole question with this setting, so
 		 * say so rather than leaving it to be discovered in a note. */
 		const fileStatuses = [];
-		const sourceKeyFor = (key) => (key.startsWith("snippetVariables") ? "snippetVariables" : "snippets");
+		const sourceKeyFor = (key) => key.startsWith("completion") ? "completionCommands" : (key.startsWith("snippetVariables") ? "snippetVariables" : "snippets");
 
 		async function refreshFileStatuses() {
 			for (const { field, input, status } of fileStatuses) {
@@ -158,6 +158,11 @@
 				}
 				const key = sourceKeyFor(field.key);
 				const loaded = Zotero.LatexSuite.fileStatus(key);
+				if (key === "completionCommands") {
+					status.textContent = loaded?.error || (loaded?.text ? `${loaded.text.length} completion entries loaded` : "Enable custom dictionary and reload to validate");
+					status.classList.toggle("ls-error", !!loaded?.error);
+					continue;
+				}
 				try {
 					const { sources, files } = await Zotero.LatexSuite.readSourceAt(path);
 					const check = checkModule(key === "snippets" ? "snippets" : "variables");

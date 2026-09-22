@@ -33,6 +33,32 @@ Download `latex-suite.xpi` from the
 
 ## Features
 
+### Note equation completion (local extension)
+
+Inside an inline or display equation, type `alp` (or `\alp`) to suggest
+`\alpha`. Suggestions appear after two letters. Up/Down select, Enter accepts,
+Escape dismisses, and Tab retains the existing snippet/tabstop behavior.
+Shift+Enter dismisses suggestions and passes Enter through to the editor.
+Completions such as `\frac{#}{#}` insert argument tabstops; use Tab/Shift+Tab
+to fill them. Your custom snippet expansions still run before completion updates.
+
+Settings → LaTeX Suite → Completion lets you disable completion, change the
+minimum prefix length, or select a custom Completr `latex_commands.json` file.
+Enable “Load custom completion dictionary” to use that file instead of the defaults.
+Files are polled for changes. Invalid files retain the last valid dictionary;
+the settings pane displays the load error. After restarting, an invalid file
+falls back to built-in commands until corrected.
+
+The bundled 743 entries are derived from Completr and validated against
+KaTeX 0.16.22, as bundled in the inspected Zotero 10 installation. Custom files
+may include commands the renderer does not support. See
+`src/completion/PROVENANCE.md` and `COMPLETR-LICENSE` for source attribution.
+Completion is limited to note equations, not annotation comments or plain text.
+
+Run `npm run typecheck`, `npm run build`, and `npm test` to validate the extension.
+
+### Existing features
+
 - **Live rendering in annotations** — `$…$` and `$$…$$` in a comment are drawn
   as you write, everywhere annotations appear. The equation the cursor is inside
   stays as source so you can keep editing it; click a rendered one to get back

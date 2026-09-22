@@ -299,6 +299,17 @@ export class PMBuffer implements Buffer {
 		return this.view.dom.ownerDocument;
 	}
 
+	caretRect() { return this.view.coordsAtPos(this.view.state.selection.head); }
+
+	closeHistory() {
+		// Math edits are forwarded to the outer view, which owns undo history.
+		const math = this.view.dom?.closest?.(".math-node") as any;
+		const outer = math?.pmViewDesc?.spec?._outerView;
+		for (const view of new Set([this.view, outer].filter(Boolean))) {
+			view.dispatch(view.state.tr.setMeta("closeHistory$", true));
+		}
+	}
+
 	clientRects(range: Range): DOMRect[] {
 		try {
 			const from = this.view.domAtPos(range.from);
