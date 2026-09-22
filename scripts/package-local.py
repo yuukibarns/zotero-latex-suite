@@ -10,8 +10,12 @@ output.parent.mkdir(parents=True, exist_ok=True)
 manifest = json.loads((root / "manifest.json").read_text())
 manifest["name"] = "LaTeX Suite (Completion Preview)"
 manifest["version"] = "0.5.3.1"
-manifest["applications"]["zotero"].pop("update_url", None)
+# Zotero requires an update URL even for local builds. An empty fork-owned
+# feed prevents the official release stream from replacing this preview.
+manifest["applications"]["zotero"]["update_url"] = "https://raw.githubusercontent.com/yuukibarns/zotero-latex-suite/feat/latex-completion/completion-updates.json"
 manifest["applications"]["zotero"]["strict_min_version"] = "10.0"
+for field in ("id", "update_url", "strict_max_version"):
+    assert manifest["applications"]["zotero"].get(field), f"Zotero requires {field}"
 files = [
     "bootstrap.js", "icon.svg", "prefs.xhtml", "prefs.js", "prefs.css",
     "LICENSE", "COMPLETR-LICENSE", "build/content-script.js", "build/render.js",
