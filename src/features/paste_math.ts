@@ -60,12 +60,14 @@ export function installMathPaste(win: Window) {
 	const onPaste = (event: ClipboardEvent) => {
 		const data = event.clipboardData;
 		if (!data || data.files.length || data.types.includes("zotero/annotation")) return;
-		if (data.getData("text/html") && !(event as any).shiftKey) return;
 		if (getActiveMathView(win.document)) return; // already editing raw LaTeX
 		const core = getEditorCore(win), view = core?.view;
 		if (!view || view.editable === false || !view.dom.contains(win.document.activeElement)) return;
 		if (view.state.selection.$from.parent.type.spec.code) return;
 		const text = data.getData("text/plain");
+		// Browser copies commonly contain both HTML and Markdown/plain text.
+		// Prefer the text only when it actually contains convertible TeX math;
+		// otherwise leave Zotero's rich-text paste entirely untouched.
 		const normalized = normalizeMathPaste(text);
 		if (normalized === text) return;
 		// Zotero 10's own Markdown plugin preserves tables, lists and native math.

@@ -28,11 +28,23 @@ function paste(text,html='',extra={}) {
 }
 assert.equal(paste(table).defaultPrevented,true);assert.equal(pasted,normalize(table));
 assert.equal(paste('normal text').defaultPrevented,false);
-assert.equal(paste('\\(x\\)','<p>rich</p>').defaultPrevented,false);
+const browserTypes = ['text/plain','text/plain;charset=utf-8','UTF8_STRING','chromium/x-internal-source-rfh-token','TEXT','chromium/x-source-url','STRING','text/html'];
+assert.equal(paste('\\(x\\)','<p>\\(x\\)</p>',{types:browserTypes}).defaultPrevented,true);
+assert.equal(pasted,'$x$');
+assert.equal(paste('\\[x+y\\]','<p>\\[x+y\\]</p>',{types:browserTypes}).defaultPrevented,true);
+assert.equal(pasted,'\n\n$$\nx+y\n$$\n\n');
+assert.equal(paste(table,'<table><tr><td>\\(x\\)</td></tr></table>',{types:browserTypes}).defaultPrevented,true);
+assert.equal(pasted,normalize(table));
+for (const text of ['normal text','\\(unclosed','`\\(code\\)`','$x$']) {
+ assert.equal(paste(text,'<p>rich</p>',{types:browserTypes}).defaultPrevented,false);
+ assert.equal(pasted,null);
+}
+assert.equal(paste('','<p>HTML only</p>',{types:['text/html']}).defaultPrevented,false);
 code=true;assert.equal(paste('\\(x\\)').defaultPrevented,false);code=false;
 assert.equal(paste('\\(x\\)','',{files:[{}]}).defaultPrevented,false);
 assert.equal(paste('\\(x\\)','',{types:['zotero/annotation']}).defaultPrevented,false);
 succeeds=false;assert.equal(paste('\\(x\\)').defaultPrevented,false);succeeds=true;
+succeeds=false;assert.equal(paste('\\(x\\)','<p>rich</p>',{types:browserTypes}).defaultPrevented,false);succeeds=true;
 stop();assert.equal(paste('\\(x\\)').defaultPrevented,false);
 win.close();
 console.log('Math paste conversion and native-parser routing tests passed.');
