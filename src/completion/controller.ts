@@ -16,8 +16,10 @@ export function installCompletion(win: Window, commands: Command[], minimum: num
 	let dismissed = "", owner: object | null = null, key = "", selected = 0;
 	let items: Command[] = [];
 	let target: Element | null = null;
+	let pendingInput: { owner: object; key: string } | null = null;
 	const identity = (b: Buffer) => `${b.from}:${b.to}:${b.text}`;
 	function close() {
+		pendingInput = null;
 		popup.remove(); items = [];
 		if (target) { target.removeAttribute("aria-controls"); target.removeAttribute("aria-activedescendant"); }
 		target = null;
@@ -38,6 +40,11 @@ export function installCompletion(win: Window, commands: Command[], minimum: num
 		const b = currentBuffer(win), token = b && tokenAt(b, minimum);
 		if (!b || !token || !b.caretRect) { close(); owner = null; dismissed = ""; return; }
 		const nextKey = identity(b);
+		const edited = pendingInput?.owner === b.owner && pendingInput.key === nextKey;
+		pendingInput = null;
+		// Selection, focus, scroll and resize can maintain an existing popup,
+		// but only text input can open it or move it to a changed token.
+		if (!edited && (!items.length || owner !== b.owner || key !== nextKey)) { close(); return; }
 		if (owner !== b.owner) dismissed = "";
 		if (dismissed === nextKey && owner === b.owner) { close(); return; }
 		dismissed = "";
@@ -84,7 +91,14 @@ export function installCompletion(win: Window, commands: Command[], minimum: num
 		if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) close();
 		return false;
 	}
-	const input = () => { blocked = false; schedule(); };
+	const input = (event?: Event) => {
+		const type = (event as InputEvent | undefined)?.inputType ?? "insertText";
+		const insertion = ["insertText", "insertCompositionText", "insertFromComposition"].includes(type);
+		if (!insertion && !(type.startsWith("delete") && items.length)) { close(); return; }
+		const b = currentBuffer(win);
+		if (!b) { close(); return; }
+		blocked = false; pendingInput = { owner: b.owner, key: identity(b) }; schedule();
+	};
 	const start = () => { composing = true; close(); };
 	const end = () => { composing = false; input(); };
 	const blur = () => { close(); };

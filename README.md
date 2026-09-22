@@ -53,7 +53,10 @@ Download `latex-suite.xpi` from the
 ### Note equation completion (local extension)
 
 Inside an inline or display equation, type `alp` (or `\alp`) to suggest
-`\alpha`. Suggestions appear after two letters. Up/Down select, Enter accepts,
+`\alpha`. Suggestions appear after typing two letters; moving the cursor into
+existing text does not open the menu. Fuzzy matching also accepts skipped
+letters, such as `aph` for `\alpha`, while prioritizing prefix and contiguous
+matches over scattered matches. Up/Down select, Enter accepts,
 Escape dismisses, and Tab retains the existing snippet/tabstop behavior.
 Shift+Enter dismisses suggestions and passes Enter through to the editor.
 Completions such as `\frac{#}{#}` insert argument tabstops; use Tab/Shift+Tab

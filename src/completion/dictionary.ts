@@ -23,12 +23,22 @@ export function tokenAt(buffer: Buffer, minimum: number) {
 }
 export function candidates(commands: Command[], query: string): Command[] {
 	const lower = query.toLowerCase();
+	if (!lower) return [];
 	return commands.map((command, index) => {
 		const name = command.displayName.replace(/^\\/, "");
-		const rank = name.startsWith(query) ? 0 : name.toLowerCase().startsWith(lower) ? 1 : 2;
-		return { command, index, name, rank };
-	}).filter(x => x.name.toLowerCase().includes(lower))
-		.sort((a, b) => a.rank - b.rank || a.name.split("{")[0].length - b.name.split("{")[0].length || a.index - b.index)
+		const folded = name.toLowerCase();
+		const rank = name.startsWith(query) ? 0 : folded.startsWith(lower) ? 1 : folded.includes(lower) ? 2 : 3;
+		// Ordered subsequence matching. Prefer compact matches, then earlier starts.
+		// Try every first-character position so a later contiguous match can win.
+		let score = Infinity;
+		for (let start = folded.indexOf(lower[0]); start >= 0; start = folded.indexOf(lower[0], start + 1)) {
+			let end = start;
+			for (let i = 1; i < lower.length && end >= 0; i++) end = folded.indexOf(lower[i], end + 1);
+			if (end >= 0) score = Math.min(score, (end - start + 1 - lower.length) * 10 + start);
+		}
+		return { command, index, name, rank, score };
+	}).filter(x => Number.isFinite(x.score))
+		.sort((a, b) => a.rank - b.rank || a.score - b.score || a.name.split("{")[0].length - b.name.split("{")[0].length || a.index - b.index)
 		.map(x => x.command);
 }
 export function replacementOf(source: string, inline = false): ResultInsert {
