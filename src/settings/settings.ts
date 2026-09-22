@@ -15,6 +15,7 @@ export type SnippetDebugLevel = "off" | "info" | "verbose";
 
 export interface RawSettings {
 	completionEnabled: boolean;
+	mathPreviewEnabled: boolean;
 	completionMinLength: number;
 	loadCompletionFromFile: boolean;
 	completionFileLocation: string;
@@ -83,6 +84,7 @@ export const DEFAULT_SNIPPET_VARIABLES = DEFAULT_SNIPPET_VARIABLES_SOURCE;
 
 export const DEFAULT_SETTINGS: RawSettings = {
 	completionEnabled: true,
+	mathPreviewEnabled: true,
 	completionMinLength: 2,
 	loadCompletionFromFile: false,
 	completionFileLocation: "",

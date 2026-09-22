@@ -214,7 +214,7 @@ const { FIELDS } = require("./bootstrap.js");
 	const bundle = fs.readFileSync(__dirname + "/build/content-script.js", "utf8");
 	const events = [];
 	const win = {
-		__latexSuiteSettings: JSON.stringify({ completionEnabled: false }),
+		__latexSuiteSettings: JSON.stringify({ completionEnabled: false, mathPreviewEnabled: false }),
 		document: {
 			addEventListener: (type) => events.push("+" + type),
 			removeEventListener: (type) => events.push("-" + type),
@@ -226,7 +226,7 @@ const { FIELDS } = require("./bootstrap.js");
 	assert.strictEqual(win.__latexSuiteInstalled, true);
 	assert.ok(win.__latexSuite.settings.snippets.length > 200);
 
-	const oneSnippet = JSON.stringify({ completionEnabled: false, snippets: `export default [{trigger: "zz", replacement: "ZZ", options: "mA"}]` });
+	const oneSnippet = JSON.stringify({ completionEnabled: false, mathPreviewEnabled: false, snippets: `export default [{trigger: "zz", replacement: "ZZ", options: "mA"}]` });
 	win.__latexSuiteReload(oneSnippet);
 	assert.deepStrictEqual(win.__latexSuite.settings.snippets.map((s) => s.trigger), ["zz"]);
 
@@ -239,7 +239,7 @@ const { FIELDS } = require("./bootstrap.js");
 	// Broken snippets fall back to the defaults rather than leaving no engine.
 	const realError = console.error;
 	console.error = () => {}; // the fallback logs the syntax error, as it should
-	win.__latexSuiteReload(JSON.stringify({ completionEnabled: false, snippets: "export default not valid js {{{" }));
+	win.__latexSuiteReload(JSON.stringify({ completionEnabled: false, mathPreviewEnabled: false, snippets: "export default not valid js {{{" }));
 	console.error = realError;
 	assert.ok(win.__latexSuite.settings.snippets.length > 200);
 

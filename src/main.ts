@@ -20,6 +20,7 @@ import { installPopupEnlarge } from "./reader/popup_enlarge";
 import { installCompletion } from "./completion/controller";
 import { DEFAULT_COMMANDS, parseCommands } from "./completion/dictionary";
 import { installMathPaste } from "./features/paste_math";
+import { installMathPreview } from "./features/math_preview";
 
 declare const window: any;
 
@@ -29,6 +30,7 @@ const MODIFIER_KEYS = new Set(["Shift", "Control", "Alt", "Meta", "CapsLock", "A
 
 let settings: Settings | null = null;
 let completion: ReturnType<typeof installCompletion> | null = null;
+let stopMathPreview: (() => void) | null = null;
 let completionCommands = DEFAULT_COMMANDS;
 let automaticSnippets: Snippet[] = [];
 
@@ -97,6 +99,8 @@ function loadSettings(json: string | undefined) {
 
 	automaticSnippets = settings ? settings.snippets.filter((s) => s.options.automatic) : [];
 	completion?.destroy();
+	stopMathPreview?.();
+	stopMathPreview = raw.mathPreviewEnabled && !isReaderWindow(window) ? installMathPreview(window) : null;
 	completion = null;
 	try { completionCommands = raw.completionCommands === undefined ? DEFAULT_COMMANDS : parseCommands(raw.completionCommands); }
 	catch (e) { console.error("latex-suite: invalid completion dictionary; retaining previous commands", e); }
@@ -296,6 +300,8 @@ function install() {
 
 	// Called from bootstrap.js when the plugin is disabled or updated.
 	window.__latexSuiteUninstall = () => {
+		stopMathPreview?.();
+		stopMathPreview = null;
 		stopMathPaste?.();
 		completion?.destroy();
 		completion = null;

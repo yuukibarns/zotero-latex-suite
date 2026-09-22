@@ -1,8 +1,9 @@
 // Optional integration test against the installed Zotero bundle (no user profile).
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { JSDOM } from 'jsdom';
-import { installMathPaste } from './build/test-exports.mjs';
+import { installMathPaste, installMathPreview } from './build/test-exports.mjs';
 const archive = process.env.ZOTERO_ARCHIVE || '/usr/lib/zotero/app/omni.ja';
 const dom = new JSDOM('<!doctype html><div id="editor-container"></div>', {runScripts:'outside-only', pretendToBeVisual:true, url:'https://example.invalid/'});
 const win = dom.window;
@@ -32,4 +33,51 @@ try {
  }
  stop();
  console.log('Installed Zotero editor mixed-format paste passed.');
+ const stopPreview = installMathPreview(win);
+ const tick = () => new Promise(resolve=>win.requestAnimationFrame(()=>win.requestAnimationFrame(resolve)));
+ for (const tag of ['math-inline','math-display']) {
+  const node = view.dom.querySelector(tag), math = node.pmViewDesc.spec;
+  const beforePreview = JSON.stringify(view.state.doc.toJSON());
+  math.selectNode();math._innerView.focus();await tick();
+  const panel=win.document.getElementById('latex-suite-math-preview');
+  assert.ok(panel?.querySelector('.katex'),`${tag} renders preview`);
+  assert.equal(panel.parentNode,tag==='math-inline'?win.document.body:node);
+  assert.equal(JSON.stringify(view.state.doc.toJSON()),beforePreview,'preview does not edit note');
+  if (tag==='math-inline') {
+   node.getBoundingClientRect=()=>({left:20,right:120,top:200,bottom:220});
+   Object.defineProperty(panel,'offsetHeight',{configurable:true,value:50});
+   Object.defineProperty(panel,'offsetWidth',{configurable:true,value:150});
+   const menu=win.document.createElement('div');menu.id='latex-suite-completion';
+   menu.getBoundingClientRect=()=>({left:20,right:200,top:225,bottom:425});
+   win.document.body.append(menu);await tick();
+   assert.ok(parseFloat(panel.style.top)+50<225,'preview avoids completion menu');
+   menu.remove();await tick();
+   assert.equal(panel.style.top,'226px');
+  }
+  const inner=math._innerView;
+  inner.dispatch(inner.state.tr.insertText('x+2',0,inner.state.doc.content.size));await tick();
+  assert.ok(panel.textContent.includes('2'));
+  const good=panel.firstChild.innerHTML;
+  inner.dispatch(inner.state.tr.insertText('\\frac{',0,inner.state.doc.content.size));await tick();
+  assert.equal(panel.firstChild.innerHTML,good);
+  assert.match(panel.textContent,/Incomplete expression/);
+  inner.dispatch(inner.state.tr.insertText('x+3',0,inner.state.doc.content.size));await tick();
+  assert.equal(panel.querySelector('.ls-preview-status').textContent,'');
+  assert.ok(panel.textContent.includes('3'));
+  math.deselectNode();view.focus();await tick();
+  assert.equal(win.document.getElementById('latex-suite-math-preview'),null);
+ }
+ stopPreview();
+ // Full bundle: preference reloads replace and remove the preview cleanly.
+ win.eval(readFileSync('build/content-script.js','utf8'));
+ const math=view.dom.querySelector('math-inline').pmViewDesc.spec;
+ math.selectNode();math._innerView.focus();await tick();
+ assert.ok(win.document.getElementById('latex-suite-math-preview'));
+ win.__latexSuiteReload(JSON.stringify({mathPreviewEnabled:false}));await tick();
+ assert.equal(win.document.getElementById('latex-suite-math-preview'),null);
+ win.__latexSuiteReload(JSON.stringify({mathPreviewEnabled:true}));await tick();
+ assert.ok(win.document.getElementById('latex-suite-math-preview'));
+ win.__latexSuiteUninstall();await tick();
+ assert.equal(win.document.getElementById('latex-suite-math-preview'),null);
+ console.log('Installed Zotero inline/display live previews passed.');
 } finally {win.close();}

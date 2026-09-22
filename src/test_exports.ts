@@ -21,3 +21,4 @@ export { DEFAULT_COMMANDS, parseCommands, candidates, tokenAt, replacementOf } f
 export { installCompletion } from "./completion/controller";
 export { expandCompletion } from "./snippets/snippet_management";
 export { normalizeMathPaste, installMathPaste } from "./features/paste_math";
+export { installMathPreview } from "./features/math_preview";
