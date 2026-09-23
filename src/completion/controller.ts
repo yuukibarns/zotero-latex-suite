@@ -17,8 +17,10 @@ export function installCompletion(win: Window, commands: Command[], minimum: num
 	let items: Command[] = [];
 	let target: Element | null = null;
 	let pendingInput: { owner: object } | null = null;
+	let side: "above" | "below" | null = null;
 	const identity = (b: Buffer) => `${b.from}:${b.to}:${b.text}`;
 	function close() {
+		side = null;
 		pendingInput = null;
 		popup.remove(); items = [];
 		if (target) { target.removeAttribute("aria-controls"); target.removeAttribute("aria-activedescendant"); }
@@ -31,7 +33,7 @@ export function installCompletion(win: Window, commands: Command[], minimum: num
 		const row = popup.children[selected] as HTMLElement;
 		if (row) {
 			if (row.offsetTop < popup.scrollTop) popup.scrollTop = row.offsetTop;
-			else if (row.offsetTop + 28 > popup.scrollTop + 224) popup.scrollTop = row.offsetTop - 196;
+			else if (row.offsetTop + 28 > popup.scrollTop + popup.clientHeight) popup.scrollTop = row.offsetTop + 28 - popup.clientHeight;
 		}
 	}
 	function refresh() {
@@ -61,14 +63,24 @@ export function installCompletion(win: Window, commands: Command[], minimum: num
 				popup.append(row);
 			});
 		}
+		if (owner !== b.owner) side = null;
 		owner = b.owner; key = nextKey; items = next;
 		target = doc.activeElement;
 		target?.setAttribute("aria-controls", popup.id);
 		doc.body.append(popup); paint();
 		try {
-			const rect = b.caretRect(), height = popup.offsetHeight, width = popup.offsetWidth;
+			const rect = b.caretRect();
+			const below = Math.max(0, win.innerHeight - rect.bottom - 11), above = Math.max(0, rect.top - 11);
+			// Reserve a full list when choosing a side, then keep it while typing.
+			side ??= below >= 224 || below >= above ? "below" : "above";
+			const space = side === "below" ? below : above;
+			popup.style.maxHeight = `${Math.min(224, space)}px`;
+			popup.style.visibility = space < 28 ? "hidden" : "";
+			popup.dataset.side = side;
+			const height = popup.offsetHeight, width = popup.offsetWidth;
 			popup.style.left = `${Math.max(8, Math.min(rect.left, win.innerWidth - width - 8))}px`;
-			popup.style.top = `${Math.max(8, rect.bottom + height < win.innerHeight ? rect.bottom + 3 : rect.top - height - 3)}px`;
+			popup.style.top = `${Math.max(8, side === "below" ? rect.bottom + 3 : rect.top - height - 3)}px`;
+			paint();
 		} catch { close(); }
 	}
 	function schedule() { if (!frame && !stopped) frame = win.requestAnimationFrame(refresh); }
@@ -109,11 +121,12 @@ export function installCompletion(win: Window, commands: Command[], minimum: num
 	const end = () => { composing = false; input(); };
 	const blur = () => { close(); };
 	const pointer = (e: Event) => { if (!popup.contains(e.target as Node)) close(); };
+	const viewport = () => { side = null; schedule(); };
 	const listeners: [EventTarget, string, EventListener, boolean][] = [
 		[doc, "input", input, true], [doc, "selectionchange", schedule, false],
 		[doc, "pointerdown", pointer, true],
 		[doc, "compositionstart", start, true], [doc, "compositionend", end, true],
-		[doc, "focusout", blur, true], [doc, "scroll", schedule, true], [win, "resize", schedule, false],
+		[doc, "focusout", blur, true], [doc, "scroll", (e) => { if (!popup.contains(e.target as Node)) viewport(); }, true], [win, "resize", viewport, false],
 	];
 	listeners.forEach(([t, e, f, c]) => t.addEventListener(e, f, c));
 	return { keydown, suppress, destroy() {

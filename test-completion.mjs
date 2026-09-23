@@ -151,6 +151,15 @@ assert.equal(key('ArrowUp').defaultPrevented,true);
 assert.equal(key('Enter').defaultPrevented,true);
 assert.equal(view.state.doc.textContent,'\\alpha'); assert.equal(popup(),null);
 function reset(s='alp') {view.dispatch(view.state.tr.insertText(s,0,view.state.doc.content.size));}
+key('Escape');
+const oldCoords=view.coordsAtPos;
+view.coordsAtPos=()=>({left:20,right:20,top:win.innerHeight-120,bottom:win.innerHeight-100});
+reset('al');await input();assert.equal(popup().dataset.side,'above');
+reset('alpha');await input();assert.equal(popup().dataset.side,'above','narrowing results does not flip menu');
+reset('al');await input();assert.equal(popup().dataset.side,'above');
+view.coordsAtPos=()=>({left:20,right:20,top:20,bottom:40});
+win.dispatchEvent(new win.Event('resize'));await tick();assert.equal(popup().dataset.side,'below');
+view.coordsAtPos=oldCoords;key('Escape');
 reset(String.raw`x+\text{hello world}`);
 view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc,19)));
 assert.equal(key('Backspace',{ctrlKey:true}).defaultPrevented,true);

@@ -52,37 +52,42 @@ export function installMathPreview(win: Window, debounceMs = 100) {
 		const parent = inline ? doc.body : node;
 		if (panel.parentNode !== parent) parent.append(panel);
 		if (!inline) { panel.style.removeProperty("left"); panel.style.removeProperty("top"); return; }
-		const anchor = node.getBoundingClientRect(), width = panel.offsetWidth, height = panel.offsetHeight;
-		// Keep the usual below-caret space free for command completion.
-		let top = anchor.top - height - 6;
-		if (top < 8) top = anchor.bottom + 6;
-		const menu = doc.getElementById("latex-suite-completion")?.getBoundingClientRect();
-		let left = Math.max(8, Math.min(anchor.left, win.innerWidth - width - 8));
-		if (menu && left < menu.right && left + width > menu.left && top < menu.bottom && top + height > menu.top) {
-			if (menu.top - height - 6 >= 8) top = menu.top - height - 6;
-			else if (menu.bottom + height + 6 < win.innerHeight - 8) top = menu.bottom + 6;
-			else if (menu.right + width + 6 < win.innerWidth - 8) left = menu.right + 6;
-			else { panel.style.visibility = "hidden"; return; }
-		}
+		// Inline wrappers can report only their baseline/last line. Include the
+		// nested source editor, whose box contains every wrapped source line.
+		const boxes = [node.getBoundingClientRect(), math._innerView.dom?.getBoundingClientRect()]
+			.filter((r): r is DOMRect => !!r && (r.width > 0 || r.height > 0));
+		const anchor = boxes.length ? {
+			left: Math.min(...boxes.map(r => r.left)), right: Math.max(...boxes.map(r => r.right)),
+			top: Math.min(...boxes.map(r => r.top)), bottom: Math.max(...boxes.map(r => r.bottom)),
+		} : node.getBoundingClientRect();
+		const width = panel.offsetWidth, height = panel.offsetHeight;
+		const left = Math.max(8, Math.min(anchor.left, win.innerWidth - width - 8));
+		// Always above the source, independent of completion placement/height.
+		// The completion menu has a higher z-index and may overlap the preview.
+		const top = anchor.top - height - 6;
+		if (top < 8 || top + height > win.innerHeight - 8) { panel.style.visibility = "hidden"; return; }
 		panel.style.visibility = "";
 		panel.style.left = `${left}px`;
-		panel.style.top = `${Math.max(8, top)}px`;
+		panel.style.top = `${top}px`;
 	}
 	function schedule() { if (!stopped && !frame) frame = win.requestAnimationFrame(refresh); }
 	const start = () => { composing = true; cancelRender(); };
 	const end = () => { composing = false; schedule(); };
+	const viewport = (e: Event) => {
+		if ((e.target as Element)?.closest?.("#latex-suite-completion")) return;
+		schedule();
+	};
 	const listeners: [EventTarget, string, EventListener][] = [
 		[doc, "input", schedule], [doc, "keydown", schedule], [doc, "selectionchange", schedule],
-		[doc, "focusin", schedule], [doc, "focusout", schedule], [doc, "scroll", schedule],
-		[win, "resize", schedule], [doc, "compositionstart", start], [doc, "compositionend", end],
+		[doc, "focusin", schedule], [doc, "focusout", schedule], [doc, "scroll", viewport],
+		[win, "resize", viewport], [doc, "compositionstart", start], [doc, "compositionend", end],
 	];
 	listeners.forEach(([target, name, fn]) => target.addEventListener(name, fn, true));
 	// Includes snippet/completion transactions that do not dispatch DOM input.
 	const observer = new (win as any).MutationObserver((records: MutationRecord[]) => {
 		if (records.some(r => {
 			const el = r.target.nodeType === 1 ? r.target as Element : r.target.parentElement;
-			return el?.closest(".math-src, #latex-suite-completion") ||
-				Array.from(r.addedNodes).concat(Array.from(r.removedNodes)).some(n => (n as Element).id === "latex-suite-completion");
+			return el?.closest(".math-src");
 		})) schedule();
 	});
 	observer.observe(doc.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ["style"] });
