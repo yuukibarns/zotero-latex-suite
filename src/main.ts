@@ -102,7 +102,7 @@ function loadSettings(json: string | undefined) {
 	automaticSnippets = settings ? settings.snippets.filter((s) => s.options.automatic) : [];
 	completion?.destroy();
 	stopMathPreview?.();
-	stopMathPreview = raw.mathPreviewEnabled && !isReaderWindow(window) ? installMathPreview(window) : null;
+	stopMathPreview = raw.mathPreviewEnabled && !isReaderWindow(window) ? installMathPreview(window, Number(raw.mathPreviewDebounceMs)) : null;
 	completion = null;
 	try { completionCommands = raw.completionCommands === undefined ? DEFAULT_COMMANDS : parseCommands(raw.completionCommands); }
 	catch (e) { console.error("latex-suite: invalid completion dictionary; retaining previous commands", e); }

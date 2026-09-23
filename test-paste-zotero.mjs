@@ -33,7 +33,7 @@ try {
  }
  stop();
  console.log('Installed Zotero editor mixed-format paste passed.');
- const stopPreview = installMathPreview(win);
+ const stopPreview = installMathPreview(win, 0);
  const tick = () => new Promise(resolve=>win.requestAnimationFrame(()=>win.requestAnimationFrame(resolve)));
  for (const tag of ['math-inline','math-display']) {
   const node = view.dom.querySelector(tag), math = node.pmViewDesc.spec;
@@ -72,13 +72,14 @@ try {
  }
  stopPreview();
  // Full bundle: preference reloads replace and remove the preview cleanly.
+ win.__latexSuiteSettings=JSON.stringify({mathPreviewDebounceMs:0});
  win.eval(readFileSync('build/content-script.js','utf8'));
  const math=view.dom.querySelector('math-inline').pmViewDesc.spec;
  math.selectNode();math._innerView.focus();await tick();
  assert.ok(win.document.getElementById('latex-suite-math-preview'));
  win.__latexSuiteReload(JSON.stringify({mathPreviewEnabled:false}));await tick();
  assert.equal(win.document.getElementById('latex-suite-math-preview'),null);
- win.__latexSuiteReload(JSON.stringify({mathPreviewEnabled:true}));await tick();
+ win.__latexSuiteReload(JSON.stringify({mathPreviewEnabled:true,mathPreviewDebounceMs:0}));await tick();
  assert.ok(win.document.getElementById('latex-suite-math-preview'));
  win.__latexSuiteUninstall();await tick();
  assert.equal(win.document.getElementById('latex-suite-math-preview'),null);

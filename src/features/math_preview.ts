@@ -1,5 +1,6 @@
 /** View-only previews using the renderer already owned by Zotero's MathView. */
-export function installMathPreview(win: Window) {
+export function installMathPreview(win: Window, debounceMs = 100) {
+	const delay = Number.isFinite(debounceMs) ? Math.max(0, Math.min(2000, debounceMs)) : 100;
 	const doc = win.document;
 	const panel = doc.createElement("div");
 	panel.id = "latex-suite-math-preview";
@@ -14,7 +15,9 @@ export function installMathPreview(win: Window) {
 	doc.head.append(style);
 	let frame = 0, stopped = false, composing = false;
 	let owner: any = null, lastText: string | null = null;
-	function close() { panel.remove(); panel.style.visibility = ""; output.replaceChildren(); status.textContent = ""; owner = null; lastText = null; }
+	let timer = 0, pendingText: string | null = null, ready = false;
+	function cancelRender() { win.clearTimeout(timer); timer = 0; pendingText = null; ready = false; }
+	function close() { cancelRender(); panel.remove(); panel.style.visibility = ""; output.replaceChildren(); status.textContent = ""; owner = null; lastText = null; }
 	function refresh() {
 		frame = 0;
 		if (stopped || composing) return;
@@ -23,7 +26,14 @@ export function installMathPreview(win: Window) {
 		if (!node || !math?._innerView || typeof math.renderMath !== "function" || !math._mathRenderElt) { close(); return; }
 		if (owner !== math) { close(); owner = math; }
 		const text = math._innerView.state.doc.textContent;
-		if (text !== lastText) {
+		if (text === lastText) cancelRender();
+		else if (text !== pendingText) {
+			cancelRender(); pendingText = text;
+			if (delay === 0) ready = true;
+			else timer = win.setTimeout(() => { timer = 0; ready = true; schedule(); }, delay);
+		}
+		if (text !== lastText && ready) {
+			cancelRender();
 			lastText = text;
 			try {
 				math.renderMath();
@@ -35,6 +45,8 @@ export function installMathPreview(win: Window) {
 			} catch { status.textContent = "Preview unavailable"; }
 			if (!output.childNodes.length && status.textContent?.startsWith("Incomplete")) status.textContent = "Incomplete expression";
 		}
+		// Retain the last rendering while typing; don't show an empty first panel.
+		if (lastText === null) return;
 		const inline = node.tagName.toLowerCase() === "math-inline";
 		panel.dataset.inline = String(inline);
 		const parent = inline ? doc.body : node;
@@ -57,7 +69,7 @@ export function installMathPreview(win: Window) {
 		panel.style.top = `${Math.max(8, top)}px`;
 	}
 	function schedule() { if (!stopped && !frame) frame = win.requestAnimationFrame(refresh); }
-	const start = () => { composing = true; };
+	const start = () => { composing = true; cancelRender(); };
 	const end = () => { composing = false; schedule(); };
 	const listeners: [EventTarget, string, EventListener][] = [
 		[doc, "input", schedule], [doc, "keydown", schedule], [doc, "selectionchange", schedule],

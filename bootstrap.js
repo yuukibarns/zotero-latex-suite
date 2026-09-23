@@ -24,6 +24,7 @@ const PREF = "extensions.zotero.latexSuite.settings";
 const FIELDS = [
 	{ group: "Completion", key: "completionEnabled", type: "bool", default: true, label: "Enable completion in note equations" },
 	{ group: "Completion", key: "mathPreviewEnabled", type: "bool", default: true, label: "Live preview while editing note equations" },
+	{ group: "Completion", key: "mathPreviewDebounceMs", type: "number", default: 100, label: "Preview debounce (ms, 0 = immediate, maximum 2000)" },
 	{ group: "Completion", key: "completionMinLength", type: "number", default: 2, label: "Minimum completion prefix length" },
 	{ group: "Completion", key: "loadCompletionFromFile", type: "bool", default: false, label: "Load custom completion dictionary" },
 	{ group: "Completion", key: "completionFileLocation", type: "file", default: "", label: "Completion JSON file", hint: "Completr latex_commands.json format. Replaces the built-in dictionary." },
