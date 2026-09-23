@@ -9,6 +9,11 @@ import * as ls from './build/test-exports.mjs';
 import { mathView } from './test-editor.mjs';
 
 const commands = ls.parseCommands(['\\alpha', '\\Alpha', '\\varalpha', '\\frac{#}{#}']);
+for (const [source, expected] of [['hello world','hello '],['hello world  ','hello '],['\\alpha',''],['x_{foo','x_{'],['foo}','foo'],['',''],['   ',''],['αβ',''],['😀','']]) {
+ const v=mathView(source);
+ assert.equal(ls.deleteMathWord(ls.PMBuffer.forMath(v,'math_inline')),true);
+ assert.equal(v.state.doc.textContent,expected);
+}
 // File settings retain a last good dictionary and expose invalid-file errors.
 let fileText = '["\\\\alpha"]', stamp = 1;
 const sandbox = { Zotero: {
@@ -63,6 +68,15 @@ assert.deepEqual(ls.replacementOf('\\frac{#}{#}').tabstops.map(x=>x.from), [6,8,
 assert.equal(ls.replacementOf('a\n~b', true).tabstops[0].from, 1);
 
 // Real history plugin: completion forms one isolated event, including later typing.
+const deletion = mathView('hello world');
+deletion.state = EditorState.create({doc:deletion.state.doc,plugins:[history()]});
+deletion.dispatch(deletion.state.tr.setSelection(TextSelection.create(deletion.state.doc,11)));
+ls.deleteMathWord(ls.PMBuffer.forMath(deletion,'math_display'));
+assert.equal(deletion.state.doc.textContent,'hello ');
+assert.ok(undo(deletion.state,deletion.dispatch));
+assert.equal(deletion.state.doc.textContent,'hello world');
+assert.equal(ls.deleteMathWord({inMath:false}),false);
+assert.equal(ls.deleteMathWord({inMath:true,dollarMath:true}),false);
 const hist = mathView('');
 hist.state = EditorState.create({doc:hist.state.doc, plugins:[history()]});
 hist.dispatch(hist.state.tr.insertText('alp'));
@@ -111,6 +125,17 @@ const tick = ()=>new Promise(r=>win.requestAnimationFrame(()=>win.requestAnimati
 const input = async()=>{el.dispatchEvent(new win.Event('input',{bubbles:true})); await tick();};
 const key = (name,extra={})=>{const e=new win.KeyboardEvent('keydown',{key:name,bubbles:true,cancelable:true,...extra});el.dispatchEvent(e);return e;};
 const popup = ()=>doc.getElementById('latex-suite-completion');
+let undos=0,redos=0;
+win.doUndo=()=>{undos++;return false;};win.doRedo=()=>{redos++;return false;};
+assert.equal(key('z',{ctrlKey:true}).defaultPrevented,true);
+assert.equal(key('Z',{ctrlKey:true,shiftKey:true}).defaultPrevented,true);
+assert.equal(key('y',{ctrlKey:true}).defaultPrevented,true);
+assert.equal(key('z',{metaKey:true}).defaultPrevented,true);
+assert.equal(key('Z',{metaKey:true,shiftKey:true}).defaultPrevented,true);
+assert.equal(key('z',{ctrlKey:true,isComposing:true}).defaultPrevented,false);
+assert.equal(key('z',{ctrlKey:true,altKey:true}).defaultPrevented,false);
+assert.equal(undos,2);assert.equal(redos,3);
+el.blur();assert.equal(key('z',{ctrlKey:true}).defaultPrevented,false);el.focus();
 doc.dispatchEvent(new win.Event('selectionchange'));await tick();assert.equal(popup(),null);
 win.dispatchEvent(new win.Event('resize'));await tick();assert.equal(popup(),null);
 // ProseMirror can consume input and commit its state after the DOM event.
@@ -126,6 +151,17 @@ assert.equal(key('ArrowUp').defaultPrevented,true);
 assert.equal(key('Enter').defaultPrevented,true);
 assert.equal(view.state.doc.textContent,'\\alpha'); assert.equal(popup(),null);
 function reset(s='alp') {view.dispatch(view.state.tr.insertText(s,0,view.state.doc.content.size));}
+reset(String.raw`x+\text{hello world}`);
+view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc,19)));
+assert.equal(key('Backspace',{ctrlKey:true}).defaultPrevented,true);
+assert.equal(view.state.doc.textContent,String.raw`x+\text{hello }`);
+reset('hello');view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc,1,4)));
+assert.equal(key('Backspace',{ctrlKey:true}).defaultPrevented,true);
+assert.equal(view.state.doc.textContent,'ho');
+reset('');assert.equal(key('Backspace',{ctrlKey:true}).defaultPrevented,true);
+reset('hello');assert.equal(key('Backspace').defaultPrevented,false);
+assert.equal(key('Backspace',{ctrlKey:true,isComposing:true}).defaultPrevented,false);
+assert.equal(view.state.doc.textContent,'hello');
 reset(String.raw`\text{alp`);await input();assert.equal(popup(),null);
 assert.equal(key('Enter').defaultPrevented,false);
 reset(String.raw`\text{hello}alp`);await input();assert.ok(popup());

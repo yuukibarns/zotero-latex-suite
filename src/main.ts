@@ -21,6 +21,8 @@ import { installCompletion } from "./completion/controller";
 import { DEFAULT_COMMANDS, parseCommands } from "./completion/dictionary";
 import { installMathPaste } from "./features/paste_math";
 import { installMathPreview } from "./features/math_preview";
+import { deleteMathWord } from "./features/math_delete";
+import { handleMathHistory } from "./features/math_history";
 
 declare const window: any;
 
@@ -150,6 +152,11 @@ function handleKeydown(event: KeyboardEvent): boolean {
 
 	// Fires on every chord; there is nothing here that a bare modifier can trigger.
 	if (MODIFIER_KEYS.has(event.key)) return false;
+	if (handleMathHistory(window, event)) {
+		completion?.suppress();
+		clearTabstops();
+		return true;
+	}
 	if (completion?.keydown(event)) return true;
 
 	const core = getEditorCore(window);
@@ -159,6 +166,10 @@ function handleKeydown(event: KeyboardEvent): boolean {
 	const where = isReaderWindow(window) ? "reader" : "note";
 
 	const buffer = currentBuffer(window);
+	if (buffer && event.key === "Backspace" && event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey && deleteMathWord(buffer)) {
+		completion?.suppress();
+		return true;
+	}
 	if (!buffer) {
 		// Worth recording: "no buffer here" is the usual reason a key does nothing.
 		record({ key, where: `${where}: no editable buffer at ${describeFocus()}`, handled: false });
