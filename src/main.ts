@@ -5,7 +5,7 @@
  * counterpart in Zotero (auto-deleting `$`, which is not text here, and vim).
  */
 import { currentBuffer, isReaderWindow, recoverCommentFocus, trackCommentSelection } from "./editor/index";
-import { rememberSelectionClass, getEditorCore } from "./editor/pm";
+import { rememberSelectionClass, getEditorCore, deleteMathNode } from "./editor/pm";
 import { keyNameFromEvent } from "./snippets/parse";
 import { DEFAULT_SETTINGS, processSettings, RawSettings, Settings } from "./settings/settings";
 import { runSnippets } from "./features/run_snippets";
@@ -166,6 +166,13 @@ function handleKeydown(event: KeyboardEvent): boolean {
 	const where = isReaderWindow(window) ? "reader" : "note";
 
 	const buffer = currentBuffer(window);
+	const removeEquation = event.key === "Backspace" && event.ctrlKey && event.shiftKey && !event.altKey && !event.metaKey;
+	const plainDelete = ["Backspace", "Delete"].includes(event.key) && !event.ctrlKey && !event.shiftKey && !event.altKey && !event.metaKey;
+	if ((removeEquation || plainDelete) && deleteMathNode(window, removeEquation, event.key === "Backspace")) {
+		completion?.suppress();
+		clearTabstops();
+		return true;
+	}
 	if (buffer && event.key === "Backspace" && event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey && deleteMathWord(buffer)) {
 		completion?.suppress();
 		return true;

@@ -11,7 +11,8 @@
  */
 import assert from "node:assert";
 import { Schema } from "prosemirror-model";
-import { EditorState, TextSelection } from "prosemirror-state";
+import { EditorState, TextSelection, NodeSelection } from "prosemirror-state";
+import { history, undo, redo } from "prosemirror-history";
 import * as ls from "./build/test-exports.mjs";
 
 const schema = new Schema({
@@ -54,6 +55,31 @@ const settingsFor = (source) =>
 const automatic = (settings) => settings.snippets.filter((s) => s.options.automatic);
 const text = (view) => view.state.doc.textContent;
 const cursor = (view) => [view.state.selection.from, view.state.selection.to];
+
+// Node deletion must be an outer-document transaction, including sole/last blocks.
+for (const kind of ['math_display','math_inline']) for (const value of ['', 'x+1']) {
+	const equation=schema.nodes[kind].create(null,value?schema.text(value):null);
+	const doc=schema.nodes.doc.create(null,kind==='math_inline'?schema.nodes.paragraph.create(null,[schema.text('a'),equation,schema.text('b')]):equation);
+	const pos=kind==='math_inline'?2:0;
+	const outer={state:EditorState.create({doc,selection:NodeSelection.create(doc,pos),plugins:[history()]}),editable:true,focus(){},hasFocus:()=>true,dispatch(tr){this.state=this.state.apply(tr);}};
+	const inner=mathView(value,value.length,kind);
+	const win={_currentEditorInstance:{_editorCore:{view:outer}},document:{activeElement:{closest:()=>({pmViewDesc:{spec:{_innerView:inner,_getPos:()=>pos}}})}}};
+	if(value) assert.equal(ls.deleteMathNode(win),false,'ordinary deletion preserves nonempty equation');
+	assert.equal(ls.deleteMathNode(win,!!value),true);
+	assert.equal(outer.state.doc.textContent,kind==='math_inline'?'ab':'');
+	assert.equal(outer.state.doc.firstChild.type.name,'paragraph');
+	assert.ok(undo(outer.state,outer.dispatch.bind(outer)));
+	assert.ok(outer.state.doc.eq(doc));
+	assert.ok(redo(outer.state,outer.dispatch.bind(outer)));
+}
+for(const backward of [true,false]) {
+	const math=schema.nodes.math_display.create(),p=schema.nodes.paragraph.create(null,schema.text('text'));
+	const doc=schema.nodes.doc.create(null,backward?[math,p]:[p,math]);
+	const outer=viewOf(doc,backward?math.nodeSize+1:5);outer.hasFocus=()=>true;outer.focus=()=>{};
+	const win={_currentEditorInstance:{_editorCore:{view:outer}},document:{activeElement:{closest:()=>null}}};
+	assert.equal(ls.deleteMathNode(win,false,backward),true);
+	assert.equal(outer.state.doc.childCount,1);assert.equal(outer.state.doc.textContent,'text');
+}
 
 /* A Buffer over a plain string, standing in for an annotation comment.
  * The reader's real backend adds only DOM plumbing on top of this contract:

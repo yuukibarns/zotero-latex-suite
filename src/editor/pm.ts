@@ -417,3 +417,45 @@ export function exitMath(innerView: PMView): boolean {
 	outer.focus();
 	return true;
 }
+
+/** Delete an equation in the outer document, preserving a valid caret and undo. */
+export function deleteMathNode(win: Window, explicit = false, backward = true): boolean {
+	const outer = getEditorCore(win)?.view;
+	if (!outer || outer.editable === false) return false;
+	flush(outer);
+	const el = win.document.activeElement?.closest?.(".math-node") as any;
+	const math = el?.pmViewDesc?.spec;
+	let pos: number | undefined;
+	if (math?._innerView) {
+		flush(math._innerView);
+		if (!explicit && math._innerView.state.doc.textContent.length) return false;
+		pos = math._getPos?.();
+	} else {
+		if (!outer.hasFocus()) return false;
+		const sel = outer.state.selection;
+		if (sel.node && /^math_(inline|display)$/.test(sel.node.type.name)) pos = sel.from;
+		else if (!explicit && sel.empty) {
+			let at = sel.$from;
+			// At a paragraph boundary, inspect its adjacent sibling block.
+			if (at.depth > 0 && (backward ? at.parentOffset === 0 : at.parentOffset === at.parent.content.size))
+				at = outer.state.doc.resolve(backward ? at.before() : at.after());
+			const adjacent = backward ? at.nodeBefore : at.nodeAfter;
+			if (adjacent && /^math_(inline|display)$/.test(adjacent.type.name) && !adjacent.textContent.length)
+				pos = backward ? at.pos - adjacent.nodeSize : at.pos;
+		}
+	}
+	if (typeof pos !== "number") return false;
+	const node = outer.state.doc.nodeAt(pos);
+	if (!node || !/^math_(inline|display)$/.test(node.type.name)) return false;
+	rememberSelectionClass(outer);
+	if (math?._innerView) rememberSelectionClass(math._innerView);
+	const tr = outer.state.tr.delete(pos, pos + node.nodeSize).setMeta("closeHistory$", true);
+	// ProseMirror fills a required block when deleting the note's sole equation.
+	const selection = nearSelection(tr.doc, Math.min(pos, tr.doc.content.size), backward ? -1 : 1);
+	if (!selection) return false;
+	tr.setSelection(selection);
+	outer.dispatch(tr.scrollIntoView());
+	outer.dispatch(outer.state.tr.setMeta("closeHistory$", true));
+	outer.focus();
+	return true;
+}

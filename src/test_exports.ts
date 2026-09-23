@@ -23,3 +23,4 @@ export { expandCompletion } from "./snippets/snippet_management";
 export { normalizeMathPaste, installMathPaste } from "./features/paste_math";
 export { installMathPreview } from "./features/math_preview";
 export { deleteMathWord } from "./features/math_delete";
+export { deleteMathNode } from "./editor/pm";
