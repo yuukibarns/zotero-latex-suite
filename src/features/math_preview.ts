@@ -41,8 +41,9 @@ export function installMathPreview(win: Window) {
 		if (panel.parentNode !== parent) parent.append(panel);
 		if (!inline) { panel.style.removeProperty("left"); panel.style.removeProperty("top"); return; }
 		const anchor = node.getBoundingClientRect(), width = panel.offsetWidth, height = panel.offsetHeight;
-		let top = anchor.bottom + 6;
-		if (top + height > win.innerHeight - 8) top = anchor.top - height - 6;
+		// Keep the usual below-caret space free for command completion.
+		let top = anchor.top - height - 6;
+		if (top < 8) top = anchor.bottom + 6;
 		const menu = doc.getElementById("latex-suite-completion")?.getBoundingClientRect();
 		let left = Math.max(8, Math.min(anchor.left, win.innerWidth - width - 8));
 		if (menu && left < menu.right && left + width > menu.left && top < menu.bottom && top + height > menu.top) {

@@ -52,7 +52,10 @@ try {
    win.document.body.append(menu);await tick();
    assert.ok(parseFloat(panel.style.top)+50<225,'preview avoids completion menu');
    menu.remove();await tick();
-   assert.equal(panel.style.top,'226px');
+   assert.equal(panel.style.top,'144px','inline preview prefers above the equation');
+   node.getBoundingClientRect=()=>({left:20,right:120,top:20,bottom:40});
+   win.dispatchEvent(new win.Event('resize'));await tick();
+   assert.equal(panel.style.top,'46px','falls back below near viewport top');
   }
   const inner=math._innerView;
   inner.dispatch(inner.state.tr.insertText('x+2',0,inner.state.doc.content.size));await tick();
