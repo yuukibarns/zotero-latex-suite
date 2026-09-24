@@ -2,6 +2,10 @@ import { getActiveMathView, getEditorCore } from "../editor/pm";
 
 /** Normalize paired TeX delimiters, preserving code and existing dollar math. */
 export function normalizeMathPaste(source: string): string {
+	return scanMathPaste(source);
+}
+
+function scanMathPaste(source: string, emit?: (body: string, display: boolean) => string): string {
 	let out = "", i = 0;
 	while (i < source.length) {
 		// Fenced and indented code are literal. Consume a whole fence, including
@@ -27,8 +31,21 @@ export function normalizeMathPaste(source: string): string {
 		if (source[i] === "$") {
 			const delimiter = source[i + 1] === "$" ? "$$" : "$";
 			let end = i + delimiter.length;
-			while ((end = source.indexOf(delimiter, end)) >= 0 && source[end - 1] === "\\") end += delimiter.length;
-			if (end >= 0) { end += delimiter.length; out += source.slice(i, end); i = end; continue; }
+			while ((end = source.indexOf(delimiter, end)) >= 0) {
+				let slashes = 0;
+				for (let p = end - 1; p >= 0 && source[p] === "\\"; p--) slashes++;
+				if (slashes % 2 === 0) break;
+				end += delimiter.length;
+			}
+			if (end >= 0) {
+				const body = source.slice(i + delimiter.length, end);
+				const display = delimiter === "$$";
+				const valid = body.trim() && !/\n\s*\n/.test(body) && (display ||
+					(!/\s/.test(body[0]) && !/\s/.test(body[body.length - 1]) && !body.includes("\n") && !/\d/.test(source[end + 1] || "")));
+				if (emit && valid) out += emit(body.trim(), display);
+				else out += source.slice(i, end + delimiter.length);
+				i = end + delimiter.length; continue;
+			}
 		}
 		if (source[i] === "\\") {
 			const open = source[i + 1];
@@ -44,7 +61,7 @@ export function normalizeMathPaste(source: string): string {
 				if (end < source.length) {
 					const body = source.slice(i + 2, end).trim();
 					if (body && (open === "[" || !body.includes("\n"))) {
-						out += open === "(" ? `$${body}$` : `\n\n$$\n${body}\n$$\n\n`;
+						out += emit ? emit(body, open === "[") : open === "(" ? `$${body}$` : `\n\n$$\n${body}\n$$\n\n`;
 						i = end + 2; continue;
 					}
 				}
@@ -54,6 +71,52 @@ export function normalizeMathPaste(source: string): string {
 		out += source[i++];
 	}
 	return out;
+}
+
+/** Parse into a staged transaction: temporary markers never enter the editor. */
+export function mathPasteTransaction(view: any, parser: any, source: string): any | null {
+	let prefix = "ZLSMATHPLACEHOLDER";
+	while (source.includes(prefix) || view.state.doc.textContent.includes(prefix)) prefix += "X";
+	const spans: { marker: string; body: string; display: boolean }[] = [];
+	const markdown = scanMathPaste(source, (body, display) => {
+		const marker = `${prefix}${spans.length}END`;
+		spans.push({marker, body, display});
+		return display ? `\n\n${marker}\n\n` : marker;
+	});
+	if (!spans.length) return null;
+	let tr: any = null;
+	try {
+		// Zotero's insertMarkdown only needs this.view.state and dispatch. Calling
+		// it on a facade avoids swapping or monkey-patching the live plugin view.
+		const facade = Object.create(parser);
+		facade.view = { state: view.state, dispatch: (transaction: any) => { tr = transaction; } };
+		if (!parser.insertMarkdown.call(facade, markdown) || !tr) return null;
+		const replacements: {from: number; to: number; node: any}[] = [];
+		for (const span of spans) {
+			let count = 0;
+			tr.doc.descendants((node: any, pos: number, parent: any) => {
+				if (!node.isText) return;
+				let index = node.text.indexOf(span.marker);
+				while (index >= 0) {
+					count++;
+					if (parent.type.spec.code || node.marks.some((m: any) => /code/i.test(m.type.name))) throw new Error("Marker in code");
+					const type = view.state.schema.nodes[span.display ? "math_display" : "math_inline"];
+					if (!type) throw new Error("Missing math schema");
+					let from = pos + index, to = from + span.marker.length;
+					if (span.display) {
+						if (parent.type.name !== "paragraph" || parent.textContent !== span.marker) throw new Error("Invalid display marker");
+						from = pos - 1; to = from + parent.nodeSize;
+					}
+					replacements.push({from, to, node: type.create(null, view.state.schema.text(span.body), span.display ? [] : node.marks)});
+					index = node.text.indexOf(span.marker, index + span.marker.length);
+				}
+			});
+			if (count !== 1) return null;
+		}
+		for (const r of replacements.sort((a,b) => b.from - a.from)) tr.replaceWith(r.from, r.to, r.node);
+		tr.doc.check();
+		return tr.setMeta("closeHistory$", true).scrollIntoView();
+	} catch { return null; }
 }
 
 export function installMathPaste(win: Window) {
@@ -68,14 +131,13 @@ export function installMathPaste(win: Window) {
 		// Browser copies commonly contain both HTML and Markdown/plain text.
 		// Prefer the text only when it actually contains convertible TeX math;
 		// otherwise leave Zotero's rich-text paste entirely untouched.
-		const normalized = normalizeMathPaste(text);
-		if (normalized === text) return;
 		// Zotero 10's own Markdown plugin preserves tables, lists and native math.
 		const parser = view.state.plugins.map((plugin: any) => plugin.getState(view.state))
 			.find((state: any) => typeof state?.insertMarkdown === "function");
 		if (!parser) return;
-		view.dispatch(view.state.tr.setMeta("closeHistory$", true));
-		if (parser.insertMarkdown(normalized)) {
+		const tr = mathPasteTransaction(view, parser, text);
+		if (tr) {
+			view.dispatch(tr);
 			event.preventDefault(); event.stopImmediatePropagation();
 			view.dispatch(view.state.tr.setMeta("closeHistory$", true));
 		}

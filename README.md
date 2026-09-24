@@ -81,10 +81,13 @@ Run `npm run typecheck`, `npm run build`, and `npm test` to validate the extensi
 
 ### Pasting ChatGPT math
 
-Pastes whose plain-text representation contains `\(...\)` or `\[...\]` are normalized to dollar
-delimiters and passed to Zotero 10's own Markdown importer. This creates native
-equation nodes and retains its Markdown table/list handling. Code spans, fenced
-and indented code, existing dollar math, and unmatched delimiters are left alone.
+Pastes whose plain-text representation contains `\(...\)`, `\[...\]`, `$...$`, or
+`$$...$$` are imported with native equation nodes, including simple math such as
+`$n$` and `$1$`. Zotero's Markdown importer handles the surrounding text; temporary
+markers are replaced in a staged transaction before anything enters the note.
+Code spans, fenced and indented code, escaped dollars, and unmatched delimiters
+are left alone. Dollar delimiters use conservative whitespace rules to avoid
+common currency cases, though dollar notation is inherently ambiguous.
 Pasting into an equation or code block retains normal behavior. Browser clipboard
 content can include both HTML and text: when convertible math is found, the text
 is imported as Markdown, so HTML-only styling is not retained. Without convertible

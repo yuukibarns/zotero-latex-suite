@@ -1,6 +1,8 @@
 // Optional integration test against the installed Zotero bundle (no user profile).
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+const exec = promisify(execFile);
 import { readFileSync } from 'node:fs';
 import { JSDOM } from 'jsdom';
 import { installMathPaste, installMathPreview } from './build/test-exports.mjs';
@@ -12,7 +14,7 @@ win.Range.prototype.getClientRects = () => [];
 win.Range.prototype.getBoundingClientRect = () => ({left:0,right:0,top:0,bottom:0});
 try {
  for (const path of ['resource/react.js','resource/react-dom.js','resource/prop-types.js','resource/note-editor/editor.js']) {
-  win.eval(execFileSync('unzip',['-p',archive,path],{maxBuffer:20*1024*1024}).toString());
+  win.eval((await exec('unzip',['-p',archive,path],{maxBuffer:20*1024*1024})).stdout);
  }
  win.dispatchEvent(new win.MessageEvent('message',{data:{instanceID:'test',message:{action:'init',value:'<div data-schema-version="9"><p></p></div>',font:{fontFamily:'sans-serif',fontSize:14},dir:'ltr',viewMode:'library',readOnly:false}}}));
  await new Promise(resolve=>setTimeout(resolve,100));
@@ -20,13 +22,23 @@ try {
  view.focus();
  const stop=installMathPaste(win);
  const event = new win.Event('paste',{bubbles:true,cancelable:true});
- const text = process.argv.includes('--clipboard') ? execFileSync('wl-paste',['--type','text/plain']).toString() : 'Test \\(x+1\\) and\n\\[y+1\\]';
+ const text = process.argv.includes('--clipboard') ? (await exec('wl-paste',['--type','text/plain'])).stdout : '**$n$** and $1$ and \\(h(n)\\)\n\n| A | B |\n|---|---|\n| $n$ | value |\n\n- $1$\n\n\\[1\\]\n\n`$n$` and \\$1 and $5 and $10';
  Object.defineProperty(event,'clipboardData',{value:{files:[],types:['text/plain','text/html'],getData:type=>type==='text/plain'?text:'<p>Test \\(x+1\\)</p>'}});
  view.dom.dispatchEvent(event);
  assert.equal(event.defaultPrevented,true);
  const names=[];view.state.doc.descendants(node=>names.push(node.type.name));
  assert.ok(names.includes('math_inline'),JSON.stringify(view.state.doc.toJSON()));
  assert.ok(names.includes('math_display'));
+ if (!process.argv.includes('--clipboard')) {
+  const maths=[];view.state.doc.descendants(n=>{if(n.type.name.startsWith('math_'))maths.push(n);});
+  assert.deepEqual(maths.map(n=>n.textContent),['n','1','h(n)','n','1','1']);
+  assert.ok(maths[0].marks.some(m=>m.type.name==='strong'));
+  assert.ok(names.includes('table'));assert.ok(names.includes('bulletList'));
+  assert.ok(view.state.doc.textContent.includes('$n$ and $1 and $5 and $10'));
+  const pastedDoc=view.state.doc;
+  assert.ok(win.doUndo());assert.equal(view.state.doc.textContent,'');
+  assert.ok(win.doRedo());assert.ok(view.state.doc.eq(pastedDoc));
+ }
  if (process.argv.includes('--clipboard')) {
   assert.equal(names.filter(name=>name==='math_inline').length,(text.match(/\\\(/g)||[]).length);
   assert.equal(names.filter(name=>name==='math_display').length,(text.match(/\\\[/g)||[]).length);
@@ -49,7 +61,7 @@ try {
    Object.defineProperty(panel,'offsetWidth',{configurable:true,value:150});
    const menu=win.document.createElement('div');menu.id='latex-suite-completion';
    menu.getBoundingClientRect=()=>({left:20,right:200,top:225,bottom:425});
-   win.document.body.append(menu);await tick();
+   win.document.body.append(menu);win.dispatchEvent(new win.Event('resize'));await tick();
    assert.ok(parseFloat(panel.style.top)+50<225,'preview avoids completion menu');
    menu.remove();await tick();
    assert.equal(panel.style.top,'144px','inline preview prefers above the equation');

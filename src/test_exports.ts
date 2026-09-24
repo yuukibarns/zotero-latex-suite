@@ -20,7 +20,7 @@ export { installPopupEnlarge } from "./reader/popup_enlarge";
 export { DEFAULT_COMMANDS, parseCommands, candidates, tokenAt, replacementOf } from "./completion/dictionary";
 export { installCompletion } from "./completion/controller";
 export { expandCompletion } from "./snippets/snippet_management";
-export { normalizeMathPaste, installMathPaste } from "./features/paste_math";
+export { normalizeMathPaste, installMathPaste, mathPasteTransaction } from "./features/paste_math";
 export { installMathPreview } from "./features/math_preview";
 export { deleteMathWord } from "./features/math_delete";
 export { deleteMathNode } from "./editor/pm";
