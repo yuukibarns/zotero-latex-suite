@@ -20,6 +20,7 @@ import { installPopupEnlarge } from "./reader/popup_enlarge";
 import { installCompletion } from "./completion/controller";
 import { DEFAULT_COMMANDS, parseCommands } from "./completion/dictionary";
 import { installMathPaste } from "./features/paste_math";
+import { installPrintDiagnostic } from "./features/print_diagnostic";
 import { installMathPreview } from "./features/math_preview";
 import { deleteMathWord } from "./features/math_delete";
 import { handleMathHistory } from "./features/math_history";
@@ -70,6 +71,7 @@ function describeFocus(): string {
 }
 
 let lastSettingsJSON: string | undefined;
+let pdfTheme: RawSettings["pdfTheme"] = "auto";
 
 function loadSettings(json: string | undefined) {
 	// Re-injection is idempotent and happens whenever a window is re-attached;
@@ -100,6 +102,7 @@ function loadSettings(json: string | undefined) {
 	}
 
 	automaticSnippets = settings ? settings.snippets.filter((s) => s.options.automatic) : [];
+	pdfTheme = raw.pdfTheme === "light" || raw.pdfTheme === "dark" ? raw.pdfTheme : "auto";
 	completion?.destroy();
 	stopMathPreview?.();
 	stopMathPreview = raw.mathPreviewEnabled && !isReaderWindow(window) ? installMathPreview(window, Number(raw.mathPreviewDebounceMs)) : null;
@@ -254,6 +257,7 @@ function install() {
 
 	loadSettings(window.__latexSuiteSettings);
 	const stopMathPaste = isReaderWindow(window) ? null : installMathPaste(window);
+	const stopPrintDiagnostic = isReaderWindow(window) || !window.document.createElement ? null : installPrintDiagnostic(window, () => pdfTheme);
 
 	// Set when we handled a printable key, so the insertion it would otherwise
 	// have caused can be cancelled again at `beforeinput`. Belt and braces:
@@ -318,6 +322,7 @@ function install() {
 
 	// Called from bootstrap.js when the plugin is disabled or updated.
 	window.__latexSuiteUninstall = () => {
+		stopPrintDiagnostic?.();
 		stopMathPreview?.();
 		stopMathPreview = null;
 		stopMathPaste?.();

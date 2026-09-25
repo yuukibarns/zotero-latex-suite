@@ -225,7 +225,7 @@
 				for (const option of field.options) {
 					const el = h("option");
 					el.value = option;
-					el.textContent = option;
+					el.textContent = field.optionLabels?.[option] || option;
 					input.append(el);
 				}
 				input.value = stored;

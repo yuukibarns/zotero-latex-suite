@@ -22,6 +22,9 @@ const PREF = "extensions.zotero.latexSuite.settings";
  * These exist so the settings pane can show what a field falls back to.
  * test.js fails if the two drift apart. */
 const FIELDS = [
+	{ group: "PDF export", key: "pdfTheme", type: "select", default: "auto",
+		options: ["auto", "light", "dark"], optionLabels: { auto: "Follow note editor", light: "Light", dark: "Dark" },
+		label: "PDF theme", hint: "Applies to both the preview and exported PDF. Existing previews keep their theme." },
 	{ group: "Completion", key: "completionEnabled", type: "bool", default: true, label: "Enable completion in note equations" },
 	{ group: "Completion", key: "mathPreviewEnabled", type: "bool", default: true, label: "Live preview while editing note equations" },
 	{ group: "Completion", key: "mathPreviewDebounceMs", type: "number", default: 100, label: "Preview debounce (ms, 0 = immediate, maximum 2000)" },
@@ -319,6 +322,7 @@ function inject(win, { withKatex } = {}) {
 
 	const content = win.wrappedJSObject;
 	content.__latexSuiteSettings = settingsJSON();
+	if (!withKatex) Components.utils.exportFunction(diagnoseNotePrint, content, { defineAs: "__latexSuiteDiagnosePrint" });
 
 	if (content.__latexSuiteInstalled) {
 		if (content.__latexSuiteReload) content.__latexSuiteReload(settingsJSON());
@@ -617,6 +621,7 @@ function shutdown() {
 		eachTarget((win) => {
 			const content = win.wrappedJSObject;
 			if (content.__latexSuiteUninstall) content.__latexSuiteUninstall();
+			delete content.__latexSuiteDiagnosePrint;
 		});
 	});
 
@@ -651,6 +656,32 @@ function shutdown() {
 	});
 	contentScript = null;
 	katexScript = null;
+}
+
+// Remote browsers need a complete document, not parent-process DOM insertion.
+function diagnoseNotePrint(html) {
+	if (typeof html !== "string" || !html.startsWith("<!doctype html>")) throw new Error("Invalid print document");
+	const viewer = Zotero.openInViewer("data:text/html;charset=utf-8," + encodeURIComponent(html), { allowJavaScript: false });
+	const enableBackgrounds = () => {
+		const print = viewer.PrintUtils;
+		if (print.__latexSuiteBackgrounds) return;
+		const original = print.getPrintSettings;
+		print.getPrintSettings = function (...args) {
+			const settings = original.apply(this, args);
+			settings.printBGColors = true;
+			settings.printBGImages = true;
+			// Keep browser chrome out of the exported document. Content padding
+			// supplies the margins, allowing the dark canvas to reach page edges.
+			for (const field of ["headerStrLeft", "headerStrCenter", "headerStrRight",
+				"footerStrLeft", "footerStrCenter", "footerStrRight"]) settings[field] = "";
+			for (const field of ["marginTop", "marginBottom", "marginLeft", "marginRight"]) settings[field] = 0;
+			return settings;
+		};
+		print.__latexSuiteBackgrounds = true;
+	};
+	// This is the chrome window's load event, not remote content pageshow.
+	if (viewer.document.readyState === "complete") enableBackgrounds();
+	else viewer.addEventListener("load", enableBackgrounds, { once: true });
 }
 
 function install() {}
