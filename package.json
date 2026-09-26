@@ -6,7 +6,7 @@
     "build": "node esbuild.config.mjs",
     "watch": "node esbuild.config.mjs --watch",
     "typecheck": "tsc --noEmit",
-    "test": "node test.js && node test-completion.mjs && node test-paste.mjs && node test-preview.mjs && node test-print-menu.mjs && node test-print-settings.mjs"
+    "test": "node test.js && node test-completion.mjs && node test-paste.mjs && node test-preview.mjs && node test-print-menu.mjs && node test-print-settings.mjs && node test-image-resize.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.25.0",

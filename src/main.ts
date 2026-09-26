@@ -20,6 +20,7 @@ import { installPopupEnlarge } from "./reader/popup_enlarge";
 import { installCompletion } from "./completion/controller";
 import { DEFAULT_COMMANDS, parseCommands } from "./completion/dictionary";
 import { installMathPaste } from "./features/paste_math";
+import { installImageResize } from "./features/image_resize";
 import { installPrintDiagnostic } from "./features/print_diagnostic";
 import { installMathPreview } from "./features/math_preview";
 import { deleteMathWord } from "./features/math_delete";
@@ -257,6 +258,7 @@ function install() {
 
 	loadSettings(window.__latexSuiteSettings);
 	const stopMathPaste = isReaderWindow(window) ? null : installMathPaste(window);
+	const stopImageResize = isReaderWindow(window) || !window.document.createElement ? null : installImageResize(window);
 	const stopPrintDiagnostic = isReaderWindow(window) || !window.document.createElement ? null : installPrintDiagnostic(window, () => pdfTheme);
 
 	// Set when we handled a printable key, so the insertion it would otherwise
@@ -322,6 +324,7 @@ function install() {
 
 	// Called from bootstrap.js when the plugin is disabled or updated.
 	window.__latexSuiteUninstall = () => {
+		stopImageResize?.();
 		stopPrintDiagnostic?.();
 		stopMathPreview?.();
 		stopMathPreview = null;

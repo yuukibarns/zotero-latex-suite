@@ -25,3 +25,4 @@ export { installMathPreview } from "./features/math_preview";
 export { deleteMathWord } from "./features/math_delete";
 export { deleteMathNode } from "./editor/pm";
 export { installPrintDiagnostic } from "./features/print_diagnostic";
+export { commitImageSize, installImageResize } from "./features/image_resize";
