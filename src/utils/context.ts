@@ -67,13 +67,14 @@ export function scanScopes(text: string, pos: number): Scope[] {
 		}
 
 		if (c === "{") {
+			const argument = macro && stack.length === macro.depth ? macro : null;
 			stack.push({
-				kind: macro ? "command" : "group",
-				name: macro ? macro.name : prevChar,
-				argIndex: macro ? macro.argIndex : 0,
+				kind: argument ? "command" : "group",
+				name: argument ? argument.name : prevChar,
+				argIndex: argument ? argument.argIndex : 0,
 				start: i,
 			});
-			if (macro) macro.argIndex++;
+			if (argument) argument.argIndex++;
 			i++;
 			prevChar = "{";
 			continue;
@@ -85,6 +86,10 @@ export function scanScopes(text: string, pos: number): Scope[] {
 			for (let k = stack.length - 1; k >= 0; k--) {
 				if (stack[k].kind !== "environment") { stack.splice(k, 1); break; }
 			}
+			// A macro cannot own arguments outside the group where it appeared.
+			// Otherwise _{\text{data}} leaves a stale macro at depth 1, and
+			// subsequent _{...} groups are incorrectly classified as text.
+			if (macro && stack.length < macro.depth) macro = null;
 			i++;
 			prevChar = "}";
 			continue;

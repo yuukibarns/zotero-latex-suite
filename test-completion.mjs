@@ -57,7 +57,7 @@ for (const kind of ['math_inline', 'math_display']) {
  for (const source of [String.raw`\text{alp`, String.raw`\text{hello {alp`, String.raw`\text{\textbf{alp`, String.raw`\text{escaped \} alp`, String.raw`\text{escaped \{ alp`, String.raw`\text {alp`, String.raw`\textrm{alp`, String.raw`\mbox{alp`, String.raw`\textcolor{alp`]) {
   assert.equal(ls.tokenAt(ls.PMBuffer.forMath(mathView(source),kind),2),null,source);
  }
- for (const source of [String.raw`\text{hello}alp`, String.raw`\frac{alp`, String.raw`\frac{x}{alp`, String.raw`\textcolor{red}{alp`, String.raw`\\text{alp`]) {
+ for (const source of [String.raw`\text{hello}alp`, String.raw`\frac{alp`, String.raw`\frac{x}{alp`, String.raw`\textcolor{red}{alp`, String.raw`\\text{alp`, String.raw`u_{t}^{\text{target}} (x) p_{t}(x) = E_{z \sim p_{\text{data}}} [u_{alp`, String.raw`u_{\text{data}}^{alp`, String.raw`{\text{x}}_{alp`]) {
   assert.equal(ls.tokenAt(ls.PMBuffer.forMath(mathView(source),kind),2)?.query,'alp',source);
  }
 }

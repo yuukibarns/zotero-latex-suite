@@ -14,6 +14,39 @@ export function commitImageSize(view: any, pos: number, node: any, width: number
 
 /** Overlay stays outside ProseMirror; only pointer-up edits the document. */
 export function installImageResize(win: Window) {
+	let current: any = null, cleanup: (() => void) | null = null, pending = 0, stopped = false;
+	function attach() {
+		if (stopped) return;
+		const view = getEditorCore(win)?.view;
+		if (view === current && view?.dom?.isConnected) return;
+		cleanup?.(); cleanup = null; current = null;
+		if (view?.dom?.isConnected) {
+			current = view;
+			cleanup = installReadyImageResize(win);
+		}
+	}
+	function schedule() {
+		if (!pending && !stopped) pending = win.requestAnimationFrame(() => { pending = 0; attach(); });
+	}
+	// Initialization arrives via a message after the content script may have
+	// loaded. Window capture also attaches before the first image click reaches
+	// the document listeners. Watch replacement views without polling.
+	const observer = new (win as any).MutationObserver(schedule);
+	observer.observe(win.document.documentElement, { childList: true, subtree: true });
+	win.addEventListener("message", schedule);
+	win.addEventListener("pointerdown", attach, true);
+	win.addEventListener("click", attach, true);
+	attach();
+	return () => {
+		stopped = true; observer.disconnect(); win.cancelAnimationFrame(pending);
+		win.removeEventListener("message", schedule);
+		win.removeEventListener("pointerdown", attach, true);
+		win.removeEventListener("click", attach, true);
+		cleanup?.();
+	};
+}
+
+function installReadyImageResize(win: Window) {
 	const doc = win.document, view = getEditorCore(win)?.view;
 	if (!view?.dom) return () => {};
 	const overlay = doc.createElement("div");

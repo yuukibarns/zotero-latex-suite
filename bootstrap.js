@@ -323,6 +323,14 @@ function inject(win, { withKatex } = {}) {
 	const content = win.wrappedJSObject;
 	content.__latexSuiteSettings = settingsJSON();
 	if (!withKatex) Components.utils.exportFunction(diagnoseNotePrint, content, { defineAs: "__latexSuiteDiagnosePrint" });
+	if (!withKatex) Components.utils.exportFunction(() => new content.Promise((resolve, reject) => {
+		(async () => {
+		const instance = (Zotero.Notes._editorInstances || []).find(x => x._iframeWindow?.wrappedJSObject === content);
+		if (!instance?.itemID) throw new Error("Save the note before opening it in a tab.");
+		await instance.saveSync();
+		await Zotero.Notes.open(instance.itemID, undefined, { openInWindow: false });
+		})().then(() => resolve(), error => reject(new content.Error(String(error))));
+	}), content, { defineAs: "__latexSuiteOpenNoteTab" });
 
 	if (content.__latexSuiteInstalled) {
 		if (content.__latexSuiteReload) content.__latexSuiteReload(settingsJSON());
@@ -498,7 +506,37 @@ function installItemPaneRendering(window) {
 	};
 }
 
+const noteTabMenus = new Map();
+function installNoteTabMenu(window) {
+	if (noteTabMenus.has(window)) return;
+	const doc = window.document;
+	const show = event => {
+		const popup = event.target;
+		if (!popup.matches?.(".context-pane-list-popup")) return;
+		if (popup.querySelector(".latex-suite-edit-note-tab")) return;
+		const native = popup.querySelector(".context-pane-list-edit-in-window");
+		if (!native) return;
+		const item = doc.createXULElement("menuitem");
+		item.className = "latex-suite-edit-note-tab";
+		item.setAttribute("label", "Edit in New Tab");
+		item.addEventListener("command", () => {
+			const id = Number(popup.dataset.itemId);
+			if (!Number.isSafeInteger(id) || id <= 0) return;
+			Zotero.Notes.open(id, undefined, { openInWindow: false }).catch(error => {
+				Zotero.logError(error); window.alert(String(error));
+			});
+		});
+		native.after(item);
+	};
+	doc.addEventListener("popupshowing", show);
+	noteTabMenus.set(window, () => {
+		doc.removeEventListener("popupshowing", show);
+		doc.querySelectorAll(".latex-suite-edit-note-tab").forEach(item => item.remove());
+	});
+}
+
 function onMainWindowLoad({ window }) {
+	installNoteTabMenu(window);
 	if (!rootURI || itemPaneWindows.has(window)) return;
 	try {
 		const handle = installItemPaneRendering(window);
@@ -509,6 +547,7 @@ function onMainWindowLoad({ window }) {
 }
 
 function onMainWindowUnload({ window }) {
+	noteTabMenus.get(window)?.(); noteTabMenus.delete(window);
 	const handle = itemPaneWindows.get(window);
 	if (!handle) return;
 	handle.destroy();
@@ -605,6 +644,8 @@ function safely(what, fn) {
 }
 
 function shutdown() {
+	for (const cleanup of noteTabMenus.values()) cleanup();
+	noteTabMenus.clear();
 	safely("restoring registerEditorInstance", () => {
 		if (origRegisterEditorInstance) Zotero.Notes.registerEditorInstance = origRegisterEditorInstance;
 	});
@@ -622,6 +663,7 @@ function shutdown() {
 			const content = win.wrappedJSObject;
 			if (content.__latexSuiteUninstall) content.__latexSuiteUninstall();
 			delete content.__latexSuiteDiagnosePrint;
+			delete content.__latexSuiteOpenNoteTab;
 		});
 	});
 

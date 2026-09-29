@@ -5,7 +5,7 @@ import { promisify } from 'node:util';
 const exec = promisify(execFile);
 import { readFileSync } from 'node:fs';
 import { JSDOM } from 'jsdom';
-import { installMathPaste, installMathPreview } from './build/test-exports.mjs';
+import { installMathPaste, installMathPreview, installImageResize } from './build/test-exports.mjs';
 const archive = process.env.ZOTERO_ARCHIVE || '/usr/lib/zotero/app/omni.ja';
 const dom = new JSDOM('<!doctype html><div id="editor-container"></div>', {runScripts:'outside-only', pretendToBeVisual:true, url:'https://example.invalid/'});
 const win = dom.window;
@@ -16,9 +16,12 @@ try {
  for (const path of ['resource/react.js','resource/react-dom.js','resource/prop-types.js','resource/note-editor/editor.js']) {
   win.eval((await exec('unzip',['-p',archive,path],{maxBuffer:20*1024*1024})).stdout);
  }
+ const stopEarlyResize=installImageResize(win);
  win.dispatchEvent(new win.MessageEvent('message',{data:{instanceID:'test',message:{action:'init',value:'<div data-schema-version="9"><p></p></div>',font:{fontFamily:'sans-serif',fontSize:14},dir:'ltr',viewMode:'library',readOnly:false}}}));
  await new Promise(resolve=>setTimeout(resolve,100));
  const view = win._currentEditorInstance._editorCore.view;
+ assert.ok(win.document.getElementById('latex-suite-image-resize'),'resizing attaches after actual Zotero async init');
+ stopEarlyResize();
  view.focus();
  const stop=installMathPaste(win);
  const event = new win.Event('paste',{bubbles:true,cancelable:true});

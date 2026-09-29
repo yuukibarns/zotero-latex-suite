@@ -12,6 +12,21 @@ export function installPrintDiagnostic(win: Window, getTheme: () => "auto" | "li
 	button.textContent = "Print / PDF…";
 	button.title = "Open rendered note, then File → Print or Ctrl/Cmd+P";
 	let stopped = false;
+	const tab = win.document.createElement("button");
+	tab.type = "button"; tab.className = "option"; tab.tabIndex = -1;
+	tab.id = "latex-suite-open-note-tab";
+	tab.setAttribute("role", "menuitem"); tab.textContent = "Edit in New Tab";
+	tab.addEventListener("click", async () => {
+		if (stopped || tab.disabled) return;
+		tab.disabled = true;
+		try {
+			getEditorCore(win)?.view?.domObserver?.forceFlush?.();
+			const open = (win as any).__latexSuiteOpenNoteTab;
+			if (!open) throw new Error("Restart Zotero to enable opening note tabs.");
+			await open();
+		} catch (error) { win.alert(String(error)); }
+		finally { tab.disabled = false; }
+	});
 	let busy = false;
 	const separator = win.document.createElement("div");
 	separator.id = "latex-suite-print-menu-separator";
@@ -20,6 +35,7 @@ export function installPrintDiagnostic(win: Window, getTheme: () => "auto" | "li
 	const attach = () => {
 		const menu = win.document.querySelector(".more-dropdown .popup");
 		if (!menu) return;
+		if (tab.parentNode !== menu) menu.append(tab);
 		if (separator.parentNode !== menu) menu.append(separator);
 		if (button.parentNode !== menu) menu.append(button);
 	};
@@ -78,7 +94,7 @@ export function installPrintDiagnostic(win: Window, getTheme: () => "auto" | "li
 	const observer = new (win as any).MutationObserver(attach);
 	observer.observe(win.document.body, { childList: true, subtree: true });
 	attach();
-	return () => { stopped = true; observer.disconnect(); button.remove(); separator.remove(); };
+	return () => { stopped = true; observer.disconnect(); button.remove(); separator.remove(); tab.remove(); };
 }
 
 export async function embeddedPrintCSS(win: Window) {
