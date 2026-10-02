@@ -13,7 +13,7 @@ npm run build
 npm test
 
 rm -f "$XPI"
-zip -q -r "$XPI" manifest.json bootstrap.js icon.svg prefs.xhtml prefs.js prefs.css LICENSE COMPLETR-LICENSE \
+zip -q -r "$XPI" manifest.json bootstrap.js icon.svg prefs.xhtml prefs.js prefs.css LICENSE COMPLETR-LICENSE PROSEMIRROR-LICENSE HIGHLIGHTJS-LICENSE CODEMIRROR-LICENSE \
 	build/content-script.js build/render.js vendor/ \
 	src/default_snippets.js src/default_snippet_variables.js
 

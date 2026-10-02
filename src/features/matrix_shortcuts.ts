@@ -37,6 +37,12 @@ const addCellShortcut: Shortcut = (_win, buffer) => {
 	return true;
 };
 
+/** A source newline, not a TeX row separator or a new outer paragraph. */
+const lineBreakShortcut: Shortcut = (_win, buffer) => {
+	buffer.replaceRange(buffer.from, buffer.to, "\n");
+	return true;
+};
+
 /** Shift-Enter: end of the next row, or out of the equation. */
 const exitShortcut: Shortcut = (win, buffer, _ctx, _scope, settings) => {
 	if (!isMultiline(buffer)) return buffer.exitMath();
@@ -87,6 +93,7 @@ function runner(shortcut: Shortcut) {
 }
 
 export const newlineMatrixShortcut = runner(newlineShortcut);
+export const lineBreakMatrixShortcut = runner(lineBreakShortcut);
 export const addCellMatrixShortcut = runner(addCellShortcut);
 export const exitMatrixShortcut = runner(exitShortcut);
 export const priorityTaboutMatrixShortcut = runner(priorityTaboutShortcut);

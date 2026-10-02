@@ -14,7 +14,7 @@ const commands = [...source.matchAll(/Suggestion\.fromString\(("(?:[^"\\]|\\.)*"
 });
 for (const m of source.matchAll(/\{ name: "([^"]+)", paramCount: (\d+), hasStarVersion: (true|false) \}/g)) {
  for (const name of m[3] === 'true' ? [m[1], m[1]+'*'] : [m[1]]) {
-  const n = Number(m[2]); commands.push({ displayName: `\\begin{${name}}...`, replacement: `\\begin{${name}}${'{#}'.repeat(n)}\n${n ? '' : '~\n'}\\end{${name}}` });
+  const n = Number(m[2]); commands.push({ displayName: `\\begin{${name}}...`, replacement: `\\begin{${name}}${'{#}'.repeat(n)}\n${n && !['array', 'subarray'].includes(name) ? '' : '~\n'}\\end{${name}}` });
  }
 }
 const fixtures = {
@@ -43,6 +43,7 @@ const files = {
  'COMPLETR-LICENSE': license,
  'src/completion/PROVENANCE.md': `Command data derived from tth05/obsidian-completr at ${revision}.\nSource: ${base}src/provider/latex_provider.ts\nLicense: MIT; see COMPLETR-LICENSE.\nValidated against KaTeX 0.16.22 (Zotero installed editor).\n${accepted.length} of ${commands.length} entries accepted using fixtures.json.\nRegenerate: node scripts/completion-data.mjs (prints an apply_patch patch).\n`,
 };
+files['src/completion/PROVENANCE.md'] += 'Local adaptation: array/subarray templates place the final cursor stop inside the body after the column-specification placeholder.\n';
 console.log('*** Begin Patch');
 for (const [path, value] of Object.entries(files)) console.log(`*** Add File: ${path}\n` + value.trimEnd().split('\n').map(s=>'+'+s).join('\n'));
 console.log('*** End Patch');

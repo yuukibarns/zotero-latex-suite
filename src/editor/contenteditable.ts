@@ -222,7 +222,7 @@ function watchElement(element: HTMLElement, remap: (map: (range: Range) => Range
 		// A tabstop's start holds still and its end follows the text, so typing
 		// into a placeholder grows it.
 		const move = (offset: number, bias: -1 | 1) => {
-			if (offset <= prefix) return offset;
+			if (offset < prefix || (offset === prefix && bias < 0)) return offset;
 			if (offset >= oldEnd) return offset + delta;
 			return bias < 0 ? prefix : newEnd;
 		};

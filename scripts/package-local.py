@@ -17,7 +17,7 @@ for field in ("id", "update_url", "strict_max_version"):
     assert manifest["applications"]["zotero"].get(field), f"Zotero requires {field}"
 files = [
     "bootstrap.js", "icon.svg", "prefs.xhtml", "prefs.js", "prefs.css",
-    "LICENSE", "COMPLETR-LICENSE", "build/content-script.js", "build/render.js",
+    "LICENSE", "COMPLETR-LICENSE", "PROSEMIRROR-LICENSE", "HIGHLIGHTJS-LICENSE", "CODEMIRROR-LICENSE", "build/content-script.js", "build/render.js",
     "src/default_snippets.js", "src/default_snippet_variables.js",
     "vendor/katex.min.js", "vendor/KATEX-LICENSE",
 ]

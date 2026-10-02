@@ -16,7 +16,15 @@ export type SnippetDebugLevel = "off" | "info" | "verbose";
 export interface RawSettings {
 	pdfTheme: "auto" | "light" | "dark";
 	completionEnabled: boolean;
+	bufferCompletionEnabled: boolean;
+	dictionaryCompletionEnabled: boolean;
+	textDictionaryFileLocation: string;
+	textDictionaryWords?: string;
 	mathPreviewEnabled: boolean;
+	mathHighlightEnabled: boolean;
+	mathSelectionClickTimeoutMs: number;
+	inlineMathPreviewEnabled?: boolean;
+	displayMathPreviewEnabled?: boolean;
 	mathPreviewDebounceMs: number;
 	completionMinLength: number;
 	loadCompletionFromFile: boolean;
@@ -54,6 +62,7 @@ export interface RawSettings {
 	matrixShortcutsMacroNames: string;
 	matrixShortcutsCellTrigger: string;
 	matrixShortcutsNewlineTrigger: string;
+	matrixShortcutsLineBreakTrigger: string;
 	matrixShortcutsExitTrigger: string;
 
 	taboutEnabled: boolean;
@@ -87,7 +96,14 @@ export const DEFAULT_SNIPPET_VARIABLES = DEFAULT_SNIPPET_VARIABLES_SOURCE;
 export const DEFAULT_SETTINGS: RawSettings = {
 	pdfTheme: "auto",
 	completionEnabled: true,
+	bufferCompletionEnabled: true,
+	dictionaryCompletionEnabled: true,
+	textDictionaryFileLocation: "",
 	mathPreviewEnabled: true,
+	mathHighlightEnabled: true,
+	mathSelectionClickTimeoutMs: 1000,
+	inlineMathPreviewEnabled: true,
+	displayMathPreviewEnabled: true,
 	mathPreviewDebounceMs: 100,
 	completionMinLength: 2,
 	loadCompletionFromFile: false,
@@ -123,6 +139,7 @@ export const DEFAULT_SETTINGS: RawSettings = {
 	matrixShortcutsMacroNames: "eqalign",
 	matrixShortcutsCellTrigger: "Tab",
 	matrixShortcutsNewlineTrigger: "Enter",
+	matrixShortcutsLineBreakTrigger: "Ctrl-Enter",
 	matrixShortcutsExitTrigger: "Shift-Enter",
 
 	taboutEnabled: true,

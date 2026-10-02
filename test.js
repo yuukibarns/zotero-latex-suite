@@ -167,6 +167,21 @@ const { FIELDS } = require("./bootstrap.js");
 	// a bare group after ^ is named for it, so autofraction's excluded envs match
 	const sup = "x^{a";
 	assert.deepStrictEqual(ls.scanScopes(sup, sup.length).map((s) => [s.kind, s.name]), [["group", "^"]]);
+	const contextAt = (source) => ls.Context.fromBuffer({kind:'math_inline',text:source,to:source.length,from:source.length,mathBounds:{inner_start:0,inner_end:source.length}});
+	for(const [open,close] of [['\\(','\\)'],['$','$'],['$$','$$'],['\\[','\\]']]) {
+		const before='\\text{value ';
+		assert.equal(contextAt(before).mode.textEnv,true);
+		const nested=before+open+'x_1';
+		assert.equal(contextAt(nested).mode.strictlyInMath(),true,'nested equation is math mode');
+		assert.equal(contextAt(nested+close+' afterwards').mode.textEnv,true,'closing delimiter restores text');
+		assert.equal(contextAt(nested+close+'} + y_2').mode.strictlyInMath(),true,'closing text group restores outer math');
+		assert.equal(contextAt(nested+'} + y_2').mode.strictlyInMath(),true,'unfinished nested math is contained by text group');
+	}
+	assert.equal(contextAt('\\text{a\\$b').mode.textEnv,true,'escaped dollar stays text');
+	assert.equal(contextAt('\\text{a % \\( ignored\n b').mode.textEnv,true,'comment delimiter stays text');
+	assert.equal(contextAt('\\text{a \\(x+\\text{inner').mode.textEnv,true,'text nested inside nested math remains text');
+	const nestedCompletion='\\text{value \\(alp';
+	assert.equal(ls.tokenAt({...contextAt(nestedCompletion).buffer,inMath:true,dollarMath:false,from:nestedCompletion.length,to:nestedCompletion.length,owner:{}},2)?.query,'alp','completion is enabled in nested math');
 
 	/* --- text-mode $…$ becomes an equation --- */
 	const mk = ls.asMathReplacement({ insert: "$$", tabstops: [{ index: [0], from: 1, to: 1 }] });

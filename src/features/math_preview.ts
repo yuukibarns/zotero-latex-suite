@@ -1,5 +1,5 @@
 /** View-only previews using the renderer already owned by Zotero's MathView. */
-export function installMathPreview(win: Window, debounceMs = 100) {
+export function installMathPreview(win: Window, debounceMs = 100, inlineEnabled = true, displayEnabled = true) {
 	const delay = Number.isFinite(debounceMs) ? Math.max(0, Math.min(2000, debounceMs)) : 100;
 	const doc = win.document;
 	const panel = doc.createElement("div");
@@ -11,20 +11,22 @@ export function installMathPreview(win: Window, debounceMs = 100) {
 	status.className = "ls-preview-status";
 	panel.append(output, status);
 	const style = doc.createElement("style");
-	style.textContent = `#latex-suite-math-preview{box-sizing:border-box;padding:10px;background:Canvas;color:CanvasText;color-scheme:light dark;border:1px solid GrayText;border-radius:5px;overflow:auto;max-height:35vh;font:initial;pointer-events:none}#latex-suite-math-preview[data-inline=true]{position:fixed;z-index:2147483646;max-width:calc(100vw - 16px);box-shadow:0 3px 12px #0003}#latex-suite-math-preview[data-inline=false]{display:block;margin-top:8px;width:100%}#latex-suite-math-preview .ls-preview-status{font:11px sans-serif;color:GrayText;margin-top:4px}#latex-suite-math-preview .ls-preview-status:empty{display:none}#latex-suite-math-preview .katex-display{margin:0}`;
+	style.textContent = `#latex-suite-math-preview{box-sizing:border-box;padding:10px;background:Canvas;color:CanvasText;color-scheme:light dark;border:1px solid GrayText;border-radius:5px;overflow:auto;font:initial;pointer-events:auto}#latex-suite-math-preview[data-inline=true]{position:fixed;z-index:2147483646;max-height:35vh;overscroll-behavior:contain;max-width:calc(100vw - 16px);box-shadow:0 3px 12px #0003}#latex-suite-math-preview[data-inline=false]{display:block;margin-top:8px;width:100%;max-height:none}#latex-suite-math-preview .ls-preview-status{font:11px sans-serif;color:GrayText;margin-top:4px}#latex-suite-math-preview .ls-preview-status:empty{display:none}#latex-suite-math-preview .katex-display{margin:0}`;
 	doc.head.append(style);
 	let frame = 0, stopped = false, composing = false;
 	let owner: any = null, lastText: string | null = null;
+	let ownerNode: HTMLElement | null = null, interacting = false;
 	let timer = 0, pendingText: string | null = null, ready = false;
 	function cancelRender() { win.clearTimeout(timer); timer = 0; pendingText = null; ready = false; }
-	function close() { cancelRender(); panel.remove(); panel.style.visibility = ""; output.replaceChildren(); status.textContent = ""; owner = null; lastText = null; }
+	function close() { cancelRender(); panel.remove(); panel.style.visibility = ""; output.replaceChildren(); status.textContent = ""; owner = null; ownerNode = null; interacting = false; lastText = null; }
 	function refresh() {
 		frame = 0;
 		if (stopped || composing) return;
-		const node = doc.activeElement?.closest(".math-node") as HTMLElement | null;
+		const node = (interacting && ownerNode?.isConnected ? ownerNode : doc.activeElement?.closest(".math-node")) as HTMLElement | null;
 		const math = (node as any)?.pmViewDesc?.spec;
+		if (node && !(node.localName === "math-inline" ? inlineEnabled : displayEnabled)) { close(); return; }
 		if (!node || !math?._innerView || typeof math.renderMath !== "function" || !math._mathRenderElt) { close(); return; }
-		if (owner !== math) { close(); owner = math; }
+		if (owner !== math) { close(); owner = math; ownerNode = node; }
 		const text = math._innerView.state.doc.textContent;
 		if (text === lastText) cancelRender();
 		else if (text !== pendingText) {
@@ -74,9 +76,29 @@ export function installMathPreview(win: Window, debounceMs = 100) {
 	const start = () => { composing = true; cancelRender(); };
 	const end = () => { composing = false; schedule(); };
 	const viewport = (e: Event) => {
-		if ((e.target as Element)?.closest?.("#latex-suite-completion")) return;
+		if ((e.target as Element)?.closest?.("#latex-suite-math-preview, #latex-suite-completion")) return;
 		schedule();
 	};
+	// MathView only stops events from its source editor. Intercept preview
+	// pointer/mouse events before they reach ProseMirror or MathView's click
+	// handler, while leaving native scrollbar default actions enabled.
+	const interaction = (e: Event) => {
+		const inside = (e.target as Element)?.closest?.("#latex-suite-math-preview") === panel;
+		if (inside) {
+			e.stopPropagation();
+			if (e.type === "pointerdown" || e.type === "mousedown") interacting = true;
+			if (e.type === "mousedown" && e.target !== panel) e.preventDefault();
+		}
+		if (interacting && ["pointerup", "pointercancel", "mouseup", "click"].includes(e.type)) {
+			interacting = false;
+			if (ownerNode?.isConnected) owner?._innerView?.focus();
+			schedule();
+		}
+	};
+	const interactionEvents = ["pointerdown", "mousedown", "pointerup", "pointercancel", "mouseup", "click", "dblclick"];
+	interactionEvents.forEach(name => doc.addEventListener(name, interaction, true));
+	const wheel = (e: Event) => { e.stopPropagation(); }; // native scrolling stays enabled
+	panel.addEventListener("wheel", wheel, { passive: true });
 	const listeners: [EventTarget, string, EventListener][] = [
 		[doc, "input", schedule], [doc, "keydown", schedule], [doc, "selectionchange", schedule],
 		[doc, "focusin", schedule], [doc, "focusout", schedule], [doc, "scroll", viewport],
@@ -94,6 +116,7 @@ export function installMathPreview(win: Window, debounceMs = 100) {
 	schedule();
 	return () => {
 		stopped = true; win.cancelAnimationFrame(frame); observer.disconnect(); close(); style.remove();
+		interactionEvents.forEach(name => doc.removeEventListener(name, interaction, true)); panel.removeEventListener("wheel", wheel);
 		listeners.forEach(([target, name, fn]) => target.removeEventListener(name, fn, true));
 	};
 }

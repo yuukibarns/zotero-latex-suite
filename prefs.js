@@ -216,10 +216,12 @@
 			} else if (field.type === "number") {
 				input = h("input");
 				input.type = "number";
-				input.min = "0";
+				input.min = String(field.min ?? 0);
+				if (field.max !== undefined) input.max = String(field.max);
+				if (field.step !== undefined) input.step = String(field.step);
 				input.value = String(stored);
 				input.addEventListener("input", () =>
-					setValue(field.key, Math.max(0, parseInt(input.value, 10) || 0), field.default));
+					setValue(field.key, Math.max(field.min ?? 0, Math.min(field.max ?? Infinity, parseInt(input.value, 10) || 0)), field.default));
 			} else if (field.type === "select") {
 				input = h("select");
 				for (const option of field.options) {

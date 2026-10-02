@@ -13,7 +13,7 @@ import { Environment } from "src/snippets/environment";
 import { MathBounds } from "./math_bounds";
 
 export type Scope = {
-	kind: "environment" | "command" | "group";
+	kind: "environment" | "command" | "group" | "math";
 	/** environment name, macro name, or the sub/superscript character for a bare group */
 	name: string;
 	/** which argument of the macro this group is, counting from 0 */
@@ -37,6 +37,24 @@ export function scanScopes(text: string, pos: number): Scope[] {
 
 	while (i < pos) {
 		const c = text[i];
+		if (c === "%") { while (i < pos && text[i] !== "\n" && text[i] !== "\r") i++;continue; }
+		const delimiter = c === "$" ? text[i + 1] === "$" ? "$$" : "$"
+			: c === "\\" && "()[]".includes(text[i + 1] || " ") ? text.slice(i, i + 2) : null;
+		if (delimiter && i + delimiter.length <= pos) {
+			let activeMath = -1, inText = false;
+			for (let k = stack.length - 1; k >= 0; k--) {
+				if (stack[k].kind === "math") { activeMath = k;break; }
+				if (isMacroArgumentCount(stack[k], textArea)) { inText = true;break; }
+			}
+			const close = activeMath >= 0 ? stack[activeMath].name : "";
+			if (close === delimiter) {
+				stack.splice(activeMath);i += delimiter.length;macro = null;continue;
+			}
+			if (inText && ["$", "$$", "\\(", "\\["].includes(delimiter)) {
+				stack.push({ kind: "math", name: delimiter === "\\(" ? "\\)" : delimiter === "\\[" ? "\\]" : delimiter, argIndex: 0, start: i });
+				i += delimiter.length;macro = null;continue;
+			}
+		}
 
 		if (c === "\\") {
 			const m = MACRO.exec(text.slice(i));
@@ -84,6 +102,7 @@ export function scanScopes(text: string, pos: number): Scope[] {
 			// `\begin`/`\end` groups never got pushed, so the innermost
 			// non-environment scope is always the one this closes.
 			for (let k = stack.length - 1; k >= 0; k--) {
+				if (stack[k].kind === "math") { stack.splice(k, 1);continue; }
 				if (stack[k].kind !== "environment") { stack.splice(k, 1); break; }
 			}
 			// A macro cannot own arguments outside the group where it appeared.
@@ -146,6 +165,7 @@ export class Context {
 		// The innermost macro decides whether we are really in math: an
 		// environment resets the scope, anything else is transparent.
 		for (const scope of scopes) {
+			if (scope.kind === "math") break;
 			if (scope.kind === "environment") break;
 			if (isMacroArgumentCount(scope, snippetLessArea)) { mode.snippetlessEnv = true; break; }
 			if (isMacroArgumentCount(scope, textArea)) { mode.textEnv = true; break; }

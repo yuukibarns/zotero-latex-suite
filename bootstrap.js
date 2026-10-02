@@ -26,7 +26,13 @@ const FIELDS = [
 		options: ["auto", "light", "dark"], optionLabels: { auto: "Follow note editor", light: "Light", dark: "Dark" },
 		label: "PDF theme", hint: "Applies to both the preview and exported PDF. Existing previews keep their theme." },
 	{ group: "Completion", key: "completionEnabled", type: "bool", default: true, label: "Enable completion in note equations" },
-	{ group: "Completion", key: "mathPreviewEnabled", type: "bool", default: true, label: "Live preview while editing note equations" },
+	{ group: "Completion", key: "bufferCompletionEnabled", type: "bool", default: true, label: "Complete words from the current note" },
+	{ group: "Completion", key: "dictionaryCompletionEnabled", type: "bool", default: true, label: "Enable word dictionary completion" },
+	{ group: "Completion", key: "textDictionaryFileLocation", type: "file", default: "", label: "Word dictionary file", hint: "Plain text, one word or phrase per line (Completr word-list format)." },
+	{ group: "Completion", key: "inlineMathPreviewEnabled", type: "bool", default: true, label: "Live preview for inline math" },
+	{ group: "Completion", key: "mathHighlightEnabled", type: "bool", default: true, label: "Highlight LaTeX source in note equations" },
+	{ group: "Math selection", key: "mathSelectionClickTimeoutMs", type: "number", default: 1000, min: 200, max: 5000, step: 100, label: "Repeated-click timeout (ms, 200–5000)", hint: "Maximum pause between clicks before structural selection starts over." },
+	{ group: "Completion", key: "displayMathPreviewEnabled", type: "bool", default: true, label: "Live preview for display math" },
 	{ group: "Completion", key: "mathPreviewDebounceMs", type: "number", default: 100, label: "Preview debounce (ms, 0 = immediate, maximum 2000)" },
 	{ group: "Completion", key: "completionMinLength", type: "number", default: 2, label: "Minimum completion prefix length" },
 	{ group: "Completion", key: "loadCompletionFromFile", type: "bool", default: false, label: "Load custom completion dictionary" },
@@ -72,6 +78,8 @@ const FIELDS = [
 		label: "New cell" },
 	{ group: "Matrix shortcuts", key: "matrixShortcutsNewlineTrigger", type: "text", default: "Enter",
 		label: "New row" },
+	{ group: "Matrix shortcuts", key: "matrixShortcutsLineBreakTrigger", type: "text", default: "Ctrl-Enter",
+		label: "Source newline", hint: "Insert a literal newline without a LaTeX row separator." },
 	{ group: "Matrix shortcuts", key: "matrixShortcutsExitTrigger", type: "text", default: "Shift-Enter",
 		label: "Leave" },
 	{ group: "Matrix shortcuts", key: "matrixShortcutsEnvNames", type: "text",
@@ -135,6 +143,7 @@ let payloadJSON = null;
  * engine runs in a content window and cannot read files, so the contents are
  * read here and travel with the settings. */
 const SOURCES = [
+	{ key: "textDictionaryWords", enabledKey: "dictionaryCompletionEnabled", pathKey: "textDictionaryFileLocation" },
 	{ key: "completionCommands", enabledKey: "loadCompletionFromFile", pathKey: "completionFileLocation" },
 	{ key: "snippets", enabledKey: "loadSnippetsFromFile", pathKey: "snippetsFileLocation" },
 	{ key: "snippetVariables", enabledKey: "loadSnippetVariablesFromFile", pathKey: "snippetVariablesFileLocation" },
@@ -150,6 +159,10 @@ function readOverrides() {
 		const parsed = JSON.parse(overridesJSON);
 		if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
 			overridesCache = parsed;
+			for (const key of ["inlineMathPreviewEnabled", "displayMathPreviewEnabled"]) {
+				if (parsed[key] === undefined && typeof parsed.mathPreviewEnabled === "boolean") parsed[key] = parsed.mathPreviewEnabled;
+			}
+			overridesJSON = JSON.stringify(parsed);
 		} else {
 			overridesCache = {};
 			overridesJSON = "{}"; // the string is handed straight to the engine
@@ -170,7 +183,7 @@ function forgetOverrides() {
 
 function fileSourceFor(source) {
 	const overrides = readOverrides();
-	const enabled = overrides[source.enabledKey] === true;
+	const enabled = (overrides[source.enabledKey] ?? FIELDS.find(field => field.key === source.enabledKey)?.default) === true;
 	const path = (overrides[source.pathKey] || "").trim();
 	return enabled && path ? path : null;
 }
@@ -238,6 +251,11 @@ async function refreshFileSources() {
 		try {
 			const { sources } = await readSourceAt(path);
 			let text = sources.length === 1 ? sources[0] : sources;
+			if (source.key === "textDictionaryWords") {
+				if (sources.length !== 1 || Zotero.File.pathToFile(path).isDirectory()) throw new Error("Choose one plain-text word dictionary file");
+				if (sources[0].includes("\0")) throw new Error("Word dictionary contains NUL characters");
+				text = sources[0];
+			}
 			if (source.key === "completionCommands") {
 				if (sources.length !== 1 || Zotero.File.pathToFile(path).isDirectory()) throw new Error("Choose one completion JSON file");
 				text = JSON.parse(sources[0]);
@@ -316,12 +334,139 @@ function runScript(doc, source) {
 	script.remove();
 }
 
+const annotationCache = new Map();
+const annotationCandidates = new Map(); // bounded prefix cache; each set is complete
+let annotationRevision = 0;
+let annotationLoaded = false, annotationLoading = null, annotationObserver = null, annotationStopped = false;
+const annotationDirty = new Set();
+const annotationSQL = `SELECT a.itemID AS id, i.libraryID, a.parentItemID AS attachmentID,
+ p.parentItemID AS parentID, a.text, a.comment,
+ COALESCE(v.value, ai.key) AS source
+ FROM itemAnnotations a JOIN items i ON i.itemID=a.itemID
+ JOIN items ai ON ai.itemID=a.parentItemID
+ JOIN itemAttachments p ON p.itemID=a.parentItemID
+ LEFT JOIN itemData d ON d.itemID=COALESCE(p.parentItemID,p.itemID) AND d.fieldID=?
+ LEFT JOIN itemDataValues v ON v.valueID=d.valueID
+ WHERE NOT EXISTS (SELECT 1 FROM deletedItems x WHERE x.itemID IN (a.itemID,a.parentItemID,p.parentItemID))`;
+
+function watchAnnotationCache() {
+	if (annotationObserver !== null) return;
+	annotationStopped = false;
+	annotationObserver = Zotero.Notifier.registerObserver({ notify(event, type, ids) {
+		for (const id of ids) if (Number.isSafeInteger(Number(id))) annotationDirty.add(Number(id));
+	} }, ["item"], "latex-suite-annotation-cache");
+}
+async function loadAnnotationCache() {
+	watchAnnotationCache();
+	if (annotationLoading) return annotationLoading;
+	annotationLoading = (async () => {
+		while (!annotationLoaded || annotationDirty.size) {
+			const full = !annotationLoaded;
+			const ids = Array.from(annotationDirty).slice(0, 200);
+			ids.forEach(id => annotationDirty.delete(id));
+			const marks = ids.map(() => "?").join(",");
+			const suffix = full ? "" : ` AND (a.itemID IN (${marks}) OR a.parentItemID IN (${marks}) OR p.parentItemID IN (${marks}))`;
+			const start = Date.now();
+			let rows;
+			try { rows = await Zotero.DB.queryAsync(annotationSQL + suffix, [Zotero.ItemFields.getID("title"), ...(full ? [] : [...ids, ...ids, ...ids])]); }
+			catch (error) { ids.forEach(id => annotationDirty.add(id)); throw error; }
+			if (annotationStopped) return;
+			annotationRevision++; annotationCandidates.clear();
+			if (full) annotationCache.clear();
+			else {
+				const changed = new Set(ids);
+				for (const [id, row] of annotationCache) if (changed.has(id) || changed.has(row.attachmentID) || changed.has(row.parentID)) annotationCache.delete(id);
+			}
+			for (let n = 0; n < rows.length; n++) {
+				if (annotationStopped) return;
+				// queryAsync rows proxy getResultByName; added properties cannot
+				// be read through that proxy. Copy only known SQL columns first.
+				const db = rows[n];
+				const row = { id: db.id, libraryID: db.libraryID, attachmentID: db.attachmentID,
+					parentID: db.parentID, text: db.text, comment: db.comment, source: db.source };
+				row.comment = row.comment || ""; row.text = row.text || "";
+				annotationCache.set(row.id, row);
+				if (n % 500 === 499) await Zotero.Promise.delay(0);
+			}
+			annotationLoaded = true;
+			Zotero.debug(`LaTeX Suite annotation cache: ${full ? "initial" : "update"}, ${rows.length} rows, ${Date.now()-start} ms`);
+		}
+	})().finally(() => { annotationLoading = null; });
+	return annotationLoading;
+}
+function annotationFuzzyScore(text, query) {
+	const exact = text.indexOf(query);
+	if (exact >= 0) return exact === 0 ? 0 : 1 + exact / (text.length + 1);
+	let next = 0, first = -1, last = -1;
+	for (const character of query) {
+		last = text.indexOf(character, next);
+		if (last < 0) return Infinity;
+		if (first < 0) first = last;
+		next = last + character.length;
+	}
+	return 3 + (last - first + 1 - query.length) / Math.max(1, query.length);
+}
+async function searchAnnotationCache(libraryID, query, minimum = 2) {
+	const q = String(query || "").trim().toLowerCase();
+	minimum = Math.max(1, Math.floor(Number(minimum) || 2));
+	if (q.length < minimum) return [];
+	await loadAnnotationCache();
+	const prefix = q.slice(0, minimum), key = JSON.stringify([libraryID, minimum, prefix]);
+	const revision = annotationRevision;
+	let candidates = annotationCandidates.get(key), n = 0;
+	if (!candidates) {
+		candidates = [];
+		for (const row of annotationCache.values()) {
+			if (annotationStopped || revision !== annotationRevision) return [];
+				if (row.libraryID === libraryID && [row.text,row.comment].some(value => value.toLowerCase().includes(prefix))) candidates.push(row);
+			if (++n % 1000 === 0) await Zotero.Promise.delay(0);
+		}
+	}
+	if (annotationStopped || revision !== annotationRevision) return [];
+	annotationCandidates.delete(key); annotationCandidates.set(key, candidates);
+	while (annotationCandidates.size > 8) annotationCandidates.delete(annotationCandidates.keys().next().value);
+	const matches = [];
+	for (const row of candidates) {
+		if (annotationStopped || revision !== annotationRevision) return [];
+		const score = Math.min(...[row.text,row.comment].map(value => annotationFuzzyScore(value.toLowerCase(), q)));
+		if (Number.isFinite(score)) matches.push({ row, score });
+		if (++n % 1000 === 0) await Zotero.Promise.delay(0);
+	}
+	matches.sort((a,b) => a.score-b.score || a.row.id-b.row.id);
+	return matches.slice(0,50).map(({row:{id,text,comment,source}}) => ({id,text:text.slice(0,500),comment:comment.slice(0,500),source}));
+}
+function stopAnnotationCache() {
+	annotationStopped = true;
+	if (annotationObserver !== null) Zotero.Notifier.unregisterObserver(annotationObserver);
+	annotationObserver = null; annotationCache.clear(); annotationDirty.clear(); annotationLoaded = false;
+	annotationCandidates.clear(); annotationRevision++;
+}
+
+function annotationInsertText(annotation) {
+	const text = annotation.annotationText || "";
+	const result = text.trim() ? text : annotation.annotationComment || "";
+	if (!result.trim()) throw new Error("This annotation has no text or comment to insert.");
+	return result;
+}
+
 function inject(win, { withKatex } = {}) {
 	const doc = win.document;
 	if (!doc || !doc.documentElement) return;
 
 	const content = win.wrappedJSObject;
 	content.__latexSuiteSettings = settingsJSON();
+	if (!withKatex) Components.utils.exportFunction((id, query, minimum) => new content.Promise((resolve, reject) => {
+		(async () => {
+			const instance = (Zotero.Notes._editorInstances || []).find(x => x._iframeWindow?.wrappedJSObject === content);
+			const note = instance && Zotero.Items.get(instance.itemID);
+			if (!note) throw new Error("Save this note before searching annotations.");
+			if (id === undefined) return JSON.stringify(await searchAnnotationCache(note.libraryID, query, minimum));
+			await loadAnnotationCache();
+			const annotation = await Zotero.Items.getAsync(id);
+			if (!annotationCache.has(id) || !annotation?.isAnnotation() || annotation.libraryID !== note.libraryID || annotation.deleted) throw new Error("Annotation is no longer available in this library.");
+			return annotationInsertText(annotation);
+		})().then(resolve, error => reject(new content.Error(String(error))));
+	}), content, { defineAs: "__latexSuiteAnnotations" });
 	if (!withKatex) Components.utils.exportFunction(diagnoseNotePrint, content, { defineAs: "__latexSuiteDiagnosePrint" });
 	if (!withKatex) Components.utils.exportFunction(() => new content.Promise((resolve, reject) => {
 		(async () => {
@@ -644,6 +789,7 @@ function safely(what, fn) {
 }
 
 function shutdown() {
+	stopAnnotationCache();
 	for (const cleanup of noteTabMenus.values()) cleanup();
 	noteTabMenus.clear();
 	safely("restoring registerEditorInstance", () => {
@@ -664,6 +810,7 @@ function shutdown() {
 			if (content.__latexSuiteUninstall) content.__latexSuiteUninstall();
 			delete content.__latexSuiteDiagnosePrint;
 			delete content.__latexSuiteOpenNoteTab;
+			delete content.__latexSuiteAnnotations;
 		});
 	});
 

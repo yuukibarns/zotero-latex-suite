@@ -6,7 +6,7 @@ import { history, undo } from 'prosemirror-history';
 import { EditorState, TextSelection } from 'prosemirror-state';
 import katex from 'katex-zotero';
 import * as ls from './build/test-exports.mjs';
-import { mathView } from './test-editor.mjs';
+import { mathView, winFor } from './test-editor.mjs';
 
 const commands = ls.parseCommands(['\\alpha', '\\Alpha', '\\varalpha', '\\frac{#}{#}']);
 for (const [source, expected] of [['hello world','hello '],['hello world  ','hello '],['\\alpha',''],['x_{foo','x_{'],['foo}','foo'],['',''],['   ',''],['αβ',''],['😀','']]) {
@@ -66,6 +66,36 @@ assert.equal(ls.tokenAt({...ls.PMBuffer.forMath(mathView('alp'), 'math_inline'),
 assert.equal(ls.replacementOf('\\#').insert, '\\#');
 assert.deepEqual(ls.replacementOf('\\frac{#}{#}').tabstops.map(x=>x.from), [6,8,9]);
 assert.equal(ls.replacementOf('a\n~b', true).tabstops[0].from, 1);
+for(const name of ['array','subarray']) for(const inline of [false,true]) {
+ ls.clearTabstops();
+ const command=ls.DEFAULT_COMMANDS.find(c=>c.displayName===`\\begin{${name}}...`);
+ const replacement=ls.replacementOf(command.replacement,inline);
+ const expected=`\\begin{${name}}{}${inline?'':'\n\n'}\\end{${name}}`;
+ assert.equal(replacement.insert,expected);
+ const v=mathView(''), b=()=>ls.PMBuffer.forMath(v,inline?'math_inline':'math_display');
+ ls.expandCompletion(b(),0,0,replacement);
+ assert.equal(v.state.selection.from,expected.indexOf('{}')+1,'first stop: column spec');
+ v.dispatch(v.state.tr.insertText('c'));
+ assert.ok(ls.setSelectionToNextTabstop(b(),false));
+ const source=v.state.doc.textContent;
+ assert.equal(v.state.selection.from,source.indexOf(`\\end{${name}}`)-(inline?0:1),'second/final stop: body, before end');
+ assert.equal(ls.hasTabstops(),false,'no trailing exit stop after environment');
+}
+const matrixSettings=ls.processSettings(ls.DEFAULT_SETTINGS);
+for(const name of ['matrix','array']) {
+ const start=`\\begin{${name}}${name==='array'?'{c}':''}\na\n\\end{${name}}`;
+ const v=mathView(start,start.indexOf('\na')+2,'math_display');
+ const win=winFor(v,'math_display');
+ assert.ok(ls.lineBreakMatrixShortcut(win,matrixSettings));
+ assert.equal(v.state.doc.textContent,start.replace('\na\n','\na\n\n'),'source newline does not insert row separator');
+ assert.ok(ls.newlineMatrixShortcut(win,matrixSettings));
+ assert.ok(v.state.doc.textContent.includes(' \\\\\n'),'Enter still inserts a row separator');
+ assert.equal(ls.lineBreakMatrixShortcut(win,{...matrixSettings,matrixShortcutsEnabled:false}),false);
+}
+{
+ const v=mathView('x+y');
+ assert.equal(ls.lineBreakMatrixShortcut(winFor(v),matrixSettings),false,'outside matrix environments left untouched');
+}
 
 // Real history plugin: completion forms one isolated event, including later typing.
 const deletion = mathView('hello world');

@@ -4,3 +4,4 @@ License: MIT; see COMPLETR-LICENSE.
 Validated against KaTeX 0.16.22 (Zotero installed editor).
 743 of 1085 entries accepted using fixtures.json.
 Regenerate: node scripts/completion-data.mjs (prints an apply_patch patch).
+Local adaptation: array/subarray templates place the final cursor stop inside the body after the column-specification placeholder.

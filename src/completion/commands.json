@@ -2873,7 +2873,7 @@
   },
   {
     "displayName": "\\begin{array}...",
-    "replacement": "\\begin{array}{#}\n\\end{array}"
+    "replacement": "\\begin{array}{#}\n~\n\\end{array}"
   },
   {
     "displayName": "\\begin{bmatrix}...",
@@ -2953,7 +2953,7 @@
   },
   {
     "displayName": "\\begin{subarray}...",
-    "replacement": "\\begin{subarray}{#}\n\\end{subarray}"
+    "replacement": "\\begin{subarray}{#}\n~\n\\end{subarray}"
   },
   {
     "displayName": "\\begin{vmatrix}...",

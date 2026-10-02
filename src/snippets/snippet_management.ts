@@ -38,18 +38,18 @@ function documentOf(buffer: Buffer): Document | null {
  * expanded inside a placeholder does not cost you the rest of the outer one. */
 const stack: ActiveSnippet[] = [];
 let active: ActiveSnippet | null = null;
+const watchedOwners = new WeakSet<object>();
 
 function enter(snippet: ActiveSnippet) {
 	stack.push(snippet);
 	active = snippet;
 }
 
-/** Is `range` inside a tabstop the current snippet has not passed yet? */
-function withinPendingTabstop(owner: object, from: number, to: number): boolean {
-	if (!active || active.owner !== owner) return false;
-	return active.groups
-		.slice(active.index)
-		.some((group) => group.some((range) => from >= range.from && to <= range.to));
+/** Which pending tabstop contains this expansion, or -1 if none does? */
+function pendingTabstopIndex(owner: object, from: number, to: number): number {
+	if (!active || active.owner !== owner) return -1;
+	return active.groups.findIndex((group, index) => index >= active!.index
+		&& group.some(range => from >= range.from && to <= range.to));
 }
 
 export function clearTabstops() {
@@ -69,6 +69,7 @@ function dropActive() {
 	}
 	stack.pop();
 	active = stack[stack.length - 1] ?? null;
+	active?.doc?.addEventListener("scroll", paintMarks, true);
 	paintMarks();
 }
 
@@ -100,7 +101,10 @@ export function clearTabstopsIfElsewhere(owner: object | null | undefined) {
 
 /** Replace `[from, to)` in `buffer` with a snippet result, then select tabstop 0. */
 export function expandSnippet(buffer: Buffer, from: number, to: number, result: ResultInsert): boolean {
-	const nested = withinPendingTabstop(buffer.owner, buffer.positionAt(from), buffer.positionAt(to));
+	const parentIndex = pendingTabstopIndex(buffer.owner, buffer.positionAt(from), buffer.positionAt(to));
+	const nested = parentIndex >= 0;
+	// The user may have clicked a later placeholder instead of tabbing to it.
+	if (nested && active) active.index = parentIndex;
 	const groups = tabstopSpecsToTabstopGroups(result.tabstops);
 	const flat = groups.flat();
 
@@ -108,9 +112,8 @@ export function expandSnippet(buffer: Buffer, from: number, to: number, result: 
 	const placed = buffer.applyChange(from, to, result.insert, flat, selection);
 
 	if (!groups.length) {
-		// Nothing to step through here; hand the tabstops back to the outer snippet.
-		if (nested) dropActive();
-		else clearTabstops();
+		// A plain expansion inside a placeholder does not finish that snippet.
+		if (!nested) clearTabstops();
 		return true;
 	}
 
@@ -119,13 +122,21 @@ export function expandSnippet(buffer: Buffer, from: number, to: number, result: 
 	const placedGroups = groups.map((group) => group.map(() => placed[cursor++]));
 
 	const owner = buffer.owner;
-	buffer.watch((map) => {
-		if (active && active.owner === owner) {
-			for (const snippet of stack) if (snippet.owner === owner)
-				snippet.groups = snippet.groups.map((group) => group.map(map));
-			paintMarks();
-		}
-	});
+	if (!watchedOwners.has(owner)) {
+		watchedOwners.add(owner);
+		buffer.watch((map) => {
+			if (active && active.owner === owner) {
+				for (const snippet of stack) if (snippet.owner === owner)
+					snippet.groups = snippet.groups.map((group, index) => group.map(range => {
+						const mapped = map(range);
+						// Future empty stops follow inserted text at their boundary,
+						// but remain carets. Only the active placeholder grows.
+						return index > snippet.index && range.from === range.to ? { from: mapped.to, to: mapped.to } : mapped;
+					}));
+				paintMarks();
+			}
+		});
+	}
 
 	// Expanding inside a placeholder of the snippet in hand nests; anything else
 	// means that snippet is finished with.
@@ -160,13 +171,13 @@ export function setSelectionToNextTabstop(buffer: Buffer, shiftKey: boolean): bo
 	const direction = shiftKey ? -1 : 1;
 	let next = active.index + direction;
 
-	const current = active.groups[active.index]?.[0];
+	const current = { from: buffer.positionAt(buffer.from), to: buffer.positionAt(buffer.to) };
 
 	while (next >= 0 && next < active.groups.length) {
 		const target = active.groups[next][0];
 		// Adjacent tabstops can collapse onto the same spot; stepping onto one we
 		// are already sitting at would make Tab look broken.
-		if (current && target.from === current.from && target.to === current.to) {
+		if (target.from === current.from && target.to === current.to) {
 			next += direction;
 			continue;
 		}
@@ -184,7 +195,7 @@ export function setSelectionToNextTabstop(buffer: Buffer, shiftKey: boolean): bo
 	}
 
 	// Out of tabstops here: fall back to the snippet this one was expanded inside.
-	if (direction === 1 && stack.length > 1) {
+	if (stack.length > 1) {
 		dropActive();
 		return setSelectionToNextTabstop(buffer, shiftKey);
 	}

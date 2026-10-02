@@ -11,7 +11,7 @@ import { DEFAULT_SETTINGS, processSettings, RawSettings, Settings } from "./sett
 import { runSnippets } from "./features/run_snippets";
 import { runAutoFraction } from "./features/autofraction";
 import { shouldTaboutByCloseBracket, tabout } from "./features/tabout";
-import { addCellMatrixShortcut, exitMatrixShortcut, newlineMatrixShortcut, priorityTaboutMatrixShortcut } from "./features/matrix_shortcuts";
+import { addCellMatrixShortcut, exitMatrixShortcut, newlineMatrixShortcut, lineBreakMatrixShortcut, priorityTaboutMatrixShortcut } from "./features/matrix_shortcuts";
 import { clearTabstops, clearTabstopsIfElsewhere, hasTabstops, setSelectionToNextTabstop } from "./snippets/snippet_management";
 import { Snippet } from "./snippets/snippets";
 import { Context } from "./utils/context";
@@ -21,10 +21,15 @@ import { installCompletion } from "./completion/controller";
 import { DEFAULT_COMMANDS, parseCommands } from "./completion/dictionary";
 import { installMathPaste } from "./features/paste_math";
 import { installImageResize } from "./features/image_resize";
+import { installScrollPastEnd } from "./features/scroll_past_end";
+import { installAnnotationCompletion } from "./features/annotation_completion";
 import { installPrintDiagnostic } from "./features/print_diagnostic";
 import { installMathPreview } from "./features/math_preview";
+import { installMathHighlight } from "./features/math_highlight";
+import { installMathVisibility } from "./features/math_visibility";
 import { deleteMathWord } from "./features/math_delete";
 import { handleMathHistory } from "./features/math_history";
+import { installMathMouseSelection, normalizeMathClickTimeout } from "./features/math_selection";
 
 declare const window: any;
 
@@ -35,6 +40,8 @@ const MODIFIER_KEYS = new Set(["Shift", "Control", "Alt", "Meta", "CapsLock", "A
 let settings: Settings | null = null;
 let completion: ReturnType<typeof installCompletion> | null = null;
 let stopMathPreview: (() => void) | null = null;
+let stopMathHighlight: (() => void) | null = null;
+let stopMathVisibility: (() => void) | null = null;
 let completionCommands = DEFAULT_COMMANDS;
 let automaticSnippets: Snippet[] = [];
 
@@ -73,6 +80,8 @@ function describeFocus(): string {
 
 let lastSettingsJSON: string | undefined;
 let pdfTheme: RawSettings["pdfTheme"] = "auto";
+let completionMinimum = 2;
+let mathClickTimeout = 1000;
 
 function loadSettings(json: string | undefined) {
 	// Re-injection is idempotent and happens whenever a window is re-attached;
@@ -85,7 +94,14 @@ function loadSettings(json: string | undefined) {
 
 	let raw: RawSettings = DEFAULT_SETTINGS;
 	try {
-		if (json) raw = { ...DEFAULT_SETTINGS, ...JSON.parse(json) };
+		if (json) {
+			const parsed = JSON.parse(json);
+			raw = { ...DEFAULT_SETTINGS, ...parsed };
+			if (typeof parsed.mathPreviewEnabled === "boolean") {
+				raw.inlineMathPreviewEnabled = parsed.inlineMathPreviewEnabled ?? parsed.mathPreviewEnabled;
+				raw.displayMathPreviewEnabled = parsed.displayMathPreviewEnabled ?? parsed.mathPreviewEnabled;
+			}
+		}
 	} catch (e) {
 		console.error("latex-suite: unreadable settings, using defaults -", e);
 	}
@@ -104,9 +120,18 @@ function loadSettings(json: string | undefined) {
 
 	automaticSnippets = settings ? settings.snippets.filter((s) => s.options.automatic) : [];
 	pdfTheme = raw.pdfTheme === "light" || raw.pdfTheme === "dark" ? raw.pdfTheme : "auto";
+	completionMinimum = Math.max(1, Math.floor(Number(raw.completionMinLength) || 2));
+	mathClickTimeout = normalizeMathClickTimeout(raw.mathSelectionClickTimeoutMs);
+	if (window.document.createEvent) {
+		const event = window.document.createEvent("Event"); event.initEvent("latex-suite-settings-changed", false, false); window.document.dispatchEvent(event);
+	}
 	completion?.destroy();
 	stopMathPreview?.();
-	stopMathPreview = raw.mathPreviewEnabled && !isReaderWindow(window) ? installMathPreview(window, Number(raw.mathPreviewDebounceMs)) : null;
+	stopMathHighlight?.();
+	stopMathVisibility?.();
+	stopMathVisibility = window.document.createElement && !isReaderWindow(window) ? installMathVisibility(window) : null;
+	stopMathHighlight = raw.mathHighlightEnabled && window.document.createElement && !isReaderWindow(window) ? installMathHighlight(window) : null;
+	stopMathPreview = window.document.createElement && !isReaderWindow(window) ? installMathPreview(window, Number(raw.mathPreviewDebounceMs), raw.inlineMathPreviewEnabled ?? raw.mathPreviewEnabled, raw.displayMathPreviewEnabled ?? raw.mathPreviewEnabled) : null;
 	completion = null;
 	try { completionCommands = raw.completionCommands === undefined ? DEFAULT_COMMANDS : parseCommands(raw.completionCommands); }
 	catch (e) { console.error("latex-suite: invalid completion dictionary; retaining previous commands", e); }
@@ -224,6 +249,7 @@ function handleKeydown(event: KeyboardEvent): boolean {
 
 	// 6.-9. Matrix shortcuts. Tabout inside brackets wins over adding a cell.
 	if (settings.matrixShortcutsEnabled) {
+		if (key === settings.matrixShortcutsLineBreakTrigger && lineBreakMatrixShortcut(window, settings)) { completion?.suppress(); return true; }
 		if (
 			settings.taboutEnabled &&
 			settings.taboutTrigger === settings.matrixShortcutsCellTrigger &&
@@ -258,7 +284,11 @@ function install() {
 
 	loadSettings(window.__latexSuiteSettings);
 	const stopMathPaste = isReaderWindow(window) ? null : installMathPaste(window);
+	const stopMathSelection = isReaderWindow(window) || !window.document.createElement ? null : installMathMouseSelection(window, () => completion?.suppress(), () => mathClickTimeout);
 	const stopImageResize = isReaderWindow(window) || !window.document.createElement ? null : installImageResize(window);
+	const stopScrollPastEnd = isReaderWindow(window) || !window.document.createElement ? null : installScrollPastEnd(window);
+	const stopAnnotations = isReaderWindow(window) || !window.document.createElement ? null : installAnnotationCompletion(window, () => completionMinimum,
+		() => ({ bufferCompletionEnabled: settings?.bufferCompletionEnabled ?? false, dictionaryCompletionEnabled: settings?.dictionaryCompletionEnabled ?? false, textDictionaryWords: settings?.textDictionaryWords }));
 	const stopPrintDiagnostic = isReaderWindow(window) || !window.document.createElement ? null : installPrintDiagnostic(window, () => pdfTheme);
 
 	// Set when we handled a printable key, so the insertion it would otherwise
@@ -324,10 +354,17 @@ function install() {
 
 	// Called from bootstrap.js when the plugin is disabled or updated.
 	window.__latexSuiteUninstall = () => {
+		stopMathSelection?.();
 		stopImageResize?.();
+		stopScrollPastEnd?.();
+		stopAnnotations?.();
 		stopPrintDiagnostic?.();
 		stopMathPreview?.();
 		stopMathPreview = null;
+		stopMathHighlight?.();
+		stopMathHighlight = null;
+		stopMathVisibility?.();
+		stopMathVisibility = null;
 		stopMathPaste?.();
 		completion?.destroy();
 		completion = null;

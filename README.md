@@ -73,7 +73,152 @@ The bundled 743 entries are derived from Completr and validated against
 KaTeX 0.16.22, as bundled in the inspected Zotero 10 installation. Custom files
 may include commands the renderer does not support. See
 `src/completion/PROVENANCE.md` and `COMPLETR-LICENSE` for source attribution.
-Completion is limited to note equations, not annotation comments or plain text.
+LaTeX command completion is limited to note equations.
+
+### LaTeX source highlighting
+
+Note equations now color commands, braces, operators, comments and environment
+names while editing, with light/dark-aware colors. Nested text arguments such as
+`\text{target {label}}` are tracked without affecting subsequent math.
+Settings → LaTeX Suite → Completion → **Highlight LaTeX source in note equations**
+toggles this independently of snippets, completion and live preview.
+Inside text macros, nested `$…$` or `\(…\)` regions are math mode for snippets
+and completion. For an automatic `mk` entry in `\text{…}`, add
+`{trigger: "mk", replacement: "\\($0\\)$1", options: "TA"}` to your custom
+snippets. This inserts nested LaTeX, not a second Zotero math node. Closing the
+delimiter restores text mode; closing the text group restores outer math mode.
+Highlighting uses temporary ProseMirror decorations: stored LaTeX, history and
+exported math remain unchanged. Annotation editors are not included.
+
+Highlighting uses a lightweight hand-written equation-source tokenizer, with
+no TextMate, WASM, network dependency or asynchronous runtime initialization.
+Cursor movement reuses cached decorations. The scanner handles ordinary math
+commands, escapes, nested text arguments and environment names; it is not a full
+TeX parser. The ProseMirror utilities retain their MIT license in
+`PROSEMIRROR-LICENSE`.
+The scanner also handles math nested in text arguments (`$…$`, `\(…\)` and
+`\[…\]`), starred `\operatorname*`, verbatim `\verb`/`\verb*`, and escaped
+Unicode characters. Unfinished inner math is contained when its surrounding text
+group closes. Highlighting updates do not repeatedly rescan the whole editor.
+Run `node benchmark-math-highlight.mjs` after building to measure tokenization
+and decoration creation; it does not measure browser layout or painting.
+
+`\left`, `\middle`, and `\right` use rose, distinct from teal environment names.
+With a collapsed selection, placing the caret before/after a delimiter or
+inside a named delimiter command highlights its partner(s) with a subtle
+background. Scalable commands include the complete command-plus-delimiter;
+`\middle` highlights the surrounding `\left`/`\right` group. Unmatched
+delimiters get a wavy warning underline. Comments, literal text commands and
+ambiguous bare bars are excluded. Range selections clear the matching cue.
+The shared delimiter map is cached until source changes; caret movement uses
+a direct lookup and never changes source or undo history. This feature follows
+the source-highlighting toggle.
+Recognition rules adapted from Highlight.js and CodeMirror are documented in
+`notes/highlight-rules.md`, with their license notices included in the XPI.
+
+### Expand selection inside equations
+
+While editing inline or display math, single clicks place the caret and double
+clicks select a word or command using the plugin's selection handler. A third click at the same position selects
+the nearest enclosing expression; further rapid clicks expand outward. For
+example: `a` → `a+b` → `\frac{a+b}{c}` → whole equation source.
+Plain left-click selection (including dragging) is handled by the plugin only
+inside editable math; native mousedown/release/click/double-click selection is
+suppressed there to avoid competing selection handlers.
+No keyboard shortcut is assigned; click again normally to restart selection.
+The plugin tracks click continuation itself (within 1000 ms by default
+and 5 CSS pixels), so browsers that restart their native click count do not
+restart selection. Mouse release/click handlers protect the structural extent
+from native line selection. Moving the click position or pausing starts over.
+Adjust **Settings → LaTeX Suite → Math selection → Repeated-click timeout**
+to change the maximum pause between clicks (200–5000 ms). Changes apply without
+restarting Zotero; reloading settings resets any in-progress click sequence.
+Delimiter regions have both inside and outside levels: `a` → `a+b` → `(a+b)`
+→ enclosing expression. This also applies to `{…}`, `[…]`, named pairs,
+and complete `\left … \right` expressions.
+
+Supported regions include braces, parentheses, square brackets, escaped braces,
+`\langle … \rangle`, named absolute-value/norm/floor/ceiling pairs, `|…|`,
+`||…||`, `\|…\|`, and `\left … \right` with optional `\middle`.
+Common braced constructs such as fractions also form whole-command regions.
+Any alphabetic command followed by complete braced arguments forms a region,
+so custom macros need no whitelist: `\mycommand{a}{b}_{i}` works too.
+Structural commands and delimiter commands are excluded. A small signature
+table keeps incomplete fractions/binomials from becoming half-command regions.
+Optional `[…]` arguments and unbraced arguments are not guessed.
+Styled symbols (`\mathcal`, `\mathbb`, `\mathbf`, etc.) also form command
+regions, followed by a whole-term level including attached sub/superscripts:
+`L` → `{L}` → `\mathcal{L}` → `\mathcal{L}_{\text{SE}}` → enclosing expression.
+Accents and decorations (`\dot`, `\ddot`, `\vec`, `\hat`, `\widehat`,
+`\tilde`, `\widetilde`, bars/arrows/braces, etc.) use the same braced-argument
+selection levels, including nested accents and attached scripts.
+Comments and verbatim/text bodies do not create delimiter pairs. Symmetric bars
+use a conservative same-nesting-level heuristic, not semantic TeX parsing;
+ambiguous mathematical notation may still require manual selection.
+Incomplete/mismatched pairs are skipped. Editing source, moving the selection,
+switching equations, or reloading settings resets selection history. Tab navigation
+is unchanged. Modified clicks, right clicks, and IME composition are left alone.
+
+### Annotation completion and preview options
+
+### Ordinary-text completion
+
+The note editor supports scrolling beyond the last line: approximately one
+viewport of editor-only bottom padding lets the final line reach the top.
+Spacing follows the scroll-container size and is removed when the plugin is
+disabled. It does not add paragraphs or alter saved notes or PDF export.
+
+Typing a word in ordinary note text automatically offers current-note (Buffer)
+and custom word-list (Dictionary) suggestions after the configured minimum
+prefix length, default two. Both sources have independent switches in Settings
+→ LaTeX Suite → Completion. Dictionary completion requires selecting a **Word
+dictionary file**: UTF-8 plain text, one word or phrase per line. Blank lines and
+duplicates are ignored. Like [Completr's word-list provider](https://github.com/tth05/obsidian-completr/blob/400fb99279345f8f7424ef58a6076e7a93ac5fdc/src/provider/word_list_provider.ts),
+matching uses case-insensitive prefixes; exact case and shorter words rank first
+within each source. Buffer results precede dictionary results, with duplicates
+removed. No dictionary data or Obsidian runtime is bundled or downloaded.
+
+The shared popup shows the source below each word. Up/Down select, Enter inserts,
+Escape dismisses; Tab and Shift+Enter dismiss without being consumed. Suggestions
+only appear after input, at the end of a word with a collapsed selection, outside
+math and code. Buffer indexing reuses unchanged ProseMirror blocks and drops
+deleted words. Dictionary lookup uses a sorted prefix index; only 50 merged
+results are displayed. Changing the dictionary file reloads it through the
+existing privileged settings pipeline; unreadable files retain the last good
+contents and report an error in settings.
+
+In ordinary note text, type `@@query` to search annotations throughout the
+note's library. Search starts after the configured minimum completion prefix
+length (default two characters, excluding `@@` and surrounding whitespace).
+Below that threshold no cache loading or matching runs. Search covers annotation
+text and comments. The first configured number of query characters must
+match as a literal substring (case-insensitive). All matching candidates are
+retained, then the full query is fuzzy-matched within that set as you type.
+Only the displayed results are capped at 50; changing the initial characters
+or annotation updates invalidates the applicable candidate set.
+Results are ranked by match quality without preferring comments. Suggestions
+show annotation text and comment on one line, with the source title dimmed below.
+Note/area annotations with no text remain searchable through their comments.
+Up/Down navigate, Enter inserts, Escape
+dismisses, and Tab dismisses without being consumed. Math and code are excluded.
+Standalone notes search their library too. A shared session cache reads searchable
+fields directly from SQLite on first use. Item notifications queue incremental
+refreshes before the next search, including parent trash/restore and title edits.
+Search is debounced by 120 ms, yields during long scans, and returns at most 50
+results to the editor. Cached records retain text/comment, the displayed source
+title, and IDs needed for library isolation and incremental invalidation—not
+images, annotation type/page, full item objects, or duplicated search strings. Initial load
+and refresh timings appear in Zotero debug output; no separate disk cache is used.
+
+Insertion replaces the query with literal annotation text, falling back to its
+comment if the text is empty. No citation, source link, or image is inserted.
+If both are empty, an error is shown instead of deleting the query. Annotation color and citation settings
+are left unchanged. A result whose note selection changed during loading is
+not inserted.
+
+Settings → LaTeX Suite → Completion has separate **Live preview for inline math**
+and **Live preview for display math** toggles. The previous shared setting is
+used for both until you change them. Both share the existing debounce setting.
 
 Run `npm run typecheck`, `npm run build`, and `npm test` to validate the extension.
 
@@ -110,7 +255,8 @@ internals and falls back to normal paste if its Markdown importer is unavailable
   advances past the next closing bracket.
 - **Matrix shortcuts** — inside `pmatrix`, `cases`, `align` and friends,
   <kbd>Tab</kbd> adds a cell, <kbd>Enter</kbd> a row, <kbd>Shift</kbd>+<kbd>Enter</kbd>
-  leaves.
+  leaves. <kbd>Ctrl</kbd>+<kbd>Enter</kbd> inserts a source newline without `\\`.
+  These keys can be changed in Settings → LaTeX Suite → Matrix shortcuts.
 - **Auto-enlarge brackets** — a bracket pair containing `\sum`, `\int`, `\frac`…
   grows a `\left`/`\right`.
 
