@@ -12,11 +12,12 @@ const profile=await mkdtemp(path.join(tmpdir(),'latex-suite-gecko-space-'));
 const archive=process.env.ZOTERO_ARCHIVE||'/usr/lib/zotero/app/omni.ja';
 const assets=new Map();
 for(const file of ['resource/react.js','resource/react-dom.js','resource/prop-types.js','resource/note-editor/editor.js','resource/note-editor/editor.css'])assets.set('/'+file,execFileSync('unzip',['-p',archive,file],{maxBuffer:20*1024*1024}));
+for(const file of execFileSync('unzip',['-Z1',archive],{encoding:'utf8'}).split('\n').filter(f=>f.startsWith('resource/note-editor/assets/fonts/')&&f.endsWith('.woff2')))assets.set('/'+file,execFileSync('unzip',['-p',archive,file]));
 assets.set('/plugin.js',await readFile('build/content-script.js'));
 const html='<!doctype html><script>window.testErrors=[];addEventListener("error",e=>testErrors.push(e.message));</script><link rel="stylesheet" href="/resource/note-editor/editor.css"><div id="editor-container"></div>'+['resource/react.js','resource/react-dom.js','resource/prop-types.js','resource/note-editor/editor.js'].map(s=>`<script src="/${s}"></script>`).join('');
 const server=createServer((req,res)=>{
  const asset=assets.get(req.url);
- res.setHeader('Content-Type',(asset?(req.url.endsWith('.css')?'text/css':'application/javascript'):'text/html')+';charset=utf-8');res.end(asset||html);
+ res.setHeader('Content-Type',(asset?(req.url.endsWith('.woff2')?'font/woff2':req.url.endsWith('.css')?'text/css':'application/javascript'):'text/html')+';charset=utf-8');res.end(asset||html);
 });
 await new Promise(r=>server.listen(0,'127.0.0.1',r));
 const url=`http://127.0.0.1:${server.address().port}/`;
@@ -83,7 +84,7 @@ try{
   ['plugin-inline-all-optional-off','math_inline',true,{mathHighlightEnabled:false,completionEnabled:false,inlineMathPreviewEnabled:false}],
   ['native-display','math_display',false,{}],
   ['plugin-display','math_display',true,{}],
- ]){
+ ].filter(() => !process.argv.includes('--caret-only'))){
   const before=await fixture(kind,plugin,config);
   await type(' ');
   const trailing=await js(`return {source:testMath._innerView.state.doc.textContent,dom:testMath._innerView.dom.textContent}`);
@@ -108,7 +109,35 @@ try{
    assert.equal(await js('return testMath._innerView.state.doc.textContent'),value+String.raw` + \text{hello world}`,'text-mode spaces untouched');
   }
  }
- console.log(process.argv.includes('--investigate')?'Real Gecko Space insertion comparison completed.':'Real Gecko Space insertion regression checks passed.');
+ for(const [kind,source,glyph,expected,side] of [
+  ['math_inline','a+b','b',[2,3]],
+  ['math_inline','a+b','a',[0,1]],
+  ['math_inline','a+b','a',[0],'left'],
+  ['math_display',String.raw`x^{2}+y`,'2',[3],'left'],
+  ['math_inline',String.raw`\alpha+x`,'α',[0,6]],
+  ['math_display',String.raw`\mathbb{E}+x`,'E',[8,9]],
+  ['math_display',String.raw`\frac{a}{b}+c`,'b',[9,10]],
+  ['math_display',String.raw`x^{2}+y`,'2',[3,4]],
+  ['math_display',String.raw`x_{i}^{t}+z`,'i',[3,4]],
+  ['math_display',String.raw`\sqrt{x}+y`,'x',[6,7]],
+  ['math_display',String.raw`\begin{pmatrix}a & b \\ c & d\end{pmatrix}`,'d',[28,29]],
+ ]){
+  await fixture(kind,true);
+  await js(`var inner=testMath._innerView;inner.dispatch(inner.state.tr.insertText(${JSON.stringify(source)},0,inner.state.doc.content.size));var v=window._currentEditorInstance._editorCore.view;v.dispatch(v.state.tr.insert(v.state.doc.content.size,v.state.schema.nodes.paragraph.create(null,v.state.schema.text('after'))));var S=Object.getPrototypeOf(v.state.selection.constructor);v.dispatch(v.state.tr.setSelection(S.fromJSON(v.state.doc,{type:'text',anchor:v.state.doc.content.size-2,head:v.state.doc.content.size-2})));v.focus();`);
+  await pause(150);
+  assert.equal(await js('return !!testMath._innerView'),false,'fixture closes math');
+  const point=await js(`var walker=document.createTreeWalker(testMath._mathRenderElt.querySelector('.katex-html'),4),n;while(n=walker.nextNode()){var p=n.textContent.indexOf(${JSON.stringify(glyph)});if(p>=0){var r=document.createRange();r.setStart(n,p);r.setEnd(n,p+1);var b=r.getBoundingClientRect(),v=n.parentElement.getBoundingClientRect();return {x:${side==='left'?'b.left+1':'b.right-1'},y:(v.top+v.bottom)/2};}}throw Error('glyph missing');`);
+  await js(`window.caretTrace=[];document.addEventListener('mousedown',e=>{caretTrace.push({target:e.target.outerHTML.slice(0,200),detail:e.detail,prevented:e.defaultPrevented,probes:document.querySelectorAll('.math-node[aria-hidden="true"]').length});setTimeout(()=>caretTrace.push({head:testMath._innerView?.state.selection.head,probes:document.querySelectorAll('.math-node[aria-hidden="true"]').length}),100);},true);`);
+  await command('WebDriver:PerformActions',{actions:[{type:'pointer',id:'mouse',parameters:{pointerType:'mouse'},actions:[{type:'pointerMove',x:Math.round(point.x),y:Math.round(point.y),duration:0},{type:'pointerDown',button:0},{type:'pointerUp',button:0}]}]});
+  await pause(1000);
+  const result=await js('return {source:testMath._innerView?.state.doc.textContent,head:testMath._innerView?.state.selection.head,probes:document.querySelectorAll(\'.math-node[aria-hidden="true"]\').length}');
+  console.log('caret',JSON.stringify({kind,source,glyph,...result}));
+  if(!expected.includes(result.head)) console.log(JSON.stringify(await js('return caretTrace')));
+  assert.equal(result.source,source,'click does not change source');
+  assert.ok(expected.includes(result.head),`click ${glyph} maps to its source: ${result.head}, expected ${expected}`);
+  assert.equal(result.probes,0,'probe cleanup');
+ }
+ console.log(process.argv.includes('--investigate')?'Real Gecko Space insertion comparison completed.':'Real Gecko Space insertion and rendered click regression checks passed.');
 }finally{
  socket?.destroy();for(const item of pending.values()){clearTimeout(item.timer);item.reject(new Error('test ended'));}pending.clear();
  if(browser&&browser.exitCode===null){browser.kill('SIGTERM');await Promise.race([new Promise(r=>browser.once('exit',r)),pause(2000)]);if(browser.exitCode===null)browser.kill('SIGKILL');}

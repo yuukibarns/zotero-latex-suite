@@ -220,6 +220,15 @@ Settings → LaTeX Suite → Completion has separate **Live preview for inline m
 and **Live preview for display math** toggles. The previous shared setting is
 used for both until you change them. Both share the existing debounce setting.
 
+The preview cursor marker is inspired by
+[Obsidian LaTeX Suite](https://github.com/artisticat1/obsidian-latex-suite), but
+uses Zotero's own renderer without changing saved equations. Clicking a closed
+rendered equation also attempts to place its source caret near the clicked
+symbol. This is approximate: it probes safe marker positions only on click,
+including fraction/script arguments and matrix cells. Large or ambiguous
+expressions, invalid renders, dragging, or typing during the lookup retain
+Zotero's normal opening behavior. Probe work is bounded and never runs per keystroke.
+
 Run `npm run typecheck`, `npm run build`, and `npm test` to validate the extension.
 
 ### Existing features
