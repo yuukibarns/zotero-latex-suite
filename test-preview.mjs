@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {JSDOM} from 'jsdom';
-import {installMathPreview,previewMarkerSource,renderPreviewMarker} from './build/test-exports.mjs';
+import {installMathPreview,previewMarkerSource,renderPreviewMarker,PREVIEW_CARET,previewMarkerColor} from './build/test-exports.mjs';
 import katex from 'katex-zotero';
 const dom=new JSDOM('<!doctype html><math-inline class="math-node"><div class="math-src" tabindex="0"></div><div class="math-render"></div></math-inline>',{pretendToBeVisual:true});
 const win=dom.window,doc=win.document,source=doc.querySelector('.math-src'),render=doc.querySelector('.math-render');
@@ -118,10 +118,11 @@ render.textContent='native untouched';
 for(let head=0;head<=nativeSource.length;head++){
  const target=doc.createElement('div');
  assert.equal(renderPreviewMarker(isolated,target,nativeSource,head),true,`safe fraction/script position ${head}`);
- assert.ok(target.textContent.includes('▶'));
+ assert.ok(target.querySelector('.ls-preview-caret .rule'));
+ assert.equal(target.querySelector('.ls-preview-caret').getAttribute('aria-hidden'),'true');
  assert.equal(isolated._node,originalNode);assert.equal(render.textContent,'native untouched');
 }
-const marker='\\text{$\\blacktriangleright$}';
+const marker=PREVIEW_CARET;
 assert.equal(previewMarkerSource('\\alpha',3),marker+'\\alpha');
 for (const command of ['\\cos','\\sin','\\alpha','\\sum']) {
  assert.equal(previewMarkerSource(command,command.length),command+marker,'command-end caret stays after non-argument command');
@@ -135,16 +136,22 @@ assert.equal(previewMarkerSource('\\mathbb{E}',7),'\\mathbb{'+marker+'E}','marke
 assert.equal(previewMarkerSource('\\text{hello}',5),'\\text{'+marker+'hello}','marker stays inside text argument');
 const regressionTarget=doc.createElement('div');
 assert.equal(renderPreviewMarker(isolated,regressionTarget,screenshotSource,screenshotSource.length),true);
-const visualText=regressionTarget.querySelector('.katex-html').textContent;
-assert.ok(visualText.indexOf('cos') < visualText.indexOf('▶'),'rendered marker follows cos');
+const visual=regressionTarget.querySelector('.katex-html');
+const cos=[...visual.querySelectorAll('*')].find(el=>el.textContent==='cos');
+assert.ok(cos.compareDocumentPosition(visual.querySelector('.ls-preview-caret')) & win.Node.DOCUMENT_POSITION_FOLLOWING,'rendered marker follows cos');
 assert.equal(previewMarkerSource('\\begin{aligned}x\\end{aligned}',9),marker+'\\begin{aligned}x\\end{aligned}');
 for(const [value,head] of [['\\text{hello}',8],['\\left(x\\right)',6],['x^{2}',3],['\\begin{array}{c}x\\end{array}',14]]){
  assert.equal(renderPreviewMarker(isolated,doc.createElement('div'),value,head),true,`text/delimiter/metadata ${value}`);
 }
 const macroOptions={macros:{'\\foo':'x'}};
-const macroView={...isolated,_katexOptions:macroOptions,renderMath(){this._katexOptions.macros['\\foo']='changed';this._mathRenderElt.textContent='marker';}};
+const macroView={...isolated,_katexOptions:macroOptions,renderMath(){
+ assert.equal(this._katexOptions.trust({command:'\\htmlClass',class:'ls-preview-caret'}),true);
+ for(const context of [{command:'\\href',url:'https://example.com'},{command:'\\htmlStyle',style:'color:red'},{command:'\\htmlClass',class:'other'}]) assert.equal(this._katexOptions.trust(context),false);
+ this._katexOptions.macros['\\foo']='changed';this._mathRenderElt.textContent='marker';
+}};
 renderPreviewMarker(macroView,doc.createElement('div'),'x',0);
 assert.deepEqual(macroOptions.macros,{'\\foo':'x'},'preview renderer cannot mutate shared macro dictionary');
+assert.equal(macroOptions.trust,undefined,'native trust settings remain untouched');
 const target=doc.createElement('div');target.textContent='keep';
 assert.equal(renderPreviewMarker(isolated,target,'\\frac{',6),false);assert.equal(target.textContent,'keep');
 // A failed decorated rendering falls back; noncollapsed selection hides marker.
@@ -158,5 +165,26 @@ assert.equal(popup().firstChild.textContent,'ab'+marker);
 assert.equal(renders,nativeRenders+1,'selection rerenders only detached preview');assert.equal(render.textContent,'ab');
 math._innerView.state.selection.empty=false;doc.dispatchEvent(new win.Event('selectionchange'));await step();
 assert.equal(popup().firstChild.textContent,'ab');stop();
+assert.equal(previewMarkerColor(' #Ab12EF '),'#Ab12EF');
+for(const invalid of [null,'red','#fff','url(test)','#ffffff;opacity:0']) assert.equal(previewMarkerColor(invalid),'#d9468f');
+for(const value of ['\\begin{matrix}a&b\\\\c&d\\end{matrix}','x_{i}^{t}','\\text{hello}']) {
+ for(let head=0;head<=value.length;head++) assert.equal(renderPreviewMarker(isolated,doc.createElement('div'),value,head),true,`${value} at ${head}`);
+}
+math._innerView.state.selection={empty:true,head:1};
+source.focus();stop=installMathPreview(win,0,true,true,{color:'#123456',blink:true});await step();
+assert.equal(popup().style.getPropertyValue('--ls-preview-caret-color'),'#123456');
+assert.equal(popup().dataset.markerIdle,'false');
+const steadyRenders=renders;
+await step(599);assert.equal(popup().dataset.markerIdle,'false');
+await step(1);assert.equal(popup().dataset.markerIdle,'true');
+await step(2000);assert.equal(renders,steadyRenders,'blinking does not rerender math');
+source.dispatchEvent(new win.KeyboardEvent('keydown',{bubbles:true,key:'ArrowRight'}));
+assert.equal(popup().dataset.markerIdle,'false');await step();
+source.dispatchEvent(new win.Event('compositionstart',{bubbles:true}));
+await step(1000);assert.equal(popup().dataset.markerIdle,'false');
+source.dispatchEvent(new win.Event('compositionend',{bubbles:true}));await step();
+await step(600);assert.equal(popup().dataset.markerIdle,'true');
+await type('abc');assert.equal(popup().dataset.markerIdle,'false');
+stop();assert.equal(timers.size,0);await step(1000);assert.equal(popup(),null);
 dom.window.close();
 console.log('Preview debounce, retention, positioning events, IME and cleanup tests passed.');

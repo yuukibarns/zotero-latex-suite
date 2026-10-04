@@ -22,7 +22,7 @@ export { installCompletion } from "./completion/controller";
 export { expandCompletion } from "./snippets/snippet_management";
 export { normalizeMathPaste, installMathPaste, mathPasteTransaction } from "./features/paste_math";
 export { installMathPreview } from "./features/math_preview";
-export { previewMarkerSource, renderPreviewMarker } from "./features/preview_marker";
+export { PREVIEW_CARET, previewMarkerColor, previewMarkerSource, renderPreviewMarker } from "./features/preview_marker";
 export { createMathSourceMap, mathCaretAt, installMathCaret } from "./features/math_caret";
 export { latexTokens, installMathHighlight } from "./features/math_highlight";
 export { deleteMathWord } from "./features/math_delete";

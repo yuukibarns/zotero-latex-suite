@@ -26,6 +26,8 @@ export interface RawSettings {
 	inlineMathPreviewEnabled?: boolean;
 	displayMathPreviewEnabled?: boolean;
 	mathPreviewDebounceMs: number;
+	mathPreviewMarkerColor: string;
+	mathPreviewMarkerBlink: boolean;
 	completionMinLength: number;
 	loadCompletionFromFile: boolean;
 	completionFileLocation: string;
@@ -105,6 +107,8 @@ export const DEFAULT_SETTINGS: RawSettings = {
 	inlineMathPreviewEnabled: true,
 	displayMathPreviewEnabled: true,
 	mathPreviewDebounceMs: 100,
+	mathPreviewMarkerColor: "#d9468f",
+	mathPreviewMarkerBlink: false,
 	completionMinLength: 2,
 	loadCompletionFromFile: false,
 	completionFileLocation: "",

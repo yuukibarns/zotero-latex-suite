@@ -1,7 +1,7 @@
-import { renderPreviewMarker } from "./preview_marker";
+import { previewMarkerColor, renderPreviewMarker } from "./preview_marker";
 
 /** View-only previews using the renderer already owned by Zotero's MathView. */
-export function installMathPreview(win: Window, debounceMs = 100, inlineEnabled = true, displayEnabled = true) {
+export function installMathPreview(win: Window, debounceMs = 100, inlineEnabled = true, displayEnabled = true, marker: { color?: unknown; blink?: boolean } = {}) {
 	const delay = Number.isFinite(debounceMs) ? Math.max(0, Math.min(2000, debounceMs)) : 100;
 	const doc = win.document;
 	const panel = doc.createElement("div");
@@ -9,19 +9,35 @@ export function installMathPreview(win: Window, debounceMs = 100, inlineEnabled 
 	panel.contentEditable = "false";
 	panel.setAttribute("role", "region");
 	panel.setAttribute("aria-label", "Equation preview");
+	panel.style.setProperty("--ls-preview-caret-color", previewMarkerColor(marker.color));
 	const output = doc.createElement("div"), status = doc.createElement("div");
 	status.className = "ls-preview-status";
 	panel.append(output, status);
 	const style = doc.createElement("style");
 	style.textContent = `#latex-suite-math-preview{box-sizing:border-box;padding:10px;background:Canvas;color:CanvasText;color-scheme:light dark;border:1px solid GrayText;border-radius:5px;overflow:auto;font:initial;pointer-events:auto}#latex-suite-math-preview[data-inline=true]{position:fixed;z-index:2147483646;max-height:35vh;overscroll-behavior:contain;max-width:calc(100vw - 16px);box-shadow:0 3px 12px #0003}#latex-suite-math-preview[data-inline=false]{display:block;margin-top:8px;width:max-content;min-width:100%;max-width:none;max-height:none;overflow:visible}#latex-suite-math-preview .ls-preview-status{font:11px sans-serif;color:GrayText;margin-top:4px}#latex-suite-math-preview .ls-preview-status:empty{display:none}#latex-suite-math-preview .katex-display{margin:0}`;
+	style.textContent += `
+#latex-suite-math-preview .ls-preview-caret{color:var(--ls-preview-caret-color)!important;opacity:1;pointer-events:none}
+#latex-suite-math-preview .ls-preview-caret .rule{border-right-width:max(1.5px,0.065em)!important}
+#latex-suite-math-preview[data-marker-idle=true] .ls-preview-caret{animation:ls-preview-caret-blink 1s step-end infinite}
+@keyframes ls-preview-caret-blink{0%,49%{opacity:1}50%,100%{opacity:0}}
+@media(prefers-reduced-motion:reduce){#latex-suite-math-preview .ls-preview-caret{animation:none!important;opacity:1!important}}
+@media(forced-colors:active){#latex-suite-math-preview .ls-preview-caret{color:Highlight!important}}
+`;
 	doc.head.append(style);
 	let frame = 0, stopped = false, composing = false;
 	let owner: any = null, lastText: string | null = null;
 	let lastHead: number | null | undefined;
 	let ownerNode: HTMLElement | null = null, interacting = false;
 	let timer = 0, pendingText: string | null = null, ready = false;
+	let blinkTimer = 0, activityText: string | null = null, activityHead: number | null | undefined;
+	function pauseBlink() {
+		win.clearTimeout(blinkTimer); blinkTimer = 0; panel.dataset.markerIdle = "false";
+		if (marker.blink && !composing && owner) blinkTimer = win.setTimeout(() => {
+			blinkTimer = 0; panel.dataset.markerIdle = "true";
+		}, 600);
+	}
 	function cancelRender() { win.clearTimeout(timer); timer = 0; pendingText = null; ready = false; }
-	function close() { cancelRender(); panel.remove(); panel.style.visibility = ""; output.replaceChildren(); status.textContent = ""; owner = null; ownerNode = null; interacting = false; lastText = null; lastHead = undefined; }
+	function close() { cancelRender(); owner = null; pauseBlink(); panel.remove(); panel.style.visibility = ""; output.replaceChildren(); status.textContent = ""; ownerNode = null; interacting = false; lastText = null; lastHead = undefined; activityText = null; activityHead = undefined; }
 	function refresh() {
 		frame = 0;
 		if (stopped || composing) return;
@@ -31,6 +47,9 @@ export function installMathPreview(win: Window, debounceMs = 100, inlineEnabled 
 		if (!node || !math?._innerView || typeof math.renderMath !== "function" || !math._mathRenderElt) { close(); return; }
 		if (owner !== math) { close(); owner = math; ownerNode = node; }
 		const text = math._innerView.state.doc.textContent;
+		const selection = math._innerView.state.selection;
+		const head = selection?.empty && Number.isFinite(selection.head) ? selection.head : null;
+		if (text !== activityText || head !== activityHead) { activityText = text; activityHead = head; pauseBlink(); }
 		if (text === lastText) cancelRender();
 		else if (text !== pendingText) {
 			cancelRender(); pendingText = text;
@@ -51,8 +70,6 @@ export function installMathPreview(win: Window, debounceMs = 100, inlineEnabled 
 			} catch { status.textContent = "Preview unavailable"; }
 			if (!output.childNodes.length && status.textContent?.startsWith("Incomplete")) status.textContent = "Incomplete expression";
 		}
-		const selection = math._innerView.state.selection;
-		const head = selection?.empty && Number.isFinite(selection.head) ? selection.head : null;
 		if (text === lastText && !status.textContent && head !== lastHead) {
 			lastHead = head;
 			// Selection-only updates don't render or modify Zotero's native node.
@@ -87,8 +104,9 @@ export function installMathPreview(win: Window, debounceMs = 100, inlineEnabled 
 		panel.style.top = `${top}px`;
 	}
 	function schedule() { if (!stopped && !frame) frame = win.requestAnimationFrame(refresh); }
-	const start = () => { composing = true; cancelRender(); };
-	const end = () => { composing = false; schedule(); };
+	const activity = () => { pauseBlink(); schedule(); };
+	const start = () => { composing = true; pauseBlink(); cancelRender(); };
+	const end = () => { composing = false; activity(); };
 	const viewport = (e: Event) => {
 		if ((e.target as Element)?.closest?.("#latex-suite-math-preview, #latex-suite-completion")) return;
 		schedule();
@@ -114,7 +132,7 @@ export function installMathPreview(win: Window, debounceMs = 100, inlineEnabled 
 	const wheel = (e: Event) => { e.stopPropagation(); }; // native scrolling stays enabled
 	panel.addEventListener("wheel", wheel, { passive: true });
 	const listeners: [EventTarget, string, EventListener][] = [
-		[doc, "input", schedule], [doc, "keydown", schedule], [doc, "selectionchange", schedule],
+		[doc, "input", activity], [doc, "keydown", activity], [doc, "selectionchange", schedule],
 		[doc, "focusin", schedule], [doc, "focusout", schedule], [doc, "scroll", viewport],
 		[win, "resize", viewport], [doc, "compositionstart", start], [doc, "compositionend", end],
 	];

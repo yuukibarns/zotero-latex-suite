@@ -1,5 +1,11 @@
 import { latexTokens } from "../highlight/tokenizer";
 
+export const PREVIEW_CARET = "\\htmlClass{ls-preview-caret}{\\text{$\\rule[-0.15em]{0.065em}{0.9em}$}}";
+
+export function previewMarkerColor(value: unknown): string {
+	return typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value.trim()) ? value.trim() : "#d9468f";
+}
+
 /** Preview-only approximation: never split a control sequence or metadata. */
 export function previewMarkerSource(source: string, head: number): string {
 	let pos = Math.max(0, Math.min(source.length, head));
@@ -44,8 +50,8 @@ export function previewMarkerSource(source: string, head: number): string {
 	}
 	// Avoid splitting UTF-16 surrogate pairs.
 	if (pos > 0 && /[\uDC00-\uDFFF]/.test(source[pos] || "")) pos--;
-	// Use a symbol with bundled KaTeX metrics, including inside text arguments.
-	return source.slice(0, pos) + "\\text{$\\blacktriangleright$}" + source.slice(pos);
+	// A rule has no spoken glyph and works inside text arguments and scripts.
+	return source.slice(0, pos) + PREVIEW_CARET + source.slice(pos);
 }
 
 /** Same bundled renderer/options, isolated DOM and source; no native-view writes. */
@@ -54,12 +60,19 @@ export function renderPreviewMarker(math: any, target: HTMLElement, source: stri
 	const facade = {
 		_node: { content: { firstChild: { textContent: previewMarkerSource(source, head) } } },
 		_mathRenderElt: rendered,
-		_katexOptions: { ...math._katexOptions, macros: { ...math._katexOptions?.macros } },
+		_katexOptions: {
+			...math._katexOptions, macros: { ...math._katexOptions?.macros },
+			// Allow only our styling wrapper, never arbitrary HTML, links or URLs.
+			trust: (context: any) => context.command === "\\htmlClass" && context.class === "ls-preview-caret",
+			strict: (code: string, ...args: any[]) => code === "htmlExtension" ? "ignore"
+				: typeof math._katexOptions?.strict === "function" ? math._katexOptions.strict(code, ...args) : math._katexOptions?.strict ?? "warn",
+		},
 		dom: target.ownerDocument.createElement("div"),
 	};
 	try {
 		math.renderMath.call(facade);
 		if (rendered.classList.contains("parse-error") || rendered.querySelector(".katex-error")) return false;
+		rendered.querySelectorAll(".ls-preview-caret").forEach(marker => marker.setAttribute("aria-hidden", "true"));
 		target.replaceChildren(...Array.from(rendered.childNodes));
 		return true;
 	} catch { return false; }

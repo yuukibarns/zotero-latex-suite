@@ -34,6 +34,8 @@ const FIELDS = [
 	{ group: "Math selection", key: "mathSelectionClickTimeoutMs", type: "number", default: 1000, min: 200, max: 5000, step: 100, label: "Repeated-click timeout (ms, 200–5000)", hint: "Maximum pause between clicks before structural selection starts over." },
 	{ group: "Completion", key: "displayMathPreviewEnabled", type: "bool", default: true, label: "Live preview for display math" },
 	{ group: "Completion", key: "mathPreviewDebounceMs", type: "number", default: 100, label: "Preview debounce (ms, 0 = immediate, maximum 2000)" },
+	{ group: "Completion", key: "mathPreviewMarkerColor", type: "text", default: "#d9468f", label: "Preview caret color (#RRGGBB)", hint: "Accent color for the position marker in inline and display previews." },
+	{ group: "Completion", key: "mathPreviewMarkerBlink", type: "bool", default: false, label: "Blink preview caret when idle", hint: "Steady while typing. Respects the system reduced-motion setting." },
 	{ group: "Completion", key: "completionMinLength", type: "number", default: 2, label: "Minimum completion prefix length" },
 	{ group: "Completion", key: "loadCompletionFromFile", type: "bool", default: false, label: "Load custom completion dictionary" },
 	{ group: "Completion", key: "completionFileLocation", type: "file", default: "", label: "Completion JSON file", hint: "Completr latex_commands.json format. Replaces the built-in dictionary." },
