@@ -249,6 +249,17 @@ for(const tag of ['math-inline','math-display'])for(const value of ['a+b+c','\\f
   }
  }
  // A retained old preview must never map into newly typed source.
+ if(value==='x_{b}^{t}')for(const backward of [false,true]) {
+  source.dispatchEvent(new win.KeyboardEvent('keydown',{bubbles:true,key:'Escape'}));
+  const leaf=letter=>[...popup().querySelectorAll('.katex-html span')].find(el=>el.textContent===letter&&!el.children.length);
+  leaf(backward?'b':'x').dispatchEvent(new win.MouseEvent('mousedown',{bubbles:true,cancelable:true,clientX:backward?9:1,clientY:10}));
+  leaf(backward?'x':'b').dispatchEvent(new win.MouseEvent('mousemove',{bubbles:true,cancelable:true,buttons:1,clientX:backward?1:9,clientY:10}));
+  doc.dispatchEvent(new win.MouseEvent('mouseup',{bubbles:true}));
+  assert.equal(math._innerView.state.selection.from,0);
+  assert.equal(math._innerView.state.selection.to,5,'drag includes subscript closing brace but not next superscript');
+  assert.equal(math._innerView.state.selection.anchor,backward?5:0);
+  await step();
+ }
  math._innerView.state=math._innerView.state.apply(math._innerView.state.tr.insertText('z',0));
  const before=math._innerView.state.selection.head;clickGlyph('b');assert.equal(math._innerView.state.selection.head,before);
  stop();host.remove();

@@ -199,6 +199,43 @@ export function mathWordRange(source: string, pos: number): Range {
 	return { from, to: from + (source.codePointAt(from)! > 0xffff ? 2 : 1) };
 }
 
+/** Extend only across adjacent, matched syntax braces whose other side is
+ * already selected. Keep glyph-only selections and ordinary caret hits exact. */
+export function createMathDragSelection() {
+	let cached: string | undefined;
+	const closes = new Map<number, number>(), opens = new Map<number, number>();
+	return (source: string, anchor: number, head: number) => {
+		if (source !== cached) {
+			cached = source; closes.clear(); opens.clear();
+			const stack: number[] = [];
+			for (const token of latexTokens(source)) {
+				if (token.kind !== "brace") continue;
+				const value = source.slice(token.from, token.to);
+				if (value === "{") stack.push(token.from);
+				else if (value === "}" && stack.length) {
+					const open = stack.pop()!; closes.set(token.from, open); opens.set(open, token.from);
+				}
+			}
+		}
+		if (anchor === head) return { anchor, head };
+		let from = Math.min(anchor, head), to = Math.max(anchor, head);
+		// Only consume whitespace if it leads directly to a qualifying brace.
+		for (;;) {
+			let next = to; while (next < source.length && /\s/.test(source[next])) next++;
+			const open = closes.get(next);
+			if (open === undefined || open < from || open >= to) break;
+			to = next + 1;
+		}
+		for (;;) {
+			let previous = from - 1; while (previous >= 0 && /\s/.test(source[previous])) previous--;
+			const close = opens.get(previous);
+			if (close === undefined || close >= to || close < from) break;
+			from = previous;
+		}
+		return anchor < head ? { anchor: from, head: to } : { anchor: to, head: from };
+	};
+}
+
 /** Own plain left-click caret/word/structural selection in nested math views.
  * Capture the complete mouse gesture before browser/ProseMirror selection.
  */

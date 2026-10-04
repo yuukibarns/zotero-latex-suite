@@ -1,7 +1,7 @@
 import { previewMarkerColor, renderPreviewMarker } from "./preview_marker";
 import { createMathSourceMap, mathCaretAt, mathSelectionRects } from "./math_caret";
 import { PMBuffer, rememberSelectionClass } from "../editor/pm";
-import { createMathSelection, mathWordRange, normalizeMathClickTimeout } from "./math_selection";
+import { createMathDragSelection, createMathSelection, mathWordRange, normalizeMathClickTimeout } from "./math_selection";
 
 /** View-only previews using the renderer already owned by Zotero's MathView. */
 export function installMathPreview(win: Window, debounceMs = 100, inlineEnabled = true, displayEnabled = true, marker: { color?: unknown; blink?: boolean; clickTimeout?: number } = {}) {
@@ -38,6 +38,7 @@ export function installMathPreview(win: Window, debounceMs = 100, inlineEnabled 
 	let ownerNode: HTMLElement | null = null, interacting = false;
 	const getMap = createMathSourceMap();
 	const expandSelection = createMathSelection();
+	const dragBoundaries = createMathDragSelection();
 	let clicks: { owner: any; source: string; x: number; y: number; time: number; count: number; anchor: number; from: number; to: number } | null = null;
 	let drag: { source: string; owner: any; anchor: number; x: number; y: number; moved: boolean } | null = null;
 	function paintSelection() {
@@ -65,9 +66,11 @@ export function installMathPreview(win: Window, debounceMs = 100, inlineEnabled 
 		if (!html || !output.contains(html)) return;
 		const map = getMap(html, drag.source, owner._katexOptions);
 		const head = map ? mathCaretAt(html, map, target, e.clientX, e.clientY) : null;
-		if (head === null || (view.state.selection.anchor === drag.anchor && view.state.selection.head === head)) return;
+		if (head === null) return;
+		const selected = dragBoundaries(drag.source, drag.anchor, head);
+		if (view.state.selection.anchor === selected.anchor && view.state.selection.head === selected.head) return;
 		rememberSelectionClass(view);
-		PMBuffer.forMath(view, ownerNode.localName === "math-inline" ? "math_inline" : "math_display").setSelection(drag.anchor, head);
+		PMBuffer.forMath(view, ownerNode.localName === "math-inline" ? "math_inline" : "math_display").setSelection(selected.anchor, selected.head);
 		e.preventDefault(); schedule();
 	}
 	let press: { x: number; y: number; owner: any; source: string } | null = null;

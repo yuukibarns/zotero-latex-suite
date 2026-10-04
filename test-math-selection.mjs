@@ -2,7 +2,21 @@ import assert from 'node:assert/strict';
 import {JSDOM} from 'jsdom';
 import {Schema} from 'prosemirror-model';
 import {EditorState} from 'prosemirror-state';
-import {mathSelectionRegions,createMathSelection,installMathMouseSelection,normalizeMathClickTimeout} from './build/test-exports.mjs';
+import {mathSelectionRegions,createMathSelection,createMathDragSelection,installMathMouseSelection,normalizeMathClickTimeout} from './build/test-exports.mjs';
+const dragBounds=createMathDragSelection();
+for(const [source,from,to,expectedFrom,expectedTo] of [
+ [String.raw`p_{t} = \alpha_{t} p_{0} + (1 - \alpha_{t}) \pi_{t}`,6,50,6,51],
+ ['x_{t}',0,4,0,5],['x_{t}',3,4,3,4],['x_{t}',4,4,4,4],
+ ['x_{{t}}',0,5,0,7],['x_{{t}}',4,5,4,5],
+ ['{a}+b',1,5,0,5],['{a}+b',1,2,1,2],
+ ['x_{t }  +y',0,4,0,6],['x_{t}y',0,4,0,5],
+ [String.raw`x\{t\}`,0,4,0,4],['x_{t',0,4,0,4],
+ ['x_{t% }\n}',0,4,0,4],['x_{t}}',0,4,0,5],
+ [String.raw`\text{abc}`,0,9,0,10],
+]) {
+ assert.deepEqual(dragBounds(source,from,to),{anchor:expectedFrom,head:expectedTo},source);
+ assert.deepEqual(dragBounds(source,to,from),{anchor:expectedTo,head:expectedFrom},'reverse '+source);
+}
 assert.equal(normalizeMathClickTimeout(undefined),1000);
 for(const invalid of [null,NaN,Infinity,'',false,'oops'])assert.equal(normalizeMathClickTimeout(invalid),1000);
 assert.equal(normalizeMathClickTimeout(1),200);assert.equal(normalizeMathClickTimeout(9999),5000);

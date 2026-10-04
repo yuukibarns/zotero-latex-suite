@@ -33,6 +33,6 @@ export { annotationToken, annotationMatches, installAnnotationCompletion } from 
 export { WordIndex, BufferWords, TextSources, textToken, parseWordList } from "./features/text_sources";
 export { installScrollPastEnd } from "./features/scroll_past_end";
 export { TextBuffer } from "./editor/contenteditable";
-export { mathSelectionRegions, mathDelimiterIndex, createMathSelection, installMathMouseSelection, normalizeMathClickTimeout } from "./features/math_selection";
+export { mathSelectionRegions, mathDelimiterIndex, createMathSelection, createMathDragSelection, installMathMouseSelection, normalizeMathClickTimeout } from "./features/math_selection";
 export { installMathVisibility } from "./features/math_visibility";
 export { newlineMatrixShortcut, lineBreakMatrixShortcut, exitMatrixShortcut } from "./features/matrix_shortcuts";
