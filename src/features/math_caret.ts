@@ -1,5 +1,6 @@
 import { PMBuffer, rememberSelectionClass } from "../editor/pm";
 import { previewMarkerSource, renderPreviewMarker } from "./preview_marker";
+import { latexTokens } from "../highlight/tokenizer";
 
 type Glyph = { text: string; rect: Pick<DOMRect, "left" | "right" | "top" | "bottom" | "width" | "height">; element: Element };
 function glyphs(root: Element): Glyph[] {
@@ -22,13 +23,30 @@ function glyphs(root: Element): Glyph[] {
 }
 
 /** Safe marker locations, deduplicated after command/metadata snapping. */
-export function mathCaretPositions(source: string): number[] {
+export function mathCaretPositions(source: string, glyph?: string): number[] {
 	if (source.length > 2048 || source.includes("▶") || source.includes("\\blacktriangleright")) return [];
 	const seen = new Set<string>(), positions: number[] = [];
-	for (let head = 0; head <= source.length; head++) {
-		if (/[\uDC00-\uDFFF]/.test(source[head] || "")) continue;
+	function add(head: number) {
 		const decorated = previewMarkerSource(source, head);
 		if (!seen.has(decorated)) { seen.add(decorated); positions.push(decorated.indexOf("\\text{$\\blacktriangleright$}")); }
+	}
+	if (glyph) {
+		const tokens = latexTokens(source), hidden = tokens.filter(t => ["command", "environment", "comment", "parameter", "escape"].includes(t.kind));
+		let index = 0;
+		for (const char of source) {
+			if (char === glyph && !hidden.some(t => index >= t.from && index < t.to)) { add(index); add(index + char.length); }
+			index += char.length;
+		}
+		// Literal glyphs (including font arguments, scripts and matrix cells)
+		// need just their two boundaries, not a render at every source offset.
+		if (positions.length) return positions.length <= 256 ? positions : [];
+		// Nonliteral glyphs such as alpha/sum/function names come from commands.
+		for (const token of tokens) if (token.kind === "command") { add(token.from); add(token.to); }
+		return positions.length <= 256 ? positions : [];
+	}
+	for (let head = 0; head <= source.length; head++) {
+		if (/[\uDC00-\uDFFF]/.test(source[head] || "")) continue;
+		add(head);
 		if (positions.length > 256) return [];
 	}
 	return positions;
@@ -52,8 +70,8 @@ export function installMathCaret(win: Window): () => void {
 		if (!node || math?._innerView || !render?.contains(target) || typeof math.renderMath !== "function") return;
 		const source = math._node?.textContent ?? math._node?.content?.firstChild?.textContent;
 		if (typeof source !== "string") return;
-		const positions = mathCaretPositions(source), html = render.querySelector(".katex-html");
-		if (!positions.length || !html) return;
+		const html = render.querySelector(".katex-html");
+		if (!html) return;
 		const original = glyphs(html);
 		if (!original.length) return;
 		const distance = (g: Glyph) => Math.hypot(event.clientX - Math.max(g.rect.left, Math.min(g.rect.right, event.clientX)), event.clientY - Math.max(g.rect.top, Math.min(g.rect.bottom, event.clientY)));
@@ -63,6 +81,8 @@ export function installMathCaret(win: Window): () => void {
 		const candidates = hit.length ? hit : original.map((g, i) => ({ g, i }));
 		let anchor = candidates[0].i;
 		for (const { g, i } of candidates) if (distance(g) < distance(original[anchor])) anchor = i;
+		const positions = mathCaretPositions(source, original[anchor].text);
+		if (!positions.length) return;
 		const signature = original.map(g => g.text).join(""), id = generation;
 		const box = render.getBoundingClientRect(), font = win.getComputedStyle(render);
 		probe = node.cloneNode(false) as HTMLElement;
@@ -116,23 +136,28 @@ export function installMathCaret(win: Window): () => void {
 		}
 		pending = step; pendingNode = node; pendingX = event.clientX; pendingY = event.clientY; openingTimer = win.setTimeout(cancel, 500);
 	}
-	function click(event: MouseEvent) {
+	function release(event: MouseEvent) {
 		if (!pending) return;
 		if (event.button !== 0 || event.ctrlKey || event.altKey || event.metaKey || event.shiftKey || !pendingNode?.contains(event.target as Node) || Math.abs(event.clientX - pendingX) > 5 || Math.abs(event.clientY - pendingY) > 5) { cancel(); return; }
 		win.clearTimeout(openingTimer);
 		const step = pending; pending = null;
 		frame = win.requestAnimationFrame(step);
 	}
-	function move(event: MouseEvent) { if (event.buttons & 1) cancel(); }
+	// Match ProseMirror MouseDown.updateAllowDefault's four-pixel threshold.
+	function move(event: MouseEvent) {
+		if (event.buttons & 1 && pendingNode && (Math.abs(event.clientX - pendingX) > 4 || Math.abs(event.clientY - pendingY) > 4)) cancel();
+	}
 	doc.addEventListener("mousedown", down, true);
-	doc.addEventListener("click", click, true);
+	// PM selects the node in its root mouseup handler. Our animation frame
+	// runs after that handler and MathView.openEditor's initial edge selection.
+	doc.addEventListener("mouseup", release, true);
 	doc.addEventListener("mousemove", move, true);
 	doc.addEventListener("keydown", cancel, true);
 	doc.addEventListener("beforeinput", cancel, true);
 	win.addEventListener("blur", cancel);
 	return () => {
 		stopped = true; cancel();
-		doc.removeEventListener("mousedown", down, true); doc.removeEventListener("click", click, true); doc.removeEventListener("mousemove", move, true);
+		doc.removeEventListener("mousedown", down, true); doc.removeEventListener("mouseup", release, true); doc.removeEventListener("mousemove", move, true);
 		doc.removeEventListener("keydown", cancel, true); doc.removeEventListener("beforeinput", cancel, true);
 		win.removeEventListener("blur", cancel);
 	};

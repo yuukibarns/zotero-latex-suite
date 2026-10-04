@@ -2,6 +2,9 @@ import assert from 'node:assert/strict';
 import {JSDOM} from 'jsdom';
 import {mathCaretPositions,installMathCaret} from './build/test-exports.mjs';
 assert.deepEqual(mathCaretPositions('\\alpha'),[0,6]);
+assert.deepEqual(mathCaretPositions('\\alpha+x','α'),[0,6]);
+assert.deepEqual(mathCaretPositions('a'.repeat(300)+'+x'+'+b'.repeat(100),'x'),[301,302],'long equation probes only the clicked literal');
+assert.deepEqual(mathCaretPositions('\\text{max} + x','x'),[8,9,13,14],'command names are not literal occurrences');
 const frac=mathCaretPositions('\\frac{a}{b}');
 assert.ok(frac.includes(6)&&frac.includes(9));assert.ok(!frac.includes(5)&&!frac.includes(8));
 const env=String.raw`\begin{array}{cc}a & b \\ c & d\end{array}`;
@@ -17,9 +20,10 @@ win.Range.prototype.getBoundingClientRect=()=>({left:0,right:10,top:0,bottom:20,
 let id=0;const frames=new Map();win.requestAnimationFrame=f=>{frames.set(++id,f);return id;};win.cancelAnimationFrame=i=>frames.delete(i);
 const math={_node:{textContent:'x'},_mathRenderElt:doc.querySelector('.math-render'),renderMath(){},_innerView:null};node.pmViewDesc={spec:math};
 const stop=installMathCaret(win);
-const click=(options={})=>{const event=new win.MouseEvent('mousedown',{bubbles:true,cancelable:true,button:0,detail:1,clientX:8,clientY:10,...options});target.dispatchEvent(event);target.dispatchEvent(new win.MouseEvent('click',{bubbles:true,button:0,clientX:8,clientY:10,...options}));assert.equal(event.defaultPrevented,false,'native opening untouched');};
+const click=(options={})=>{const event=new win.MouseEvent('mousedown',{bubbles:true,cancelable:true,button:0,detail:1,clientX:8,clientY:10,...options});target.dispatchEvent(event);target.dispatchEvent(new win.MouseEvent('mouseup',{bubbles:true,button:0,clientX:8,clientY:10,...options}));assert.equal(event.defaultPrevented,false,'native opening untouched');};
 for(const options of [{button:2},{ctrlKey:true},{shiftKey:true},{altKey:true},{metaKey:true},{detail:2}]){click(options);assert.equal(frames.size,0);}
 click();assert.equal(frames.size,1);assert.equal(doc.querySelectorAll('.math-node[aria-hidden=true]').length,1);
+doc.dispatchEvent(new win.MouseEvent('mousemove',{bubbles:true,buttons:1,clientX:9,clientY:10}));assert.equal(frames.size,1,'one-pixel movement is not a drag');
 assert.equal(node.childElementCount,1,'probe never inserted into editable node');
 doc.dispatchEvent(new win.KeyboardEvent('keydown',{bubbles:true,key:'x'}));assert.equal(frames.size,0);assert.equal(doc.querySelectorAll('.math-node[aria-hidden=true]').length,0);
 click();doc.dispatchEvent(new win.MouseEvent('mousemove',{bubbles:true,buttons:1}));assert.equal(frames.size,0,'drag cancels');

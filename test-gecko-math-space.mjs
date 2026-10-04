@@ -109,8 +109,11 @@ try{
    assert.equal(await js('return testMath._innerView.state.doc.textContent'),value+String.raw` + \text{hello world}`,'text-mode spaces untouched');
   }
  }
- for(const [kind,source,glyph,expected,side] of [
+ for(const [kind,source,glyph,expected,side,movement] of [
   ['math_inline','a+b','b',[2,3]],
+  ['math_inline','a + b + c','b',[4,5],null,true],
+  ['math_inline','a+b+c+d+e+f+g+h+i+j+k+l+m+n+o+p+q+r+s+t+u+v+w+x+y+z','m',[24,25]],
+  ['math_display',String.raw`\mathcal{L}_{\text{SE}} = \mathbb{E}_{x \sim p_t}\left[\sum_{y \neq x}w_{xy}\left(s^\theta(x)_y-\frac{p(y)}{p(x)}\log s^\theta(x)_y+K\right)\right]`,'K',[132,133]],
   ['math_inline','a+b','a',[0,1]],
   ['math_inline','a+b','a',[0],'left'],
   ['math_display',String.raw`x^{2}+y`,'2',[3],'left'],
@@ -128,7 +131,7 @@ try{
   assert.equal(await js('return !!testMath._innerView'),false,'fixture closes math');
   const point=await js(`var walker=document.createTreeWalker(testMath._mathRenderElt.querySelector('.katex-html'),4),n;while(n=walker.nextNode()){var p=n.textContent.indexOf(${JSON.stringify(glyph)});if(p>=0){var r=document.createRange();r.setStart(n,p);r.setEnd(n,p+1);var b=r.getBoundingClientRect(),v=n.parentElement.getBoundingClientRect();return {x:${side==='left'?'b.left+1':'b.right-1'},y:(v.top+v.bottom)/2};}}throw Error('glyph missing');`);
   await js(`window.caretTrace=[];document.addEventListener('mousedown',e=>{caretTrace.push({target:e.target.outerHTML.slice(0,200),detail:e.detail,prevented:e.defaultPrevented,probes:document.querySelectorAll('.math-node[aria-hidden="true"]').length});setTimeout(()=>caretTrace.push({head:testMath._innerView?.state.selection.head,probes:document.querySelectorAll('.math-node[aria-hidden="true"]').length}),100);},true);`);
-  await command('WebDriver:PerformActions',{actions:[{type:'pointer',id:'mouse',parameters:{pointerType:'mouse'},actions:[{type:'pointerMove',x:Math.round(point.x),y:Math.round(point.y),duration:0},{type:'pointerDown',button:0},{type:'pointerUp',button:0}]}]});
+  await command('WebDriver:PerformActions',{actions:[{type:'pointer',id:'mouse',parameters:{pointerType:'mouse'},actions:[{type:'pointerMove',x:Math.round(point.x),y:Math.round(point.y),duration:0},{type:'pointerDown',button:0},...(movement?[{type:'pointerMove',x:Math.round(point.x)+1,y:Math.round(point.y),duration:60}]:[]),{type:'pointerUp',button:0}]}]});
   await pause(1000);
   const result=await js('return {source:testMath._innerView?.state.doc.textContent,head:testMath._innerView?.state.selection.head,probes:document.querySelectorAll(\'.math-node[aria-hidden="true"]\').length}');
   console.log('caret',JSON.stringify({kind,source,glyph,...result}));
