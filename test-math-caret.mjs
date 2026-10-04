@@ -73,6 +73,15 @@ for(const options of [{button:2},{ctrlKey:true},{shiftKey:true},{altKey:true},{m
 down();assert.notEqual(math.openEditor,nativeOpen);assert.equal(math.openEditor(),17);
 assert.equal(math._innerView.state.selection.head,1,'target caret before openEditor returns');
 assert.equal(math.openEditor,nativeOpen);assert.equal(doc.querySelectorAll('.math-node').length,1,'no probe DOM');
+down();
+doc.body.dispatchEvent(new win.MouseEvent('mouseup',{bubbles:true,button:0,clientX:8,clientY:10}));
+assert.notEqual(math.openEditor,nativeOpen,'stationary release retargeted to an ancestor must retain the opening hook');
+assert.equal(math.openEditor(),17);
+assert.equal(math._innerView.state.selection.head,1,'retargeted release still places caret when native opens this node');
+for(const options of [{clientX:14},{shiftKey:true},{button:2}]){
+ down();doc.body.dispatchEvent(new win.MouseEvent('mouseup',{bubbles:true,button:0,clientX:8,clientY:10,...options}));
+ assert.equal(math.openEditor,nativeOpen,'movement/modifier/wrong-button releases still cancel');
+}
 for(const [reason,cancel] of [['blur',()=>win.dispatchEvent(new win.Event('blur'))],['keydown',()=>doc.dispatchEvent(new win.KeyboardEvent('keydown',{bubbles:true,key:'x'}))],['drag-threshold',()=>doc.dispatchEvent(new win.MouseEvent('mousemove',{bubbles:true,buttons:1,clientX:20}))]]){
  down();cancel();assert.equal(math.openEditor,nativeOpen);
  assert.ok(win.__latexSuiteMathCaretDiagnostic.events.some(e=>e.stage==='cancel'&&e.reason===reason),'record why mapping was abandoned');

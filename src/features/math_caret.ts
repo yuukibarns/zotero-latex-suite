@@ -59,7 +59,7 @@ export function mathCaretAt(html: Element, map: SourceGlyph[], target: Element, 
 /** One synchronous, one-shot native-opening hook. No delayed caret correction. */
 export function installMathCaret(win: Window): () => void {
 	const doc = win.document, getMap = createMathSourceMap();
-	const diagnostic = { build: "0.5.3.90", events: [] as Record<string, unknown>[] };
+	const diagnostic = { build: "0.5.3.91", events: [] as Record<string, unknown>[] };
 	(win as any).__latexSuiteMathCaretDiagnostic = diagnostic;
 	let started = 0, timer = 0, restoreOpen: (() => void) | null = null;
 	let pendingNode: HTMLElement | null = null, pendingX = 0, pendingY = 0;
@@ -125,7 +125,11 @@ export function installMathCaret(win: Window): () => void {
 	function release(event: MouseEvent) {
 		if (!pendingNode) return;
 		trace("mouseup", { inside: pendingNode.contains(event.target as Node), dx: Math.round(event.clientX - pendingX), dy: Math.round(event.clientY - pendingY) });
-		if (event.button !== 0 || event.ctrlKey || event.altKey || event.metaKey || event.shiftKey || !pendingNode.contains(event.target as Node) || Math.abs(event.clientX - pendingX) > 5 || Math.abs(event.clientY - pendingY) > 5) cancel("release-rejected");
+		// Gecko can retarget mouseup to an ancestor at unchanged coordinates.
+		// PM retains the mousedown position and can still open this math node.
+		// Qualify the gesture by movement/buttons, not the release DOM target;
+		// placement still requires this exact node's native openEditor call.
+		if (event.button !== 0 || event.ctrlKey || event.altKey || event.metaKey || event.shiftKey || Math.abs(event.clientX - pendingX) > 5 || Math.abs(event.clientY - pendingY) > 5) cancel("release-rejected");
 	}
 	doc.addEventListener("mousedown", down, true);
 	doc.addEventListener("mousemove", move, true);

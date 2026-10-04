@@ -32,6 +32,14 @@ native click. Internally native still initializes its selection normally, but
 that intermediate position is never painted. Drag/modifier/input cancellation,
 method restoration and teardown remain intact.
 
+Release targets are not required to remain inside the math DOM. Gecko can
+retarget a stationary mouseup to the surrounding editor, while ProseMirror
+still opens the math node using its saved mousedown position. Rejecting that
+release discarded a valid mapping in .90. The regression harness exercises
+ancestor-targeted releases with trusted Gecko input and checks placement from
+both the start and end. Movement/modifiers still cancel; only the original
+node's actual native opening can consume the mapping.
+
 Maps are weakly cached by native HTML root plus source. Rerendering or changing
 the source invalidates the map; caches do not retain closed editors. Unsupported
 source locations, SVG-only shapes (e.g. a radical's stroke), parse errors and

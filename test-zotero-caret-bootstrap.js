@@ -20,7 +20,7 @@ async function run(){
  await report({stage:'editor-ready',url:w.location.href,installed:!!w.__latexSuite,clock:typeof w.performance});
  function inject(code){const s=frame.document.createElement('script');s.textContent=code;frame.document.head.append(s);s.remove();}
  const cases=[
-  ...[true,false].map(before=>({kind:'math_display',source:String.raw`\log d \mathbb{P}(\omega) = \sum_{k = 1}^{n} \log Q_{t_{k}} (x_{k} | x_{k - 1}) - \int_{0}^{T} \lambda_{t} (X_{t}) d t `,glyph:'l',occurrence:1,expected:[49],focused:true,before})),
+  ...[false,true].flatMap(retarget=>[true,false].map(before=>({kind:'math_display',source:String.raw`\log d \mathbb{P}(\omega) = \sum_{k = 1}^{n} \log Q_{t_{k}} (x_{k} | x_{k - 1}) - \int_{0}^{T} \lambda_{t} (X_{t}) d t `,glyph:'l',occurrence:1,expected:[49],focused:true,before,retarget}))),
   {kind:'math_display',source:'a + b + c',glyph:'b',expected:[4,5],focused:true},
   {kind:'math_display',source:'a + b + c',glyph:'b',expected:[4,5],focused:false},
   {kind:'math_inline',source:'a + b + c',glyph:'b',expected:[4,5],focused:false},
@@ -41,7 +41,7 @@ async function run(){
  const slowSource=String.raw`\alpha+\beta+\gamma+\delta+\epsilon+\zeta+\eta+\theta+\iota+\kappa+\lambda+\mu+\nu+\xi+\pi+\rho+\omega`;
  cases.push({kind:'math_display',source:slowSource,glyph:'ρ',expected:[slowSource.indexOf('\\rho'),slowSource.indexOf('\\rho')+4],focused:true,slowProbe:true});
  const results=[];
- if(CONFIG.reportedOnly)cases.splice(2);
+ if(CONFIG.reportedOnly)cases.splice(4);
  inject(`for(var type of ['pointerdown','mousedown','mouseup','click','selectionchange','focusin'])addEventListener(type,e=>{if(window.nativeTrace)nativeTrace.push({event:e.type,ms:Date.now()-window.testStarted,trusted:e.isTrusted,target:e.target.nodeName,inner:!!window.testMath?._innerView,selection:window._currentEditorInstance._editorCore.view.state.selection.constructor.name});},true);`);
  for(const test of cases){
  inject(`
@@ -64,11 +64,17 @@ async function run(){
  frame.windowUtils.sendMouseEvent('mousemove',point.x,point.y,0,0,0);
  frame.windowUtils.sendMouseEvent('mousedown',point.x,point.y,0,1,0);
  if(CONFIG.holdMs)await Zotero.Promise.delay(CONFIG.holdMs);
+ // Exercise Gecko retargeting without moving the pointer. Native PM still
+ // owns opening; no synthetic call to selectNode/openEditor is made here.
+ if(test.retarget)inject(`testMath.dom.style.pointerEvents='none';`);
  frame.windowUtils.sendMouseEvent('mouseup',point.x,point.y,0,1,0);
+ if(test.retarget)inject(`testMath.dom.style.pointerEvents='';`);
  inject(`requestAnimationFrame(()=>{window.firstPaintHead=testMath._innerView?.state.selection.head;});`);
  await Zotero.Promise.delay(1000);
  const head=w.testMath._innerView?.state.selection.head;
- results.push({kind:test.kind,focused:test.focused,glyph:test.glyph,head,firstPaintHead:w.firstPaintHead,passed:test.expected.includes(head)&&test.expected.includes(w.firstPaintHead),native:JSON.parse(w.JSON.stringify(w.nativeTrace)),plugin:JSON.parse(w.JSON.stringify(w.__latexSuiteMathCaretDiagnostic))});
+ const plugin=JSON.parse(w.JSON.stringify(w.__latexSuiteMathCaretDiagnostic));
+ const retargetVerified=!test.retarget||plugin.events.some(e=>e.stage==='mouseup'&&e.inside===false&&e.dx===0&&e.dy===0);
+ results.push({kind:test.kind,focused:test.focused,glyph:test.glyph,retarget:!!test.retarget,head,firstPaintHead:w.firstPaintHead,passed:retargetVerified&&test.expected.includes(head)&&test.expected.includes(w.firstPaintHead),native:JSON.parse(w.JSON.stringify(w.nativeTrace)),plugin});
  await report({stage:'click-result',result:{...results.at(-1),native:undefined}});
  focusButton?.remove();
  }
