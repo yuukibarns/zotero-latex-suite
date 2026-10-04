@@ -59,7 +59,7 @@ export function mathCaretPositions(source: string, glyph?: string): number[] {
 export function installMathCaret(win: Window): () => void {
 	const doc = win.document;
 	// Temporary diagnostic: bounded metadata only, never source/DOM text.
-	const diagnostic = { build: "0.5.3.86", events: [] as Record<string, unknown>[] };
+	const diagnostic = { build: "0.5.3.87", events: [] as Record<string, unknown>[] };
 	(win as any).__latexSuiteMathCaretDiagnostic = diagnostic;
 	// Some Zotero resource:// editor windows lack the Performance Web API.
 	// Millisecond Date timing is sufficient for our bounded probe batches.
@@ -70,8 +70,9 @@ export function installMathCaret(win: Window): () => void {
 	}
 	let generation = 0, frame = 0, probe: HTMLElement | null = null, stopped = false;
 	let pending: (() => void) | null = null, openingTimer = 0;
+	let restoreOpen: (() => void) | null = null;
 	let pendingNode: HTMLElement | null = null, pendingX = 0, pendingY = 0;
-	function cancel(reason: string | Event = "replaced") { if (pendingNode) trace("cancel", { reason: typeof reason === "string" ? reason : reason.type }); generation++; win.cancelAnimationFrame(frame); win.clearTimeout(openingTimer); pending = null; pendingNode = null; frame = 0; probe?.remove(); probe = null; }
+	function cancel(reason: string | Event = "replaced") { if (pendingNode) trace("cancel", { reason: typeof reason === "string" ? reason : reason.type }); generation++; win.cancelAnimationFrame(frame); win.clearTimeout(openingTimer); restoreOpen?.(); pending = null; pendingNode = null; frame = 0; probe?.remove(); probe = null; }
 	function down(event: MouseEvent) {
 		cancel();
 		started = Date.now(); diagnostic.events.length = 0;
@@ -79,7 +80,7 @@ export function installMathCaret(win: Window): () => void {
 		if (stopped || event.defaultPrevented || event.button !== 0 || event.detail > 1 || event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return;
 		const target = event.target as Element, node = target?.closest?.(".math-node") as HTMLElement | null;
 		const math = (node as any)?.pmViewDesc?.spec, render = math?._mathRenderElt as HTMLElement | undefined;
-		if (!node || math?._innerView || !render?.contains(target) || typeof math.renderMath !== "function") { trace("not-closed-render", { node: !!node, math: !!math, inner: !!math?._innerView, inRender: !!render?.contains(target) }); return; }
+		if (!node || math?._innerView || !render?.contains(target) || typeof math.renderMath !== "function" || typeof math.openEditor !== "function") { trace("not-closed-render", { node: !!node, math: !!math, inner: !!math?._innerView, inRender: !!render?.contains(target) }); return; }
 		const source = math._node?.textContent ?? math._node?.content?.firstChild?.textContent;
 		if (typeof source !== "string") return;
 		const html = render.querySelector(".katex-html");
@@ -149,7 +150,36 @@ export function installMathCaret(win: Window): () => void {
 			trace("result", { best, score: Number.isFinite(score) ? Math.round(score) : null, head: view.state.selection.head, probeMs: Math.round(elapsed) });
 			cancel("finished");
 		}
-		pending = step; pendingNode = node; pendingX = event.clientX; pendingY = event.clientY; openingTimer = win.setTimeout(() => cancel("release-timeout"), 500);
+		// Opening can follow DOM-selection reconciliation, not this mouseup.
+		// Observe this node's actual native opening, after its start/end choice.
+		// The one-shot hook never opens a node itself and restores the method.
+		let released = false, opened = false, scheduled = false;
+		function scheduleAfterOpen() {
+			if (id !== generation || !released || !opened || scheduled) return;
+			scheduled = true; pending = null; win.clearTimeout(openingTimer);
+			frame = win.requestAnimationFrame(step);
+		}
+		const originalOpen = math.openEditor, ownOpen = Object.getOwnPropertyDescriptor(math, "openEditor");
+		function restore() {
+			if (math.openEditor === hookedOpen) {
+				if (ownOpen) Object.defineProperty(math, "openEditor", ownOpen);
+				else delete math.openEditor;
+			}
+			if (restoreOpen === restore) restoreOpen = null;
+		}
+		function hookedOpen(this: any, ...args: any[]) {
+			restore(); trace("native-open-start");
+			let result;
+			try { result = originalOpen.apply(this, args); }
+			catch (error) { cancel("native-open-error"); throw error; }
+			trace("native-open-end", { inner: !!math._innerView, head: math._innerView?.state?.selection?.head });
+			opened = true; scheduleAfterOpen();
+			return result;
+		}
+		math.openEditor = hookedOpen; restoreOpen = restore;
+		pending = () => { released = true; scheduleAfterOpen(); };
+		pendingNode = node; pendingX = event.clientX; pendingY = event.clientY;
+		openingTimer = win.setTimeout(() => cancel("release-timeout"), 2000);
 		trace("waiting-mouseup");
 	}
 	function release(event: MouseEvent) {
@@ -157,8 +187,9 @@ export function installMathCaret(win: Window): () => void {
 		if (!pending) return;
 		if (event.button !== 0 || event.ctrlKey || event.altKey || event.metaKey || event.shiftKey || !pendingNode?.contains(event.target as Node) || Math.abs(event.clientX - pendingX) > 5 || Math.abs(event.clientY - pendingY) > 5) { cancel(); return; }
 		win.clearTimeout(openingTimer);
-		const step = pending; pending = null;
-		frame = win.requestAnimationFrame(step);
+		// This is only a stale-gesture cleanup bound, not an opening delay.
+		openingTimer = win.setTimeout(() => cancel("opening-timeout"), 2000);
+		pending();
 	}
 	// Match ProseMirror MouseDown.updateAllowDefault's four-pixel threshold.
 	function move(event: MouseEvent) {
@@ -167,8 +198,7 @@ export function installMathCaret(win: Window): () => void {
 	function click() { trace("click", { inner: !!(pendingNode as any)?.pmViewDesc?.spec?._innerView }); }
 	function error(event: ErrorEvent) { trace("error", { name: event.error?.name || "Error" }); }
 	doc.addEventListener("mousedown", down, true);
-	// PM selects the node in its root mouseup handler. Our animation frame
-	// runs after that handler and MathView.openEditor's initial edge selection.
+	// Mouseup qualifies the click; MathView.openEditor qualifies readiness.
 	doc.addEventListener("mouseup", release, true);
 	doc.addEventListener("click", click, true);
 	win.addEventListener("error", error);
