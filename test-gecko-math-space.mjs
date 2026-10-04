@@ -15,9 +15,10 @@ for(const file of ['resource/react.js','resource/react-dom.js','resource/prop-ty
 for(const file of execFileSync('unzip',['-Z1',archive],{encoding:'utf8'}).split('\n').filter(f=>f.startsWith('resource/note-editor/assets/fonts/')&&f.endsWith('.woff2')))assets.set('/'+file,execFileSync('unzip',['-p',archive,file]));
 assets.set('/plugin.js',await readFile('build/content-script.js'));
 const html='<!doctype html><script>window.testErrors=[];addEventListener("error",e=>testErrors.push(e.message));</script><link rel="stylesheet" href="/resource/note-editor/editor.css"><div id="editor-container"></div>'+['resource/react.js','resource/react-dom.js','resource/prop-types.js','resource/note-editor/editor.js'].map(s=>`<script src="/${s}"></script>`).join('');
+const iframe=process.argv.includes('--iframe');
 const server=createServer((req,res)=>{
  const asset=assets.get(req.url);
- res.setHeader('Content-Type',(asset?(req.url.endsWith('.woff2')?'font/woff2':req.url.endsWith('.css')?'text/css':'application/javascript'):'text/html')+';charset=utf-8');res.end(asset||html);
+ res.setHeader('Content-Type',(asset?(req.url.endsWith('.woff2')?'font/woff2':req.url.endsWith('.css')?'text/css':'application/javascript'):'text/html')+';charset=utf-8');res.end(asset||(iframe&&req.url==='/'?'<iframe src="/editor" style="position:absolute;left:40px;top:60px;width:900px;height:650px;border:0"></iframe>':html));
 });
 await new Promise(r=>server.listen(0,'127.0.0.1',r));
 const url=`http://127.0.0.1:${server.address().port}/`;
@@ -53,6 +54,7 @@ async function type(text){
 }
 async function fixture(kind,plugin,config={}){
  await command('WebDriver:Navigate',{url});
+ if(iframe)await command('WebDriver:SwitchToFrame',{id:0});
  await js(`window.postMessage({instanceID:'space-test',message:{action:'init',value:'<div data-schema-version="9"><p></p></div>',font:{fontFamily:'sans-serif',fontSize:14},dir:'ltr',viewMode:'library',readOnly:false}},'*');`);
 	for(let i=0;i<40;i++){if(await js('return !!window._currentEditorInstance?._editorCore?.view'))break;await pause(50);}
 	assert.equal(await js('return !!window._currentEditorInstance?._editorCore?.view'),true,JSON.stringify(await js('return window.testErrors')));
@@ -109,8 +111,10 @@ try{
    assert.equal(await js('return testMath._innerView.state.doc.textContent'),value+String.raw` + \text{hello world}`,'text-mode spaces untouched');
   }
  }
- for(const [kind,source,glyph,expected,side,movement] of [
+ for(const [kind,source,glyph,expected,side,movement,occurrence=0] of [
   ['math_inline','a+b','b',[2,3]],
+  ['math_display',String.raw`d\mathbb{P}(\omega)=\left(\prod_{i=1}^{n}Q_{t_i}(x_i|x_{i-1})\right)\exp\left(-\int_0^T\lambda_t(X_t)dt\right)`,'Q',[41,42]],
+  ['math_display',String.raw`d\mathbb{P}(\omega)=\left(\prod_{i=1}^{n}Q_{t_i}(x_i|x_{i-1})\right)\exp\left(-\int_0^T\lambda_t(X_t)dt\right)`,'i',[56,57],null,false,3],
   ['math_inline','a + b + c','b',[4,5],null,true],
   ['math_inline','a+b+c+d+e+f+g+h+i+j+k+l+m+n+o+p+q+r+s+t+u+v+w+x+y+z','m',[24,25]],
   ['math_display',String.raw`\mathcal{L}_{\text{SE}} = \mathbb{E}_{x \sim p_t}\left[\sum_{y \neq x}w_{xy}\left(s^\theta(x)_y-\frac{p(y)}{p(x)}\log s^\theta(x)_y+K\right)\right]`,'K',[132,133]],
@@ -129,13 +133,13 @@ try{
   await js(`var inner=testMath._innerView;inner.dispatch(inner.state.tr.insertText(${JSON.stringify(source)},0,inner.state.doc.content.size));var v=window._currentEditorInstance._editorCore.view;v.dispatch(v.state.tr.insert(v.state.doc.content.size,v.state.schema.nodes.paragraph.create(null,v.state.schema.text('after'))));var S=Object.getPrototypeOf(v.state.selection.constructor);v.dispatch(v.state.tr.setSelection(S.fromJSON(v.state.doc,{type:'text',anchor:v.state.doc.content.size-2,head:v.state.doc.content.size-2})));v.focus();`);
   await pause(150);
   assert.equal(await js('return !!testMath._innerView'),false,'fixture closes math');
-  const point=await js(`var walker=document.createTreeWalker(testMath._mathRenderElt.querySelector('.katex-html'),4),n;while(n=walker.nextNode()){var p=n.textContent.indexOf(${JSON.stringify(glyph)});if(p>=0){var r=document.createRange();r.setStart(n,p);r.setEnd(n,p+1);var b=r.getBoundingClientRect(),v=n.parentElement.getBoundingClientRect();return {x:${side==='left'?'b.left+1':'b.right-1'},y:(v.top+v.bottom)/2};}}throw Error('glyph missing');`);
-  await js(`window.caretTrace=[];document.addEventListener('mousedown',e=>{caretTrace.push({target:e.target.outerHTML.slice(0,200),detail:e.detail,prevented:e.defaultPrevented,probes:document.querySelectorAll('.math-node[aria-hidden="true"]').length});setTimeout(()=>caretTrace.push({head:testMath._innerView?.state.selection.head,probes:document.querySelectorAll('.math-node[aria-hidden="true"]').length}),100);},true);`);
+  const point=await js(`var walker=document.createTreeWalker(testMath._mathRenderElt.querySelector('.katex-html'),4),n,remaining=${occurrence};while(n=walker.nextNode()){var p=n.textContent.indexOf(${JSON.stringify(glyph)});if(p>=0&&remaining--===0){var r=document.createRange();r.setStart(n,p);r.setEnd(n,p+1);var b=r.getBoundingClientRect(),v=n.parentElement.getBoundingClientRect();return {x:${side==='left'?'b.left+1':'b.right-1'},y:(v.top+v.bottom)/2};}}throw Error('glyph missing');`);
+  await js(`window.caretTrace=[];var start=performance.now();for(var name of ['mousedown','mouseup','click','blur','focus'])addEventListener(name,e=>caretTrace.push({event:e.type,ms:performance.now()-start,head:testMath._innerView?.state.selection.head}),true);var open=testMath.openEditor;testMath.openEditor=function(){caretTrace.push({event:'open-start',ms:performance.now()-start});var r=open.apply(this,arguments);caretTrace.push({event:'open-end',ms:performance.now()-start});return r;};`);
   await command('WebDriver:PerformActions',{actions:[{type:'pointer',id:'mouse',parameters:{pointerType:'mouse'},actions:[{type:'pointerMove',x:Math.round(point.x),y:Math.round(point.y),duration:0},{type:'pointerDown',button:0},...(movement?[{type:'pointerMove',x:Math.round(point.x)+1,y:Math.round(point.y),duration:60}]:[]),{type:'pointerUp',button:0}]}]});
   await pause(1000);
   const result=await js('return {source:testMath._innerView?.state.doc.textContent,head:testMath._innerView?.state.selection.head,probes:document.querySelectorAll(\'.math-node[aria-hidden="true"]\').length}');
   console.log('caret',JSON.stringify({kind,source,glyph,...result}));
-  if(!expected.includes(result.head)) console.log(JSON.stringify(await js('return caretTrace')));
+  if(process.argv.includes('--timings')||!expected.includes(result.head)) console.log(JSON.stringify(await js('return {native:caretTrace,plugin:window.__latexSuiteMathCaretDiagnostic}')));
   assert.equal(result.source,source,'click does not change source');
   assert.ok(expected.includes(result.head),`click ${glyph} maps to its source: ${result.head}, expected ${expected}`);
   assert.equal(result.probes,0,'probe cleanup');

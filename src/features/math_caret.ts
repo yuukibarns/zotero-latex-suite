@@ -58,16 +58,26 @@ export function mathCaretPositions(source: string, glyph?: string): number[] {
  */
 export function installMathCaret(win: Window): () => void {
 	const doc = win.document;
+	// Temporary .85 diagnostic: bounded metadata only, never source/DOM text.
+	const diagnostic = { build: "0.5.3.85-caret-debug", events: [] as Record<string, unknown>[] };
+	(win as any).__latexSuiteMathCaretDiagnostic = diagnostic;
+	let started = win.performance.now();
+	function trace(stage: string, data: Record<string, unknown> = {}) {
+		diagnostic.events.push({ stage, ms: Math.round(win.performance.now() - started), ...data });
+		if (diagnostic.events.length > 40) diagnostic.events.shift();
+	}
 	let generation = 0, frame = 0, probe: HTMLElement | null = null, stopped = false;
 	let pending: (() => void) | null = null, openingTimer = 0;
 	let pendingNode: HTMLElement | null = null, pendingX = 0, pendingY = 0;
-	function cancel() { generation++; win.cancelAnimationFrame(frame); win.clearTimeout(openingTimer); pending = null; pendingNode = null; frame = 0; probe?.remove(); probe = null; }
+	function cancel(reason: string | Event = "replaced") { if (pendingNode) trace("cancel", { reason: typeof reason === "string" ? reason : reason.type }); generation++; win.cancelAnimationFrame(frame); win.clearTimeout(openingTimer); pending = null; pendingNode = null; frame = 0; probe?.remove(); probe = null; }
 	function down(event: MouseEvent) {
 		cancel();
+		started = win.performance.now(); diagnostic.events.length = 0;
+		trace("mousedown", { detail: event.detail, button: event.button, prevented: event.defaultPrevented });
 		if (stopped || event.defaultPrevented || event.button !== 0 || event.detail > 1 || event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return;
 		const target = event.target as Element, node = target?.closest?.(".math-node") as HTMLElement | null;
 		const math = (node as any)?.pmViewDesc?.spec, render = math?._mathRenderElt as HTMLElement | undefined;
-		if (!node || math?._innerView || !render?.contains(target) || typeof math.renderMath !== "function") return;
+		if (!node || math?._innerView || !render?.contains(target) || typeof math.renderMath !== "function") { trace("not-closed-render", { node: !!node, math: !!math, inner: !!math?._innerView, inRender: !!render?.contains(target) }); return; }
 		const source = math._node?.textContent ?? math._node?.content?.firstChild?.textContent;
 		if (typeof source !== "string") return;
 		const html = render.querySelector(".katex-html");
@@ -82,6 +92,7 @@ export function installMathCaret(win: Window): () => void {
 		let anchor = candidates[0].i;
 		for (const { g, i } of candidates) if (distance(g) < distance(original[anchor])) anchor = i;
 		const positions = mathCaretPositions(source, original[anchor].text);
+		trace("candidates", { sourceLength: source.length, glyphCount: original.length, positions: positions.length });
 		if (!positions.length) return;
 		const signature = original.map(g => g.text).join(""), id = generation;
 		const box = render.getBoundingClientRect(), font = win.getComputedStyle(render);
@@ -97,9 +108,10 @@ export function installMathCaret(win: Window): () => void {
 			frame = 0;
 			if (id !== generation || stopped) return;
 			const view = math._innerView;
-			if (!node!.isConnected || !view || view.isDestroyed || view.editable === false || view.state.doc.textContent !== source) { cancel(); return; }
+			trace("frame", { inner: !!view, connected: node!.isConnected, head: view?.state?.selection?.head });
+			if (!node!.isConnected || !view || view.isDestroyed || view.editable === false || view.state.doc.textContent !== source) { cancel("editor-not-ready"); return; }
 			selection ??= view.state.selection;
-			if (!view.state.selection.empty || view.state.selection.anchor !== selection.anchor || view.state.selection.head !== selection.head) { cancel(); return; }
+			if (!view.state.selection.empty || view.state.selection.anchor !== selection.anchor || view.state.selection.head !== selection.head) { cancel("selection-changed"); return; }
 			const start = win.performance.now();
 			for (let batch = 0; batch < 8 && index < positions.length && (batch === 0 || win.performance.now() - start < 8); batch++, index++) {
 				const head = positions[index];
@@ -124,7 +136,7 @@ export function installMathCaret(win: Window): () => void {
 			}
 			elapsed += win.performance.now() - start;
 			if (index < positions.length) {
-				if (elapsed > 120) { cancel(); return; }
+				if (elapsed > 120) { cancel("render-budget"); return; }
 				frame = win.requestAnimationFrame(step); return;
 			}
 			if (best !== null && score < Math.max(24, original[anchor].rect.height * 2)) {
@@ -132,11 +144,14 @@ export function installMathCaret(win: Window): () => void {
 				PMBuffer.forMath(view, node!.tagName.toLowerCase() === "math-inline" ? "math_inline" : "math_display").setSelection(best, best);
 				view.focus();
 			}
-			cancel();
+			trace("result", { best, score: Number.isFinite(score) ? Math.round(score) : null, head: view.state.selection.head, probeMs: Math.round(elapsed) });
+			cancel("finished");
 		}
-		pending = step; pendingNode = node; pendingX = event.clientX; pendingY = event.clientY; openingTimer = win.setTimeout(cancel, 500);
+		pending = step; pendingNode = node; pendingX = event.clientX; pendingY = event.clientY; openingTimer = win.setTimeout(() => cancel("release-timeout"), 500);
+		trace("waiting-mouseup");
 	}
 	function release(event: MouseEvent) {
+		trace("mouseup", { pending: !!pending, inner: !!(pendingNode as any)?.pmViewDesc?.spec?._innerView });
 		if (!pending) return;
 		if (event.button !== 0 || event.ctrlKey || event.altKey || event.metaKey || event.shiftKey || !pendingNode?.contains(event.target as Node) || Math.abs(event.clientX - pendingX) > 5 || Math.abs(event.clientY - pendingY) > 5) { cancel(); return; }
 		win.clearTimeout(openingTimer);
@@ -147,10 +162,14 @@ export function installMathCaret(win: Window): () => void {
 	function move(event: MouseEvent) {
 		if (event.buttons & 1 && pendingNode && (Math.abs(event.clientX - pendingX) > 4 || Math.abs(event.clientY - pendingY) > 4)) cancel();
 	}
+	function click() { trace("click", { inner: !!(pendingNode as any)?.pmViewDesc?.spec?._innerView }); }
+	function error(event: ErrorEvent) { trace("error", { name: event.error?.name || "Error" }); }
 	doc.addEventListener("mousedown", down, true);
 	// PM selects the node in its root mouseup handler. Our animation frame
 	// runs after that handler and MathView.openEditor's initial edge selection.
 	doc.addEventListener("mouseup", release, true);
+	doc.addEventListener("click", click, true);
+	win.addEventListener("error", error);
 	doc.addEventListener("mousemove", move, true);
 	doc.addEventListener("keydown", cancel, true);
 	doc.addEventListener("beforeinput", cancel, true);
@@ -160,5 +179,7 @@ export function installMathCaret(win: Window): () => void {
 		doc.removeEventListener("mousedown", down, true); doc.removeEventListener("mouseup", release, true); doc.removeEventListener("mousemove", move, true);
 		doc.removeEventListener("keydown", cancel, true); doc.removeEventListener("beforeinput", cancel, true);
 		win.removeEventListener("blur", cancel);
+		doc.removeEventListener("click", click, true); win.removeEventListener("error", error);
+		delete (win as any).__latexSuiteMathCaretDiagnostic;
 	};
 }

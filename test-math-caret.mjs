@@ -23,6 +23,8 @@ const stop=installMathCaret(win);
 const click=(options={})=>{const event=new win.MouseEvent('mousedown',{bubbles:true,cancelable:true,button:0,detail:1,clientX:8,clientY:10,...options});target.dispatchEvent(event);target.dispatchEvent(new win.MouseEvent('mouseup',{bubbles:true,button:0,clientX:8,clientY:10,...options}));assert.equal(event.defaultPrevented,false,'native opening untouched');};
 for(const options of [{button:2},{ctrlKey:true},{shiftKey:true},{altKey:true},{metaKey:true},{detail:2}]){click(options);assert.equal(frames.size,0);}
 click();assert.equal(frames.size,1);assert.equal(doc.querySelectorAll('.math-node[aria-hidden=true]').length,1);
+assert.ok(win.__latexSuiteMathCaretDiagnostic.events.some(e=>e.stage==='waiting-mouseup'));
+assert.ok(!JSON.stringify(win.__latexSuiteMathCaretDiagnostic).includes('textContent'),'trace excludes source/DOM text');
 doc.dispatchEvent(new win.MouseEvent('mousemove',{bubbles:true,buttons:1,clientX:9,clientY:10}));assert.equal(frames.size,1,'one-pixel movement is not a drag');
 assert.equal(node.childElementCount,1,'probe never inserted into editable node');
 doc.dispatchEvent(new win.KeyboardEvent('keydown',{bubbles:true,key:'x'}));assert.equal(frames.size,0);assert.equal(doc.querySelectorAll('.math-node[aria-hidden=true]').length,0);
@@ -30,4 +32,5 @@ click();doc.dispatchEvent(new win.MouseEvent('mousemove',{bubbles:true,buttons:1
 click();math._innerView={editable:false};const f=[...frames.values()][0];frames.clear();f();assert.equal(doc.querySelectorAll('.math-node[aria-hidden=true]').length,0,'read-only cancels');
 math._innerView=null;click();win.dispatchEvent(new win.Event('blur'));assert.equal(frames.size,0);
 click();stop();stop();assert.equal(frames.size,0);click();assert.equal(frames.size,0,'listeners removed');
+assert.equal(win.__latexSuiteMathCaretDiagnostic,undefined,'diagnostic removed on uninstall');
 console.log('Math caret candidate safety, native fallback, cancellation, bounds and cleanup passed.');
