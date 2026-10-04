@@ -129,6 +129,7 @@ const view={dom:node.firstChild,state,props:{decorations:previous},isDestroyed:f
 node.pmViewDesc={spec:{_innerView:view}};
 const tick=()=>new Promise(resolve=>win.requestAnimationFrame(()=>win.requestAnimationFrame(resolve)));
 const stop=installMathHighlight(win);await tick();
+assert.ok(win.document.getElementById('latex-suite-math-highlight').textContent.includes('math-inline.math-node .math-src .ProseMirror{white-space:break-spaces}'),'highlighting preserves browser whitespace at decoration boundaries');
 assert.equal(updates,1);
 const decorated=view.props.decorations(state);
 assert.ok(decorated.find().some(d=>d.type.attrs.class==='ls-tex-command'));

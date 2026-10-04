@@ -210,29 +210,32 @@ export function normalizeMathClickTimeout(value: unknown): number {
 export function installMathMouseSelection(win: Window, onSelect: () => void = () => {}, timeout: () => number = () => 1000) {
 	const doc = win.document;
 	let expand = createMathSelection(), composing = false, stopped = false;
-	let series: { view: any; source: string; x: number; y: number; time: number; count: number; selected?: Range; anchor: number; down: boolean } | undefined;
+	let series: { view: any; source: string; x: number; y: number; time: number; count: number; selected?: Range; anchor: number; down: boolean; released?: number } | undefined;
 	let gesture: typeof series;
-	function reset() { expand = createMathSelection();series = undefined;gesture = undefined; }
+	let lastClick: { gesture: NonNullable<typeof series>; time: number; x: number; y: number; detail: number } | undefined;
+	function reset() { expand = createMathSelection();series = undefined;gesture = undefined;lastClick = undefined; }
 	function compositionStart() { composing = true;reset(); }
 	function compositionEnd() { composing = false; }
 	function position(view: any, event: MouseEvent) {
-		try { const hit = view.posAtCoords({ left: event.clientX, top: event.clientY });if (hit) return Math.max(0, Math.min(view.state.doc.content.size, hit.pos)); }
+		try { const hit = view.posAtCoords({ left: event.clientX, top: event.clientY });if (hit && Number.isFinite(hit.pos)) return Math.max(0, Math.min(view.state.doc.content.size, hit.pos)); }
 		catch { /* layout-less tests or a view being torn down */ }
-		return view.state.selection.from;
+		return null; // Let native caret placement handle unavailable coordinates.
 	}
 	function mousedown(event: MouseEvent) {
 		gesture = undefined;
+		lastClick = undefined;
 		if (composing || event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) { reset();return; }
 		const target = event.target as Element;
 		const node = target?.closest?.(".math-node");
 		const view = (node as any)?.pmViewDesc?.spec?._innerView;
 		if (!view || view.isDestroyed || view.editable === false || !view.dom.contains(target)) { reset();return; }
 		const source = view.state.doc.textContent;
-		const continuing = series && series.view === view && series.source === source && event.timeStamp - series.time < normalizeMathClickTimeout(timeout())
+		const continuing = series && series.view === view && series.source === source && event.timeStamp >= series.time && event.timeStamp - series.time < normalizeMathClickTimeout(timeout())
 			&& Math.abs(event.clientX - series.x) <= 5 && Math.abs(event.clientY - series.y) <= 5;
 		const count = continuing ? Math.max(series!.count + 1, event.detail || 1) : Math.max(1, event.detail);
 		const selected = continuing ? series?.selected : undefined;
 		const anchor = position(view, event);
+		if (anchor === null) { reset();return; }
 		series = { view, source, x: event.clientX, y: event.clientY, time: event.timeStamp, count, anchor, down: true };
 		rememberSelectionClass(view);
 		const kind = node!.tagName.toLowerCase() === "math-display" ? "math_display" : "math_inline";
@@ -249,25 +252,48 @@ export function installMathMouseSelection(win: Window, onSelect: () => void = ()
 		view.focus();onSelect();
 	}
 	function finish(event: MouseEvent) {
-		if (!gesture || event.button !== 0 || composing) return;
-		const { view, source, selected } = gesture;
-		if (view.isDestroyed || view.editable === false || view.state.doc.textContent !== source) { reset();return; }
+		if (event.defaultPrevented || event.button !== 0 || composing || event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) { reset();return; }
+		let active = gesture;
+		if (event.type === "mouseup" && !active?.down) return;
+		if (event.type === "dblclick") {
+			// Native dblclick follows the second click; never reuse it for later taps.
+			const age = lastClick ? event.timeStamp - lastClick.time : -1;
+			if (!lastClick || age < 0 || age > 500 || event.detail !== lastClick.detail || Math.abs(event.clientX - lastClick.x) > 5 || Math.abs(event.clientY - lastClick.y) > 5) return;
+			active = lastClick.gesture;lastClick = undefined;
+		} else if (event.type === "click") {
+			const age = active ? event.timeStamp - (active.released ?? active.time) : -1;
+			if (!active || age < 0 || age > 500 || Math.abs(event.clientX - active.x) > 5 || Math.abs(event.clientY - active.y) > 5) {
+				// Tap/assistive clicks may arrive without a mouse-down we handled.
+				// Use their own coordinates, never a previous gesture's selection.
+				mousedown(event);active = gesture;
+			}
+		}
+		if (!active) return;
+		const { view, source, selected } = active;
+		if (view.isDestroyed || view.editable === false || !view.dom.isConnected || !view.dom.contains(event.target) || view.state.doc.textContent !== source) { reset();return; }
 		event.preventDefault();event.stopImmediatePropagation();
-		if (event.type === "mouseup") gesture.down = false;
+		if (event.type === "mouseup") { active.down = false;active.released = event.timeStamp; }
 		// Protect the chosen extent from native mouseup/click/dblclick selection.
 		if (selected) {
 			const kind = view.dom.closest("math-display") ? "math_display" : "math_inline";
-			PMBuffer.forMath(view, kind).setSelection(selected.from, selected.to);
+			if (view.state.selection.anchor !== selected.from || view.state.selection.head !== selected.to) PMBuffer.forMath(view, kind).setSelection(selected.from, selected.to);
+		}
+		view.focus();
+		if (event.type === "click") {
+			lastClick = { gesture: active, time: event.timeStamp, x: event.clientX, y: event.clientY, detail: event.detail };
+			active.down = false;gesture = undefined;
 		}
 	}
 	function mousemove(event: MouseEvent) {
-		if (!gesture?.down || gesture.count !== 1 || composing) return;
+		if (!gesture?.down || gesture.count !== 1 || composing || !(event.buttons & 1)) return;
 		const { view, source, anchor } = gesture;
 		if (view.isDestroyed || view.state.doc.textContent !== source) { reset();return; }
 		const end = position(view, event);
+		if (end === null) { reset();return; }
 		const kind = view.dom.closest("math-display") ? "math_display" : "math_inline";
 		PMBuffer.forMath(view, kind).setSelection(anchor, end);
 		gesture.selected = { from: anchor, to: end };
+		gesture.x = event.clientX;gesture.y = event.clientY;
 		// A drag is not the start of a subsequent multi-click expansion series.
 		if (end !== anchor) series = undefined;
 		event.preventDefault();event.stopImmediatePropagation();
@@ -284,6 +310,7 @@ export function installMathMouseSelection(win: Window, onSelect: () => void = ()
 	doc.addEventListener("latex-suite-settings-changed", reset);
 	doc.addEventListener("keydown", reset, true);
 	doc.addEventListener("beforeinput", reset, true);
+	win.addEventListener("blur", reset);
 	win.addEventListener("unload", stop);
 	function stop() {
 		if (stopped) return;
@@ -297,6 +324,7 @@ export function installMathMouseSelection(win: Window, onSelect: () => void = ()
 		doc.removeEventListener("latex-suite-settings-changed", reset);
 		doc.removeEventListener("keydown", reset, true);
 		doc.removeEventListener("beforeinput", reset, true);
+		win.removeEventListener("blur", reset);
 		win.removeEventListener("unload", stop);reset();
 	}
 	return stop;

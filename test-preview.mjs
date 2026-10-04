@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {JSDOM} from 'jsdom';
-import {installMathPreview} from './build/test-exports.mjs';
+import {installMathPreview,previewMarkerSource,renderPreviewMarker} from './build/test-exports.mjs';
+import katex from 'katex-zotero';
 const dom=new JSDOM('<!doctype html><math-inline class="math-node"><div class="math-src" tabindex="0"></div><div class="math-render"></div></math-inline>',{pretendToBeVisual:true});
 const win=dom.window,doc=win.document,source=doc.querySelector('.math-src'),render=doc.querySelector('.math-render');
 let now=0,id=0,text='x',renders=0;
@@ -92,7 +93,10 @@ display.pmViewDesc={spec:math};display.append(source,render);node.replaceWith(di
 source.focus();stop=installMathPreview(win,0);await step();
 assert.equal(popup().dataset.inline,'false');
 assert.equal(win.getComputedStyle(popup()).maxHeight,'none','display preview has no height cap');
-assert.equal(win.getComputedStyle(popup()).overflow,'auto','wide display preview still scrolls horizontally');
+assert.equal(win.getComputedStyle(popup()).overflow,'visible','wide display preview uses outer editor scrolling');
+assert.equal(win.getComputedStyle(popup()).width,'max-content','display preview expands to natural equation width');
+assert.equal(win.getComputedStyle(popup()).minWidth,'100%','short equations retain full note-width preview');
+assert.equal(win.getComputedStyle(popup()).maxWidth,'none','display preview has no width cap');
 assert.equal(popup().parentNode,display,'display preview stays in note flow');
 let outerClicks=0;display.addEventListener('mousedown',()=>outerClicks++);display.addEventListener('click',()=>outerClicks++);
 math._innerView.focus=()=>source.focus();
@@ -105,5 +109,54 @@ popup().dispatchEvent(new win.MouseEvent('click',{bubbles:true,cancelable:true})
 assert.equal(outerClicks,0,'scrollbar clicks do not reach outer math editor');
 assert.ok(popup());
 stop();
+// Exercise the preview-only render contract with Zotero's KaTeX version.
+const nativeSource='\\frac{a}{b}+x^2';
+const originalNode={content:{firstChild:{textContent:nativeSource}}};
+const isolated={_node:originalNode,_mathRenderElt:render,_katexOptions:{macros:{}},dom:display,
+ renderMath(){try{this._mathRenderElt.innerHTML=katex.renderToString(this._node.content.firstChild.textContent,this._katexOptions);}catch{this._mathRenderElt.classList.add('parse-error');}}};
+render.textContent='native untouched';
+for(let head=0;head<=nativeSource.length;head++){
+ const target=doc.createElement('div');
+ assert.equal(renderPreviewMarker(isolated,target,nativeSource,head),true,`safe fraction/script position ${head}`);
+ assert.ok(target.textContent.includes('▶'));
+ assert.equal(isolated._node,originalNode);assert.equal(render.textContent,'native untouched');
+}
+const marker='\\text{$\\blacktriangleright$}';
+assert.equal(previewMarkerSource('\\alpha',3),marker+'\\alpha');
+for (const command of ['\\cos','\\sin','\\alpha','\\sum']) {
+ assert.equal(previewMarkerSource(command,command.length),command+marker,'command-end caret stays after non-argument command');
+ assert.equal(previewMarkerSource(command,2),marker+command,'inside command snaps to start');
+}
+const screenshotSource='\\sin^{2} x + \\cos';
+assert.equal(previewMarkerSource(screenshotSource,screenshotSource.length),screenshotSource+marker,'reported cos screenshot regression');
+assert.equal(previewMarkerSource('\\frac{a}{b}',5),'\\frac{'+marker+'a}{b}','marker cannot become fraction numerator');
+assert.equal(previewMarkerSource('\\frac{a}{b}',8),'\\frac{a}{'+marker+'b}','marker cannot become fraction denominator');
+assert.equal(previewMarkerSource('\\mathbb{E}',7),'\\mathbb{'+marker+'E}','marker stays inside font argument');
+assert.equal(previewMarkerSource('\\text{hello}',5),'\\text{'+marker+'hello}','marker stays inside text argument');
+const regressionTarget=doc.createElement('div');
+assert.equal(renderPreviewMarker(isolated,regressionTarget,screenshotSource,screenshotSource.length),true);
+const visualText=regressionTarget.querySelector('.katex-html').textContent;
+assert.ok(visualText.indexOf('cos') < visualText.indexOf('▶'),'rendered marker follows cos');
+assert.equal(previewMarkerSource('\\begin{aligned}x\\end{aligned}',9),marker+'\\begin{aligned}x\\end{aligned}');
+for(const [value,head] of [['\\text{hello}',8],['\\left(x\\right)',6],['x^{2}',3],['\\begin{array}{c}x\\end{array}',14]]){
+ assert.equal(renderPreviewMarker(isolated,doc.createElement('div'),value,head),true,`text/delimiter/metadata ${value}`);
+}
+const macroOptions={macros:{'\\foo':'x'}};
+const macroView={...isolated,_katexOptions:macroOptions,renderMath(){this._katexOptions.macros['\\foo']='changed';this._mathRenderElt.textContent='marker';}};
+renderPreviewMarker(macroView,doc.createElement('div'),'x',0);
+assert.deepEqual(macroOptions.macros,{'\\foo':'x'},'preview renderer cannot mutate shared macro dictionary');
+const target=doc.createElement('div');target.textContent='keep';
+assert.equal(renderPreviewMarker(isolated,target,'\\frac{',6),false);assert.equal(target.textContent,'keep');
+// A failed decorated rendering falls back; noncollapsed selection hides marker.
+math._innerView.state.selection={empty:true,head:1};
+math.renderMath=function(){renders++;this._mathRenderElt.textContent=this._node?.content.firstChild.textContent ?? text;};
+text='ab';source.focus();stop=installMathPreview(win,0);await step();
+assert.equal(popup().firstChild.textContent,'a'+marker+'b');
+const nativeRenders=renders;
+math._innerView.state.selection.head=2;doc.dispatchEvent(new win.Event('selectionchange'));await step();
+assert.equal(popup().firstChild.textContent,'ab'+marker);
+assert.equal(renders,nativeRenders+1,'selection rerenders only detached preview');assert.equal(render.textContent,'ab');
+math._innerView.state.selection.empty=false;doc.dispatchEvent(new win.Event('selectionchange'));await step();
+assert.equal(popup().firstChild.textContent,'ab');stop();
 dom.window.close();
 console.log('Preview debounce, retention, positioning events, IME and cleanup tests passed.');

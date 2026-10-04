@@ -146,7 +146,7 @@ const view={dom,editable:true,state:EditorState.create({schema,doc:schema.node('
 node.pmViewDesc={spec:{_innerView:view}};
 const stopMouse=installMathMouseSelection(win);
 let mouseTime=0;
-function mouse(type,detail,pos=4,target=dom){const e=new win.MouseEvent(type,{detail,clientX:pos,bubbles:true,cancelable:true,button:0});Object.defineProperty(e,'timeStamp',{value:mouseTime});target.dispatchEvent(e);return e;}
+function mouse(type,detail,pos=4,target=dom){const e=new win.MouseEvent(type,{detail,clientX:pos,bubbles:true,cancelable:true,button:0,buttons:['mousedown','mousemove'].includes(type)?1:0});Object.defineProperty(e,'timeStamp',{value:mouseTime});target.dispatchEvent(e);return e;}
 assert.ok(mouse('mousedown',1).defaultPrevented);
 const nativeStart=new win.Event('selectstart',{bubbles:true,cancelable:true});dom.dispatchEvent(nativeStart);
 assert.ok(nativeStart.defaultPrevented,'native selection initiation suppressed');
@@ -178,4 +178,36 @@ assert.deepEqual([view.state.selection.from,view.state.selection.to],[4,4],'upda
 timeout=5000;win.document.dispatchEvent(new win.Event('latex-suite-settings-changed'));
 mouseTime+=100;mouse('mousedown',1);mouse('mouseup',1);
 assert.deepEqual([view.state.selection.from,view.state.selection.to],[4,4],'reload resets in-progress sequence');
-stopTimed();win.close();
+stopTimed();
+let dispatches=0, focuses=0;
+const originalDispatch=view.dispatch.bind(view);
+view.dispatch=tr=>{dispatches++;originalDispatch(tr);};view.focus=()=>{focuses++;};
+const stopTap=installMathMouseSelection(win);
+mouseTime=10000;mouse('mousedown',1,1);mouse('mouseup',1,1);mouse('click',1,1);
+const afterClick=dispatches;
+mouseTime+=3000;assert.ok(mouse('click',1,6).defaultPrevented,'click-only tap handled');
+assert.deepEqual([view.state.selection.from,view.state.selection.to],[6,6],'click-only tap moves caret instead of restoring old position');
+assert.equal(dispatches,afterClick+1,'release does not redundantly redispatch unchanged selection');
+mouseTime+=2000;mouse('mousedown',1,1);mouse('mouseup',1,1);
+mouseTime+=2000;mouse('click',1,5);
+assert.equal(view.state.selection.from,5,'stale unfinished gesture cannot swallow later tap');
+mouseTime+=2000;mouse('click',1,4);mouseTime+=100;mouse('click',2,4);
+assert.deepEqual([view.state.selection.from,view.state.selection.to],[3,6],'click-only double tap selects word');
+mouse('dblclick',2,4);
+mouseTime+=100;mouse('click',3,4);
+assert.deepEqual([view.state.selection.from,view.state.selection.to],[2,7],'click-only third tap expands structure');
+assert.ok(focuses>0,'tap retains editor focus');
+mouseTime+=100;
+assert.equal(mouse('click',1,0,win.document.querySelector('p')).defaultPrevented,false,'outside click is not swallowed by stale gesture');
+const saved=view.posAtCoords;
+for(const lookup of [()=>null,()=>{throw new Error('layout unavailable');},()=>({pos:NaN})]) {
+ view.posAtCoords=lookup;mouseTime+=2000;
+ assert.equal(mouse('mousedown',1,2).defaultPrevented,false,'failed coordinate lookup leaves native caret placement alone');
+ assert.equal(mouse('click',1,2).defaultPrevented,false,'failed tap lookup also passes through');
+}
+view.posAtCoords=saved;
+mouseTime+=2000;mouse('mousedown',1,1);
+dom.dispatchEvent(new win.MouseEvent('mousemove',{clientX:6,bubbles:true,cancelable:true,buttons:0}));
+assert.equal(view.state.selection.from,1,'hover motion after tap is not a drag');
+win.dispatchEvent(new win.Event('blur'));assert.equal(mouse('mouseup',1,1).defaultPrevented,false,'window blur cancels gesture');
+stopTap();assert.equal(mouse('click',1,4).defaultPrevented,false,'tap fallback removed on cleanup');win.close();

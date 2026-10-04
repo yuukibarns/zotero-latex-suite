@@ -12,10 +12,12 @@
  */
 {
 	const XHTML = "http://www.w3.org/1999/xhtml";
+	const XUL = "http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul";
 
 	function init(fieldsEl) {
 		const { PREF, FIELDS, defaultSnippets, defaultSnippetVariables } = Zotero.LatexSuite;
 		const h = (tag) => document.createElementNS(XHTML, tag);
+		const x = (tag) => document.createXULElement ? document.createXULElement(tag) : document.createElementNS(XUL, tag);
 
 		async function pick(input, folder) {
 			const { FilePicker } = ChromeUtils.importESModule("chrome://zotero/content/modules/filePicker.mjs");
@@ -223,15 +225,29 @@
 				input.addEventListener("input", () =>
 					setValue(field.key, Math.max(field.min ?? 0, Math.min(field.max ?? Infinity, parseInt(input.value, 10) || 0)), field.default));
 			} else if (field.type === "select") {
-				input = h("select");
+				// Chrome preference panes use native XUL menus. HTML select popups
+				// may not open in this window even though the control is painted.
+				input = x("menulist");
+				input.classList.add("ls-select");
+				input.setAttribute("native", "true");
+				input.setAttribute("aria-label", field.label);
+				const popup = x("menupopup");
 				for (const option of field.options) {
-					const el = h("option");
-					el.value = option;
-					el.textContent = field.optionLabels?.[option] || option;
-					input.append(el);
+					const el = x("menuitem");
+					el.setAttribute("value", option);
+					el.setAttribute("label", field.optionLabels?.[option] || option);
+					popup.append(el);
 				}
-				input.value = stored;
-				input.addEventListener("change", () => setValue(field.key, input.value, field.default, true));
+				input.append(popup);
+				const value = field.options.includes(stored) ? stored : field.default;
+				input.setAttribute("value", value);
+				input.value = value;
+				input.addEventListener("command", (event) => {
+					const value = event.target.localName === "menuitem" ? event.target.getAttribute("value") : input.value;
+					if (!field.options.includes(value)) return;
+					input.value = value;
+					setValue(field.key, value, field.default, true);
+				});
 			} else if (field.type === "file") {
 				input = h("input");
 				input.type = "text";

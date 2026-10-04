@@ -139,6 +139,8 @@ try {
   math.selectNode();math._innerView.focus();await tick();
   const panel=win.document.getElementById('latex-suite-math-preview');
   assert.ok(panel?.querySelector('.katex'),`${tag} renders preview`);
+  assert.ok(panel.textContent.includes('▶'),`${tag} renders preview cursor`);
+  assert.ok(!math._mathRenderElt.textContent.includes('▶'),'native equation rendering has no marker');
   assert.equal(panel.parentNode,tag==='math-inline'?win.document.body:node);
   assert.equal(JSON.stringify(view.state.doc.toJSON()),beforePreview,'preview does not edit note');
   if (tag==='math-inline') {
@@ -229,6 +231,10 @@ try {
  assert.ok(win.document.getElementById('latex-suite-math-preview'));
  assert.ok(math._innerView.dom.querySelector('.ls-tex-operator'),'full bundle highlighting enabled');
  const beforeSelectionTest=math._innerView.state.doc.textContent;
+ // jsdom cannot hit-test painted text. Supply deterministic coordinates for
+ // these event-routing tests; failed hit-testing is covered separately.
+ const nativePosAtCoords=math._innerView.posAtCoords;
+ math._innerView.posAtCoords=({left})=>({pos:left || math._innerView.state.selection.from});
  math._innerView.dispatch(math._innerView.state.tr.insertText('z+\\left(a+b\\right)',0,math._innerView.state.doc.content.size));await tick();
  assert.equal(math._innerView.dom.querySelector('.ls-tex-boundary')?.textContent,'\\left');
  const mouseSelect=(detail,options={},type='mousedown')=>{
@@ -280,6 +286,8 @@ try {
  for(const options of [{ctrlKey:true},{altKey:true},{shiftKey:true},{metaKey:true},{button:2}]) {
   assert.equal(mouseSelect(3,options).defaultPrevented,false,'modified/right clicks untouched');
  }
+ assert.ok(mouseSelect(1,{clientX:2},'click').defaultPrevented,'tap without captured mouse-down handled in full bundle');
+ assert.equal(math._innerView.state.selection.from,2,'tap uses its own hit position');
  math._innerView.dom.dispatchEvent(new win.CompositionEvent('compositionstart',{bubbles:true}));
  assert.equal(mouseSelect(3).defaultPrevented,false,'composition untouched');
  math._innerView.dom.dispatchEvent(new win.CompositionEvent('compositionend',{bubbles:true}));
@@ -291,6 +299,7 @@ try {
  math._innerView.dom.dispatchEvent(removedShortcut);
  assert.equal(removedShortcut.defaultPrevented,false,'old shortcut removed');
  assert.deepEqual({from:math._innerView.state.selection.from,to:math._innerView.state.selection.to},frozen);
+ math._innerView.posAtCoords=nativePosAtCoords;
  math._innerView.dispatch(math._innerView.state.tr.insertText(beforeSelectionTest,0,math._innerView.state.doc.content.size));await tick();
  const sourceBeforeUndo=math._innerView.state.doc.textContent;
  // Zotero's outer history must still undo/redo edits made in the nested view.

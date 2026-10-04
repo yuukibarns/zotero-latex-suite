@@ -1,3 +1,5 @@
+import { renderPreviewMarker } from "./preview_marker";
+
 /** View-only previews using the renderer already owned by Zotero's MathView. */
 export function installMathPreview(win: Window, debounceMs = 100, inlineEnabled = true, displayEnabled = true) {
 	const delay = Number.isFinite(debounceMs) ? Math.max(0, Math.min(2000, debounceMs)) : 100;
@@ -11,14 +13,15 @@ export function installMathPreview(win: Window, debounceMs = 100, inlineEnabled 
 	status.className = "ls-preview-status";
 	panel.append(output, status);
 	const style = doc.createElement("style");
-	style.textContent = `#latex-suite-math-preview{box-sizing:border-box;padding:10px;background:Canvas;color:CanvasText;color-scheme:light dark;border:1px solid GrayText;border-radius:5px;overflow:auto;font:initial;pointer-events:auto}#latex-suite-math-preview[data-inline=true]{position:fixed;z-index:2147483646;max-height:35vh;overscroll-behavior:contain;max-width:calc(100vw - 16px);box-shadow:0 3px 12px #0003}#latex-suite-math-preview[data-inline=false]{display:block;margin-top:8px;width:100%;max-height:none}#latex-suite-math-preview .ls-preview-status{font:11px sans-serif;color:GrayText;margin-top:4px}#latex-suite-math-preview .ls-preview-status:empty{display:none}#latex-suite-math-preview .katex-display{margin:0}`;
+	style.textContent = `#latex-suite-math-preview{box-sizing:border-box;padding:10px;background:Canvas;color:CanvasText;color-scheme:light dark;border:1px solid GrayText;border-radius:5px;overflow:auto;font:initial;pointer-events:auto}#latex-suite-math-preview[data-inline=true]{position:fixed;z-index:2147483646;max-height:35vh;overscroll-behavior:contain;max-width:calc(100vw - 16px);box-shadow:0 3px 12px #0003}#latex-suite-math-preview[data-inline=false]{display:block;margin-top:8px;width:max-content;min-width:100%;max-width:none;max-height:none;overflow:visible}#latex-suite-math-preview .ls-preview-status{font:11px sans-serif;color:GrayText;margin-top:4px}#latex-suite-math-preview .ls-preview-status:empty{display:none}#latex-suite-math-preview .katex-display{margin:0}`;
 	doc.head.append(style);
 	let frame = 0, stopped = false, composing = false;
 	let owner: any = null, lastText: string | null = null;
+	let lastHead: number | null | undefined;
 	let ownerNode: HTMLElement | null = null, interacting = false;
 	let timer = 0, pendingText: string | null = null, ready = false;
 	function cancelRender() { win.clearTimeout(timer); timer = 0; pendingText = null; ready = false; }
-	function close() { cancelRender(); panel.remove(); panel.style.visibility = ""; output.replaceChildren(); status.textContent = ""; owner = null; ownerNode = null; interacting = false; lastText = null; }
+	function close() { cancelRender(); panel.remove(); panel.style.visibility = ""; output.replaceChildren(); status.textContent = ""; owner = null; ownerNode = null; interacting = false; lastText = null; lastHead = undefined; }
 	function refresh() {
 		frame = 0;
 		if (stopped || composing) return;
@@ -37,6 +40,7 @@ export function installMathPreview(win: Window, debounceMs = 100, inlineEnabled 
 		if (text !== lastText && ready) {
 			cancelRender();
 			lastText = text;
+			lastHead = undefined;
 			try {
 				math.renderMath();
 				if (math._mathRenderElt.classList.contains("parse-error") || math._mathRenderElt.querySelector(".katex-error")) status.textContent = "Incomplete expression — showing last valid preview";
@@ -46,6 +50,16 @@ export function installMathPreview(win: Window, debounceMs = 100, inlineEnabled 
 				}
 			} catch { status.textContent = "Preview unavailable"; }
 			if (!output.childNodes.length && status.textContent?.startsWith("Incomplete")) status.textContent = "Incomplete expression";
+		}
+		const selection = math._innerView.state.selection;
+		const head = selection?.empty && Number.isFinite(selection.head) ? selection.head : null;
+		if (text === lastText && !status.textContent && head !== lastHead) {
+			lastHead = head;
+			// Selection-only updates don't render or modify Zotero's native node.
+			// Fall back to the unmarked native rendering for unsupported positions.
+			if (head === null || !renderPreviewMarker(math, output, text, head)) {
+				output.replaceChildren(...Array.from(math._mathRenderElt.childNodes, (n: any) => n.cloneNode(true)) as Node[]);
+			}
 		}
 		// Retain the last rendering while typing; don't show an empty first panel.
 		if (lastText === null) return;

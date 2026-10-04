@@ -11,6 +11,8 @@ export function installMathHighlight(win: Window): () => void {
 	const style = doc.createElement("style");
 	style.id = "latex-suite-math-highlight";
 	style.textContent = `
+/* Decoration boundaries must preserve typed whitespace, as in display math. */
+math-inline.math-node .math-src .ProseMirror{white-space:break-spaces}
 .math-node .ls-tex-command{color:light-dark(#0957b4,#8ab4f8)}
 .math-node .ls-tex-boundary{color:light-dark(#a3264c,#ff8fac)}
 .math-node .ls-tex-match{background:light-dark(#eadff7,#49364f);border-radius:2px;box-shadow:inset 0 -1px light-dark(#81549c,#c19acf)}
