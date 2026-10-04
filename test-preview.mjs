@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {JSDOM} from 'jsdom';
-import {installMathPreview,previewMarkerSource,renderPreviewMarker,PREVIEW_CARET,previewMarkerColor} from './build/test-exports.mjs';
+import {installMathPreview,previewMarkerSource,renderPreviewMarker,PREVIEW_CARET,previewMarkerColor,createMathSourceMap} from './build/test-exports.mjs';
 import katex from 'katex-zotero';
 import {EditorState,TextSelection} from 'prosemirror-state';
 import {Schema} from 'prosemirror-model';
@@ -125,6 +125,11 @@ for(let head=0;head<=nativeSource.length;head++){
  assert.equal(isolated._node,originalNode);assert.equal(render.textContent,'native untouched');
 }
 const marker=PREVIEW_CARET;
+for(const displayMode of [false,true])for(const command of ['\\prod','\\sum','\\int','\\bigcup'])for(const suffix of ['_{i=1}^{n}b','\\limits_{i=1}^{n}b','\\nolimits_{i=1}^{n}b']) {
+ const value=command+suffix, target=doc.createElement('div');
+ assert.equal(renderPreviewMarker({...isolated,_katexOptions:{displayMode}},target,value,command.length),true);
+ assert.ok(createMathSourceMap()(target.querySelector('.katex-html'),value,{displayMode}),'operator-end marker preserves glyph order and subsequent click mapping');
+}
 assert.equal(previewMarkerSource('\\alpha',3),marker+'\\alpha');
 for (const command of ['\\cos','\\sin','\\alpha','\\sum']) {
  assert.equal(previewMarkerSource(command,command.length),command+marker,'command-end caret stays after non-argument command');
@@ -199,10 +204,11 @@ function clickGlyph(glyph,options={}) {
  assert.ok(target,`preview glyph ${glyph}`);
  for(const name of ['mousedown','mouseup','click'])target.dispatchEvent(new win.MouseEvent(name,{bubbles:true,cancelable:true,clientX:8,clientY:10,...options}));
 }
-for(const tag of ['math-inline','math-display'])for(const value of ['a+b+c','\\frac{a}{b}','x_{b}^{t}','\\begin{matrix}a&b\\\\c&d\\end{matrix}']) {
+for(const tag of ['math-inline','math-display'])for(const value of ['a+b+c','\\frac{a}{b}','x_{b}^{t}','\\begin{matrix}a&b\\\\c&d\\end{matrix}','\\prod_{i=1}^{n}b']) {
  const host=doc.createElement(tag);host.className='math-node';host.pmViewDesc={spec:math};host.append(source,render);doc.body.append(host);
  math._innerView={dom:source,state:EditorState.create({schema,doc:schema.node('doc',null,schema.text(value))}),dispatch(tr){this.state=this.state.apply(tr);},focus(){source.focus();}};
  source.focus();stop=installMathPreview(win,0);await step();
+ if(value.startsWith('\\prod')){clickGlyph('∏');assert.equal(math._innerView.state.selection.head,5);await step();}
  clickGlyph('b');assert.equal(math._innerView.state.selection.head,value.lastIndexOf('b')+1,'preview click maps source boundary');
  assert.equal(doc.activeElement,source);await step();assert.ok(popup());
  math._innerView.state=math._innerView.state.apply(math._innerView.state.tr.setSelection(TextSelection.create(math._innerView.state.doc,0)));await step();

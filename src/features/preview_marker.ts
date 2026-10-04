@@ -50,6 +50,15 @@ export function previewMarkerSource(source: string, head: number): string {
 	}
 	// Avoid splitting UTF-16 surrogate pairs.
 	if (pos > 0 && /[\uDC00-\uDFFF]/.test(source[pos] || "")) pos--;
+	// Inserting an atom between an operator and its scripts steals its limits.
+	// Keep the source caret exact, but show its approximate preview marker
+	// before the command at this unsafe boundary (also for explicit limits).
+	for (const token of tokens) {
+		if (token.kind === "command" && token.to <= pos && /^\s*$/.test(source.slice(token.to, pos))
+			&& /^\s*(?:[_^]|\\(?:limits|nolimits|displaylimits)(?![a-zA-Z]))/.test(source.slice(pos))) {
+			pos = token.from; break;
+		}
+	}
 	// A rule has no spoken glyph and works inside text arguments and scripts.
 	return source.slice(0, pos) + PREVIEW_CARET + source.slice(pos);
 }
