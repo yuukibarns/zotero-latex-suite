@@ -8,6 +8,7 @@ function glyphs(root: Element): Glyph[] {
 	const walker = root.ownerDocument.createTreeWalker(root, 4), result: Glyph[] = [];
 	let node: Node | null;
 	while ((node = walker.nextNode())) {
+		if (node.parentElement?.closest(".ls-preview-caret")) continue;
 		let offset = 0;
 		for (const text of node.textContent || "") {
 			if (!/^[\s\u200b]$/.test(text)) result.push({ text, node: node as Text, offset, element: node.parentElement! });
@@ -59,7 +60,7 @@ export function mathCaretAt(html: Element, map: SourceGlyph[], target: Element, 
 /** One synchronous, one-shot native-opening hook. No delayed caret correction. */
 export function installMathCaret(win: Window): () => void {
 	const doc = win.document, getMap = createMathSourceMap();
-	const diagnostic = { build: "0.5.3.92", events: [] as Record<string, unknown>[] };
+	const diagnostic = { build: "0.5.3.93", events: [] as Record<string, unknown>[] };
 	(win as any).__latexSuiteMathCaretDiagnostic = diagnostic;
 	let started = 0, timer = 0, restoreOpen: (() => void) | null = null;
 	let pendingNode: HTMLElement | null = null, pendingX = 0, pendingY = 0;

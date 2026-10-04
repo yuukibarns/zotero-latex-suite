@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import {JSDOM} from 'jsdom';
 import {installMathPreview,previewMarkerSource,renderPreviewMarker,PREVIEW_CARET,previewMarkerColor} from './build/test-exports.mjs';
 import katex from 'katex-zotero';
+import {EditorState,TextSelection} from 'prosemirror-state';
+import {Schema} from 'prosemirror-model';
 const dom=new JSDOM('<!doctype html><math-inline class="math-node"><div class="math-src" tabindex="0"></div><div class="math-render"></div></math-inline>',{pretendToBeVisual:true});
 const win=dom.window,doc=win.document,source=doc.querySelector('.math-src'),render=doc.querySelector('.math-render');
 let now=0,id=0,text='x',renders=0;
@@ -186,5 +188,35 @@ source.dispatchEvent(new win.Event('compositionend',{bubbles:true}));await step(
 await step(600);assert.equal(popup().dataset.markerIdle,'true');
 await type('abc');assert.equal(popup().dataset.markerIdle,'false');
 stop();assert.equal(timers.size,0);await step(1000);assert.equal(popup(),null);
+// Preview clicks reuse source mapping against the actual decorated DOM.
+const schema=new Schema({nodes:{doc:{content:'text*'},text:{}}});
+win.Range.prototype.getBoundingClientRect=()=>new win.DOMRect(0,0,10,20);
+win.Element.prototype.getBoundingClientRect=()=>new win.DOMRect(0,0,10,20);
+math._katexOptions={};
+math.renderMath=function(){this._mathRenderElt.innerHTML=katex.renderToString(this._node?.content.firstChild.textContent ?? this._innerView.state.doc.textContent,this._katexOptions);};
+function clickGlyph(glyph,options={}) {
+ const target=[...popup().querySelectorAll('.katex-html span')].find(el=>el.textContent===glyph&&!el.children.length);
+ assert.ok(target,`preview glyph ${glyph}`);
+ for(const name of ['mousedown','mouseup','click'])target.dispatchEvent(new win.MouseEvent(name,{bubbles:true,cancelable:true,clientX:8,clientY:10,...options}));
+}
+for(const tag of ['math-inline','math-display'])for(const value of ['a+b+c','\\frac{a}{b}','x_{b}^{t}','\\begin{matrix}a&b\\\\c&d\\end{matrix}']) {
+ const host=doc.createElement(tag);host.className='math-node';host.pmViewDesc={spec:math};host.append(source,render);doc.body.append(host);
+ math._innerView={dom:source,state:EditorState.create({schema,doc:schema.node('doc',null,schema.text(value))}),dispatch(tr){this.state=this.state.apply(tr);},focus(){source.focus();}};
+ source.focus();stop=installMathPreview(win,0);await step();
+ clickGlyph('b');assert.equal(math._innerView.state.selection.head,value.lastIndexOf('b')+1,'preview click maps source boundary');
+ assert.equal(doc.activeElement,source);await step();assert.ok(popup());
+ math._innerView.state=math._innerView.state.apply(math._innerView.state.tr.setSelection(TextSelection.create(math._innerView.state.doc,0)));await step();
+ for(const options of [{button:2},{ctrlKey:true},{shiftKey:true},{altKey:true},{metaKey:true}]){clickGlyph('b',options);assert.equal(math._innerView.state.selection.head,0);}
+ math._innerView.editable=false;clickGlyph('b');assert.equal(math._innerView.state.selection.head,0);math._innerView.editable=true;
+ const glyph=[...popup().querySelectorAll('.katex-html span')].find(el=>el.textContent==='b'&&!el.children.length);
+ glyph.dispatchEvent(new win.MouseEvent('mousedown',{bubbles:true,clientX:8,clientY:10}));
+ doc.dispatchEvent(new win.MouseEvent('mousemove',{bubbles:true,clientX:50,clientY:10,buttons:1}));
+ glyph.dispatchEvent(new win.MouseEvent('click',{bubbles:true,clientX:8,clientY:10}));
+ assert.equal(math._innerView.state.selection.head,0,'dragging away and back does not place caret');
+ // A retained old preview must never map into newly typed source.
+ math._innerView.state=math._innerView.state.apply(math._innerView.state.tr.insertText('z',0));
+ const before=math._innerView.state.selection.head;clickGlyph('b');assert.equal(math._innerView.state.selection.head,before);
+ stop();host.remove();
+}
 dom.window.close();
 console.log('Preview debounce, retention, positioning events, IME and cleanup tests passed.');

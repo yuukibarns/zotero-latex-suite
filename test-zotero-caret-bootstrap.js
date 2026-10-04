@@ -76,6 +76,19 @@ async function run(){
  const retargetVerified=!test.retarget||plugin.events.some(e=>e.stage==='mouseup'&&e.inside===false&&e.dx===0&&e.dy===0);
  results.push({kind:test.kind,focused:test.focused,glyph:test.glyph,retarget:!!test.retarget,head,firstPaintHead:w.firstPaintHead,passed:retargetVerified&&test.expected.includes(head)&&test.expected.includes(w.firstPaintHead),native:JSON.parse(w.JSON.stringify(w.nativeTrace)),plugin});
  await report({stage:'click-result',result:{...results.at(-1),native:undefined}});
+ if(test.kind==='math_display' && ['a + b + c',String.raw`\frac{a}{b}+c`,String.raw`\begin{pmatrix}a&b\\c&d\end{pmatrix}`].includes(test.source)) {
+  inject(`var inner=testMath._innerView;inner.dispatch(inner.state.tr.setSelection(inner.state.selection.constructor.create(inner.state.doc,0)));inner.focus();document.dispatchEvent(new Event('selectionchange'));`);
+  await Zotero.Promise.delay(200);
+  inject(`window.previewPoint=null;var root=document.querySelector('#latex-suite-math-preview .katex-html');if(root){var walker=document.createTreeWalker(root,4),n;while(n=walker.nextNode()){if(n.textContent===${JSON.stringify(test.glyph)}){var r=document.createRange();r.selectNodeContents(n);var b=r.getBoundingClientRect(),leaf=n.parentElement.getBoundingClientRect();window.previewPoint={x:b.right-1,y:(leaf.top+leaf.bottom)/2};break;}}}`);
+  const p=w.previewPoint;
+  if(!p)throw new Error('Preview glyph missing');
+  frame.windowUtils.sendMouseEvent('mousemove',p.x,p.y,0,0,0);
+  frame.windowUtils.sendMouseEvent('mousedown',p.x,p.y,0,1,0);
+  frame.windowUtils.sendMouseEvent('mouseup',p.x,p.y,0,1,0);
+  const previewHead=w.testMath._innerView?.state.selection.head;
+  results.push({preview:true,source:test.source,head:previewHead,passed:test.expected.includes(previewHead)});
+  await report({stage:'preview-click-result',result:results.at(-1)});
+ }
  focusButton?.remove();
  }
  await report({done:true,results:results.map(r=>({...r,native:r.passed?undefined:r.native})),error:results.some(r=>!r.passed)?'Caret placement failed':null});

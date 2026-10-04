@@ -1,4 +1,6 @@
 import { previewMarkerColor, renderPreviewMarker } from "./preview_marker";
+import { createMathSourceMap, mathCaretAt } from "./math_caret";
+import { PMBuffer, rememberSelectionClass } from "../editor/pm";
 
 /** View-only previews using the renderer already owned by Zotero's MathView. */
 export function installMathPreview(win: Window, debounceMs = 100, inlineEnabled = true, displayEnabled = true, marker: { color?: unknown; blink?: boolean } = {}) {
@@ -28,6 +30,26 @@ export function installMathPreview(win: Window, debounceMs = 100, inlineEnabled 
 	let owner: any = null, lastText: string | null = null;
 	let lastHead: number | null | undefined;
 	let ownerNode: HTMLElement | null = null, interacting = false;
+	const getMap = createMathSourceMap();
+	let press: { x: number; y: number; owner: any; source: string } | null = null;
+	function placeCaret(e: MouseEvent) {
+		// Use the decorated preview's geometry but the unmodified source map.
+		// Never map a retained/debounced preview into a newer source document.
+		const gesture = press; press = null;
+		const view = owner?._innerView, target = e.target as Element;
+		if (!gesture || gesture.owner !== owner || composing || e.button !== 0 || e.ctrlKey || e.altKey || e.metaKey || e.shiftKey
+			|| Math.abs(e.clientX - gesture.x) > 5 || Math.abs(e.clientY - gesture.y) > 5
+			|| !ownerNode?.isConnected || !view || view.isDestroyed || view.editable === false
+			|| status.textContent || lastText !== gesture.source || view.state.doc.textContent !== gesture.source) return;
+		const html = target.closest?.(".katex-html");
+		if (!html || !output.contains(html)) return;
+		const map = getMap(html, gesture.source, owner._katexOptions);
+		const head = map ? mathCaretAt(html, map, target, e.clientX, e.clientY) : null;
+		if (head === null) return;
+		rememberSelectionClass(view);
+		PMBuffer.forMath(view, ownerNode.localName === "math-inline" ? "math_inline" : "math_display").setSelection(head, head);
+		view.focus(); activity();
+	}
 	let timer = 0, pendingText: string | null = null, ready = false;
 	let blinkTimer = 0, activityText: string | null = null, activityHead: number | null | undefined;
 	function pauseBlink() {
@@ -104,7 +126,7 @@ export function installMathPreview(win: Window, debounceMs = 100, inlineEnabled 
 		panel.style.top = `${top}px`;
 	}
 	function schedule() { if (!stopped && !frame) frame = win.requestAnimationFrame(refresh); }
-	const activity = () => { pauseBlink(); schedule(); };
+	const activity = () => { press = null; pauseBlink(); schedule(); };
 	const start = () => { composing = true; pauseBlink(); cancelRender(); };
 	const end = () => { composing = false; activity(); };
 	const viewport = (e: Event) => {
@@ -115,7 +137,14 @@ export function installMathPreview(win: Window, debounceMs = 100, inlineEnabled 
 	// pointer/mouse events before they reach ProseMirror or MathView's click
 	// handler, while leaving native scrollbar default actions enabled.
 	const interaction = (e: Event) => {
+		const mouse = e as MouseEvent;
+		if (e.type === "pointercancel" || (e.type === "mousemove" && press && (Math.abs(mouse.clientX - press.x) > 5 || Math.abs(mouse.clientY - press.y) > 5))) press = null;
 		const inside = (e.target as Element)?.closest?.("#latex-suite-math-preview") === panel;
+		if (e.type === "mousedown") {
+			press = inside && mouse.button === 0 && !mouse.ctrlKey && !mouse.altKey && !mouse.metaKey && !mouse.shiftKey && lastText !== null
+				&& !!(e.target as Element).closest?.(".katex-html") ? { x: mouse.clientX, y: mouse.clientY, owner, source: lastText } : null;
+		}
+		if (e.type === "click") { if (inside) placeCaret(mouse); else press = null; }
 		if (inside) {
 			e.stopPropagation();
 			if (e.type === "pointerdown" || e.type === "mousedown") interacting = true;
@@ -127,7 +156,7 @@ export function installMathPreview(win: Window, debounceMs = 100, inlineEnabled 
 			schedule();
 		}
 	};
-	const interactionEvents = ["pointerdown", "mousedown", "pointerup", "pointercancel", "mouseup", "click", "dblclick"];
+	const interactionEvents = ["pointerdown", "mousedown", "mousemove", "pointerup", "pointercancel", "mouseup", "click", "dblclick"];
 	interactionEvents.forEach(name => doc.addEventListener(name, interaction, true));
 	const wheel = (e: Event) => { e.stopPropagation(); }; // native scrolling stays enabled
 	panel.addEventListener("wheel", wheel, { passive: true });
