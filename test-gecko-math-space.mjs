@@ -59,8 +59,10 @@ async function fixture(kind,plugin,config={}){
 	for(let i=0;i<40;i++){if(await js('return !!window._currentEditorInstance?._editorCore?.view'))break;await pause(50);}
 	assert.equal(await js('return !!window._currentEditorInstance?._editorCore?.view'),true,JSON.stringify(await js('return window.testErrors')));
  if(plugin){
+  if(process.argv.includes('--no-performance'))await js("Object.defineProperty(window,'performance',{value:undefined,configurable:true});");
   await js(`window.__latexSuiteSettings=JSON.stringify(${JSON.stringify({snippetsEnabled:false,mathPreviewDebounceMs:0,...config})});var s=document.createElement('script');s.src='/plugin.js';document.head.append(s);`);
   for(let i=0;i<40;i++){if(await js('return !!window.__latexSuiteInstalled'))break;await pause(50);}
+  assert.equal(await js('return !!window.__latexSuite'),true,'whole plugin initialization completes');
  }
  await js(`var v=window._currentEditorInstance._editorCore.view,sc=v.state.schema;var n=sc.nodes.${kind}.create(null,sc.text('x'));var content=${kind==='math_inline'?'sc.nodes.paragraph.create(null,n)':'n'};v.dispatch(v.state.tr.replaceWith(0,v.state.doc.content.size,content));var S=Object.getPrototypeOf(v.state.selection.constructor);v.dispatch(v.state.tr.setSelection(S.fromJSON(v.state.doc,{type:'node',anchor:${kind==='math_inline'?1:0}})));window.testMath=document.querySelector('.math-node').pmViewDesc.spec;var inner=window.testMath._innerView;inner.dispatch(inner.state.tr.setSelection(inner.state.selection.constructor.create(inner.state.doc,1)));inner.focus();`);
  await pause(120);
@@ -134,7 +136,7 @@ try{
   await pause(150);
   assert.equal(await js('return !!testMath._innerView'),false,'fixture closes math');
   const point=await js(`var walker=document.createTreeWalker(testMath._mathRenderElt.querySelector('.katex-html'),4),n,remaining=${occurrence};while(n=walker.nextNode()){var p=n.textContent.indexOf(${JSON.stringify(glyph)});if(p>=0&&remaining--===0){var r=document.createRange();r.setStart(n,p);r.setEnd(n,p+1);var b=r.getBoundingClientRect(),v=n.parentElement.getBoundingClientRect();return {x:${side==='left'?'b.left+1':'b.right-1'},y:(v.top+v.bottom)/2};}}throw Error('glyph missing');`);
-  await js(`window.caretTrace=[];var start=performance.now();for(var name of ['mousedown','mouseup','click','blur','focus'])addEventListener(name,e=>caretTrace.push({event:e.type,ms:performance.now()-start,head:testMath._innerView?.state.selection.head}),true);var open=testMath.openEditor;testMath.openEditor=function(){caretTrace.push({event:'open-start',ms:performance.now()-start});var r=open.apply(this,arguments);caretTrace.push({event:'open-end',ms:performance.now()-start});return r;};`);
+  await js(`window.caretTrace=[];var start=Date.now();for(var name of ['mousedown','mouseup','click','blur','focus'])addEventListener(name,e=>caretTrace.push({event:e.type,ms:Date.now()-start,head:testMath._innerView?.state.selection.head}),true);var open=testMath.openEditor;testMath.openEditor=function(){caretTrace.push({event:'open-start',ms:Date.now()-start});var r=open.apply(this,arguments);caretTrace.push({event:'open-end',ms:Date.now()-start});return r;};`);
   await command('WebDriver:PerformActions',{actions:[{type:'pointer',id:'mouse',parameters:{pointerType:'mouse'},actions:[{type:'pointerMove',x:Math.round(point.x),y:Math.round(point.y),duration:0},{type:'pointerDown',button:0},...(movement?[{type:'pointerMove',x:Math.round(point.x)+1,y:Math.round(point.y),duration:60}]:[]),{type:'pointerUp',button:0}]}]});
   await pause(1000);
   const result=await js('return {source:testMath._innerView?.state.doc.textContent,head:testMath._innerView?.state.selection.head,probes:document.querySelectorAll(\'.math-node[aria-hidden="true"]\').length}');

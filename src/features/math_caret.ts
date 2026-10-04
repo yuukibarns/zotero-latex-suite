@@ -58,12 +58,14 @@ export function mathCaretPositions(source: string, glyph?: string): number[] {
  */
 export function installMathCaret(win: Window): () => void {
 	const doc = win.document;
-	// Temporary .85 diagnostic: bounded metadata only, never source/DOM text.
-	const diagnostic = { build: "0.5.3.85-caret-debug", events: [] as Record<string, unknown>[] };
+	// Temporary diagnostic: bounded metadata only, never source/DOM text.
+	const diagnostic = { build: "0.5.3.86", events: [] as Record<string, unknown>[] };
 	(win as any).__latexSuiteMathCaretDiagnostic = diagnostic;
-	let started = win.performance.now();
+	// Some Zotero resource:// editor windows lack the Performance Web API.
+	// Millisecond Date timing is sufficient for our bounded probe batches.
+	let started = Date.now();
 	function trace(stage: string, data: Record<string, unknown> = {}) {
-		diagnostic.events.push({ stage, ms: Math.round(win.performance.now() - started), ...data });
+		diagnostic.events.push({ stage, ms: Date.now() - started, ...data });
 		if (diagnostic.events.length > 40) diagnostic.events.shift();
 	}
 	let generation = 0, frame = 0, probe: HTMLElement | null = null, stopped = false;
@@ -72,7 +74,7 @@ export function installMathCaret(win: Window): () => void {
 	function cancel(reason: string | Event = "replaced") { if (pendingNode) trace("cancel", { reason: typeof reason === "string" ? reason : reason.type }); generation++; win.cancelAnimationFrame(frame); win.clearTimeout(openingTimer); pending = null; pendingNode = null; frame = 0; probe?.remove(); probe = null; }
 	function down(event: MouseEvent) {
 		cancel();
-		started = win.performance.now(); diagnostic.events.length = 0;
+		started = Date.now(); diagnostic.events.length = 0;
 		trace("mousedown", { detail: event.detail, button: event.button, prevented: event.defaultPrevented });
 		if (stopped || event.defaultPrevented || event.button !== 0 || event.detail > 1 || event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return;
 		const target = event.target as Element, node = target?.closest?.(".math-node") as HTMLElement | null;
@@ -112,8 +114,8 @@ export function installMathCaret(win: Window): () => void {
 			if (!node!.isConnected || !view || view.isDestroyed || view.editable === false || view.state.doc.textContent !== source) { cancel("editor-not-ready"); return; }
 			selection ??= view.state.selection;
 			if (!view.state.selection.empty || view.state.selection.anchor !== selection.anchor || view.state.selection.head !== selection.head) { cancel("selection-changed"); return; }
-			const start = win.performance.now();
-			for (let batch = 0; batch < 8 && index < positions.length && (batch === 0 || win.performance.now() - start < 8); batch++, index++) {
+			const start = Date.now();
+			for (let batch = 0; batch < 8 && index < positions.length && (batch === 0 || Date.now() - start < 8); batch++, index++) {
 				const head = positions[index];
 				if (!renderPreviewMarker(math, output, source, head)) continue;
 				const rendered = output.querySelector(".katex-html");
@@ -134,7 +136,7 @@ export function installMathCaret(win: Window): () => void {
 				const d = Math.hypot(x - event.clientX, 2 * (y - event.clientY));
 				if (d < score) { score = d; best = head; }
 			}
-			elapsed += win.performance.now() - start;
+			elapsed += Date.now() - start;
 			if (index < positions.length) {
 				if (elapsed > 120) { cancel("render-budget"); return; }
 				frame = win.requestAnimationFrame(step); return;

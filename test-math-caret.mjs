@@ -16,6 +16,8 @@ assert.deepEqual(mathCaretPositions('x+▶'),[],'literal marker is ambiguous');
 assert.deepEqual(mathCaretPositions('\\blacktriangleright'),[]);
 const dom=new JSDOM('<math-inline class="math-node"><span class="math-render"><span class="katex-html">x</span></span></math-inline>',{pretendToBeVisual:true});
 const win=dom.window,doc=win.document,node=doc.querySelector('.math-node'),target=doc.querySelector('.katex-html');
+Object.defineProperty(win,'performance',{value:undefined,configurable:true});
+assert.equal(win.performance,undefined,'match Zotero resource editor without Performance API');
 win.Range.prototype.getBoundingClientRect=()=>({left:0,right:10,top:0,bottom:20,width:10,height:20});
 let id=0;const frames=new Map();win.requestAnimationFrame=f=>{frames.set(++id,f);return id;};win.cancelAnimationFrame=i=>frames.delete(i);
 const math={_node:{textContent:'x'},_mathRenderElt:doc.querySelector('.math-render'),renderMath(){},_innerView:null};node.pmViewDesc={spec:math};
