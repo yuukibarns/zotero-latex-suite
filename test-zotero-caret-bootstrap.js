@@ -89,6 +89,14 @@ async function run(){
   results.push({preview:true,source:test.source,head:previewHead,passed:test.expected.includes(previewHead)});
   await report({stage:'preview-click-result',result:results.at(-1)});
   if(test.source==='a + b + c') {
+   for(let tap=0;tap<2;tap++) {
+    frame.windowUtils.sendMouseEvent('mousedown',p.x,p.y,0,1,0);
+    frame.windowUtils.sendMouseEvent('mouseup',p.x,p.y,0,1,0);
+    await Zotero.Promise.delay(30);
+   }
+   const expanded=w.testMath._innerView.state.selection;
+   results.push({previewExpand:true,from:expanded.from,to:expanded.to,passed:expanded.from===0&&expanded.to===9});
+   await report({stage:'preview-expand-result',result:results.at(-1)});
    await Zotero.Promise.delay(200);
    inject(`window.dragPoints=[];for(var letter of ['b','a']){var root=document.querySelector('#latex-suite-math-preview .katex-html'),walker=document.createTreeWalker(root,4),n;while(n=walker.nextNode()){if(n.textContent===letter){var r=document.createRange();r.selectNodeContents(n);var b=r.getBoundingClientRect(),leaf=n.parentElement.getBoundingClientRect();dragPoints.push({x:letter==='b'?b.right-1:b.left+1,y:(leaf.top+leaf.bottom)/2});break;}}}`);
    const [b,a]=w.dragPoints;

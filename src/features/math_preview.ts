@@ -1,9 +1,10 @@
 import { previewMarkerColor, renderPreviewMarker } from "./preview_marker";
 import { createMathSourceMap, mathCaretAt, mathSelectionRects } from "./math_caret";
 import { PMBuffer, rememberSelectionClass } from "../editor/pm";
+import { createMathSelection, mathWordRange, normalizeMathClickTimeout } from "./math_selection";
 
 /** View-only previews using the renderer already owned by Zotero's MathView. */
-export function installMathPreview(win: Window, debounceMs = 100, inlineEnabled = true, displayEnabled = true, marker: { color?: unknown; blink?: boolean } = {}) {
+export function installMathPreview(win: Window, debounceMs = 100, inlineEnabled = true, displayEnabled = true, marker: { color?: unknown; blink?: boolean; clickTimeout?: number } = {}) {
 	const delay = Number.isFinite(debounceMs) ? Math.max(0, Math.min(2000, debounceMs)) : 100;
 	const doc = win.document;
 	const panel = doc.createElement("div");
@@ -36,6 +37,8 @@ export function installMathPreview(win: Window, debounceMs = 100, inlineEnabled 
 	let lastHead: number | null | undefined;
 	let ownerNode: HTMLElement | null = null, interacting = false;
 	const getMap = createMathSourceMap();
+	const expandSelection = createMathSelection();
+	let clicks: { owner: any; source: string; x: number; y: number; time: number; count: number; anchor: number; from: number; to: number } | null = null;
 	let drag: { source: string; owner: any; anchor: number; x: number; y: number; moved: boolean } | null = null;
 	function paintSelection() {
 		selectionLayer.replaceChildren();
@@ -55,6 +58,7 @@ export function installMathPreview(win: Window, debounceMs = 100, inlineEnabled 
 		if (!drag || !(e.buttons & 1)) return;
 		if (Math.abs(e.clientX-drag.x)>5 || Math.abs(e.clientY-drag.y)>5) drag.moved = true;
 		if (!drag.moved) return;
+		clicks = null;
 		press = null;
 		const view = owner?._innerView, target = e.target as Element, html = target.closest?.(".katex-html");
 		if (composing || drag.owner !== owner || !ownerNode?.isConnected || !view || view.isDestroyed || view.editable === false || view.state.doc.textContent !== drag.source || status.textContent) { drag = null; return; }
@@ -78,12 +82,23 @@ export function installMathPreview(win: Window, debounceMs = 100, inlineEnabled 
 			|| status.textContent || lastText !== gesture.source || view.state.doc.textContent !== gesture.source) return;
 		const html = target.closest?.(".katex-html");
 		if (!html || !output.contains(html)) return;
-		const map = getMap(html, gesture.source, owner._katexOptions);
-		const head = map ? mathCaretAt(html, map, target, e.clientX, e.clientY) : null;
+		// The DOM is replaced when the marker disappears. Continue from the
+		// original source anchor, never remap later taps against shifted glyphs.
+		const continuing = clicks && clicks.owner === owner && clicks.source === gesture.source
+			&& e.timeStamp >= clicks.time && e.timeStamp-clicks.time < normalizeMathClickTimeout(marker.clickTimeout)
+			&& Math.abs(e.clientX-clicks.x)<=5 && Math.abs(e.clientY-clicks.y)<=5
+			&& view.state.selection.from === clicks.from && view.state.selection.to === clicks.to;
+		const map = continuing ? null : getMap(html, gesture.source, owner._katexOptions);
+		const head = continuing ? clicks!.anchor : map ? mathCaretAt(html, map, target, e.clientX, e.clientY) : null;
 		if (head === null) return;
 		rememberSelectionClass(view);
-		PMBuffer.forMath(view, ownerNode.localName === "math-inline" ? "math_inline" : "math_display").setSelection(head, head);
-		view.focus(); activity();
+		const buffer = PMBuffer.forMath(view, ownerNode.localName === "math-inline" ? "math_inline" : "math_display");
+		const count = continuing ? clicks!.count+1 : 1;
+		if (count === 1) buffer.setSelection(head, head);
+		else if (count === 2) { const word = mathWordRange(gesture.source, head); buffer.setSelection(word.from, word.to); }
+		else expandSelection(buffer, false, false, true);
+		clicks = { owner, source: gesture.source, x:e.clientX, y:e.clientY, time:e.timeStamp, count, anchor:head, from:view.state.selection.from, to:view.state.selection.to };
+		view.focus(); pauseBlink(); schedule();
 	}
 	let timer = 0, pendingText: string | null = null, ready = false;
 	let blinkTimer = 0, activityText: string | null = null, activityHead: number | null | undefined;
@@ -94,7 +109,7 @@ export function installMathPreview(win: Window, debounceMs = 100, inlineEnabled 
 		}, 600);
 	}
 	function cancelRender() { win.clearTimeout(timer); timer = 0; pendingText = null; ready = false; }
-	function close() { drag = null; press = null; selectionLayer.replaceChildren(); cancelRender(); owner = null; pauseBlink(); panel.remove(); panel.style.visibility = ""; output.replaceChildren(); status.textContent = ""; ownerNode = null; interacting = false; lastText = null; lastHead = undefined; activityText = null; activityHead = undefined; }
+	function close() { clicks = null; drag = null; press = null; selectionLayer.replaceChildren(); cancelRender(); owner = null; pauseBlink(); panel.remove(); panel.style.visibility = ""; output.replaceChildren(); status.textContent = ""; ownerNode = null; interacting = false; lastText = null; lastHead = undefined; activityText = null; activityHead = undefined; }
 	function refresh() {
 		frame = 0;
 		if (stopped || composing) return;
@@ -162,9 +177,9 @@ export function installMathPreview(win: Window, debounceMs = 100, inlineEnabled 
 		paintSelection();
 	}
 	function schedule() { if (!stopped && !frame) frame = win.requestAnimationFrame(refresh); }
-	const activity = () => { drag = null; press = null; pauseBlink(); schedule(); };
-	const start = () => { drag = null; press = null; composing = true; pauseBlink(); cancelRender(); };
-	const cancelGesture = (e: Event) => { if (e.target !== win) return; drag = null; press = null; interacting = false; schedule(); };
+	const activity = () => { clicks = null; drag = null; press = null; pauseBlink(); schedule(); };
+	const start = () => { clicks = null; drag = null; press = null; composing = true; pauseBlink(); cancelRender(); };
+	const cancelGesture = (e: Event) => { if (e.target !== win) return; clicks = null; drag = null; press = null; interacting = false; schedule(); };
 	const end = () => { composing = false; activity(); };
 	const viewport = (e: Event) => {
 		if ((e.target as Element)?.closest?.("#latex-suite-math-preview, #latex-suite-completion")) return;
@@ -175,10 +190,11 @@ export function installMathPreview(win: Window, debounceMs = 100, inlineEnabled 
 	// handler, while leaving native scrollbar default actions enabled.
 	const interaction = (e: Event) => {
 		const mouse = e as MouseEvent;
-		if (e.type === "pointercancel") { press = null; drag = null; }
+		if (e.type === "pointercancel") { clicks = null; press = null; drag = null; }
 		if (e.type === "mousemove") dragSelection(mouse);
 		const inside = (e.target as Element)?.closest?.("#latex-suite-math-preview") === panel;
 		if (e.type === "mousedown") {
+			if (!inside || mouse.button !== 0 || mouse.ctrlKey || mouse.altKey || mouse.metaKey || mouse.shiftKey) clicks = null;
 			drag = null;
 			press = inside && mouse.button === 0 && !mouse.ctrlKey && !mouse.altKey && !mouse.metaKey && !mouse.shiftKey && lastText !== null
 				&& !!(e.target as Element).closest?.(".katex-html") ? { x: mouse.clientX, y: mouse.clientY, owner, source: lastText } : null;

@@ -132,7 +132,7 @@ function loadSettings(json: string | undefined) {
 	stopMathVisibility?.();
 	stopMathVisibility = window.document.createElement && !isReaderWindow(window) ? installMathVisibility(window) : null;
 	stopMathHighlight = raw.mathHighlightEnabled && window.document.createElement && !isReaderWindow(window) ? installMathHighlight(window) : null;
-	stopMathPreview = window.document.createElement && !isReaderWindow(window) ? installMathPreview(window, Number(raw.mathPreviewDebounceMs), raw.inlineMathPreviewEnabled ?? raw.mathPreviewEnabled, raw.displayMathPreviewEnabled ?? raw.mathPreviewEnabled, { color: raw.mathPreviewMarkerColor, blink: raw.mathPreviewMarkerBlink === true }) : null;
+	stopMathPreview = window.document.createElement && !isReaderWindow(window) ? installMathPreview(window, Number(raw.mathPreviewDebounceMs), raw.inlineMathPreviewEnabled ?? raw.mathPreviewEnabled, raw.displayMathPreviewEnabled ?? raw.mathPreviewEnabled, { color: raw.mathPreviewMarkerColor, blink: raw.mathPreviewMarkerBlink === true, clickTimeout: mathClickTimeout }) : null;
 	completion = null;
 	try { completionCommands = raw.completionCommands === undefined ? DEFAULT_COMMANDS : parseCommands(raw.completionCommands); }
 	catch (e) { console.error("latex-suite: invalid completion dictionary; retaining previous commands", e); }

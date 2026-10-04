@@ -214,9 +214,16 @@ for(const tag of ['math-inline','math-display'])for(const value of ['a+b+c','\\f
  const host=doc.createElement(tag);host.className='math-node';host.pmViewDesc={spec:math};host.append(source,render);doc.body.append(host);
  math._innerView={dom:source,state:EditorState.create({schema,doc:schema.node('doc',null,schema.text(value))}),dispatch(tr){this.state=this.state.apply(tr);},focus(){source.focus();}};
  source.focus();stop=installMathPreview(win,0);await step();
- if(value.startsWith('\\prod')){clickGlyph('∏');assert.equal(math._innerView.state.selection.head,5);await step();}
+ if(value.startsWith('\\prod')){clickGlyph('∏');assert.equal(math._innerView.state.selection.head,5);await step();source.dispatchEvent(new win.KeyboardEvent('keydown',{bubbles:true,key:'ArrowRight'}));}
  clickGlyph('b');assert.equal(math._innerView.state.selection.head,value.lastIndexOf('b')+1,'preview click maps source boundary');
  assert.equal(doc.activeElement,source);await step();assert.ok(popup());
+ clickGlyph('b');await step();
+ assert.equal(math._innerView.state.selection.from,value.lastIndexOf('b'),'second click selects source word');
+ assert.equal(math._innerView.state.selection.to,value.lastIndexOf('b')+1);
+ const previous=math._innerView.state.selection;
+ clickGlyph('b');await step();
+ assert.ok(math._innerView.state.selection.from<=previous.from && math._innerView.state.selection.to>=previous.to,'third click expands enclosing source region');
+ assert.ok(math._innerView.state.selection.to-math._innerView.state.selection.from>1);
  math._innerView.state=math._innerView.state.apply(math._innerView.state.tr.setSelection(TextSelection.create(math._innerView.state.doc,0)));await step();
  for(const options of [{button:2},{ctrlKey:true},{shiftKey:true},{altKey:true},{metaKey:true}]){clickGlyph('b',options);assert.equal(math._innerView.state.selection.head,0);}
  math._innerView.editable=false;clickGlyph('b');assert.equal(math._innerView.state.selection.head,0);math._innerView.editable=true;
