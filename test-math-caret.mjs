@@ -1,61 +1,87 @@
 import assert from 'node:assert/strict';
 import {JSDOM} from 'jsdom';
-import {mathCaretPositions,installMathCaret} from './build/test-exports.mjs';
-assert.deepEqual(mathCaretPositions('\\alpha'),[0,6]);
-assert.deepEqual(mathCaretPositions('\\alpha+x','α'),[0,6]);
-assert.deepEqual(mathCaretPositions('a'.repeat(300)+'+x'+'+b'.repeat(100),'x'),[301,302],'long equation probes only the clicked literal');
-assert.deepEqual(mathCaretPositions('\\text{max} + x','x'),[8,9,13,14],'command names are not literal occurrences');
-const frac=mathCaretPositions('\\frac{a}{b}');
-assert.ok(frac.includes(6)&&frac.includes(9));assert.ok(!frac.includes(5)&&!frac.includes(8));
-const env=String.raw`\begin{array}{cc}a & b \\ c & d\end{array}`;
-assert.ok(!mathCaretPositions(env).some(p=>p>0&&p<16),'no environment/column metadata caret');
-assert.ok(!mathCaretPositions('𝑥+x').includes(1),'surrogate pair not split');
-assert.deepEqual(mathCaretPositions('x'.repeat(300)),[],'probe count capped');
-assert.deepEqual(mathCaretPositions('x'.repeat(2049)),[],'source size capped');
-assert.deepEqual(mathCaretPositions('x+▶'),[],'literal marker is ambiguous');
-assert.deepEqual(mathCaretPositions('\\blacktriangleright'),[]);
-const dom=new JSDOM('<math-inline class="math-node"><span class="math-render"><span class="katex-html">x</span></span></math-inline>',{pretendToBeVisual:true});
-const win=dom.window,doc=win.document,node=doc.querySelector('.math-node'),target=doc.querySelector('.katex-html');
+import katex from 'katex-zotero';
+import {EditorState,TextSelection} from 'prosemirror-state';
+import {Schema} from 'prosemirror-model';
+import {sourceGlyphs} from './build/katex-source-map.mjs';
+import {createMathSourceMap,mathCaretAt,installMathCaret} from './build/test-exports.mjs';
+
+const dom=new JSDOM('<math-inline class="math-node"><span class="math-render"></span></math-inline>',{pretendToBeVisual:true});
+const win=dom.window,doc=win.document,node=doc.querySelector('.math-node'),render=doc.querySelector('.math-render');
+const getMap=createMathSourceMap();
+function mapped(source,options={}){
+ render.innerHTML=katex.renderToString(source,options);
+ const html=render.querySelector('.katex-html'),map=getMap(html,source,options);
+ assert.ok(map,`native/map signature agrees: ${source.slice(0,80)}`);
+ assert.deepEqual(map,sourceGlyphs(source,options));
+ for(const g of map)if(g.from!==null)assert.ok(g.from>=0&&g.to>=g.from&&g.to<=source.length);
+ return map;
+}
+for(const displayMode of [false,true])for(const source of [
+ 'a+b+c','12345+x',String.raw`\sin x+s`,String.raw`\alpha+α`,
+ String.raw`\frac{a}{b}+\sum_{i=1}^n x_i`,String.raw`\sqrt{x}+\sqrt[3]{y}`,
+ String.raw`\left(\frac{x}{y}\middle|z\right)`,String.raw`\mathbb{E}_{x\sim p_t}[D_{\text{KL}}]`,
+ String.raw`\begin{pmatrix}a&b\\c&d\end{pmatrix}`,String.raw`\begin{aligned}x&=a\\y&=b\end{aligned}`,
+ String.raw`\hat{x}+\vec{y}+\overline{ab}`,String.raw`\text{hello world}+\operatorname{foo}(x)`,
+ String.raw`\neq+\iff+\notin`,String.raw`\def\f#1{#1!}\f{a}`, 'x+'.repeat(1100)+'y',
+])mapped(source,{displayMode});
+assert.deepEqual(mapped('12345+x').find(g=>g.text==='3'),{text:'3',from:2,to:3});
+assert.deepEqual(mapped(String.raw`\sin x+s`).filter(g=>g.text==='s').map(g=>[g.from,g.to]),[[0,4],[7,8]]);
+assert.deepEqual(mapped(String.raw`\alpha+α`).filter(g=>g.text==='α').map(g=>[g.from,g.to]),[[0,6],[7,8]]);
+assert.deepEqual(mapped(String.raw`\text{ab}`).map(g=>[g.from,g.to]),[[6,7],[7,8]]);
+for(const [source,expected] of [
+ [String.raw`\frac{a}{b}`,['b','a']],
+ [String.raw`x_i^t`,['x','i','t']],
+ [String.raw`\left(x\middle|y\right)`,['(','x','|','y',')']],
+ [String.raw`\begin{matrix}a&b\\c&d\end{matrix}`,['a','c','b','d']],
+ [String.raw`\mathbb{E}_{x\sim p_t}`,['E','x','\\sim','p','t']],
+ [String.raw`\def\f#1{#1!}\f{a}`,['a','\\f{a}']],
+ [String.raw`\text{ab--cd}`,['a','b','--','c','d']],
+])assert.deepEqual(mapped(source).map(g=>g.from===null?null:source.slice(g.from,g.to)),expected,source);
+const macros={'\\foo':'\\alpha'};
+assert.deepEqual(mapped(String.raw`\foo+x`,{macros})[0],{text:'α',from:0,to:4});
+assert.deepEqual(macros,{'\\foo':'\\alpha'},'mapping does not mutate shared macros');
+mapped('x');const html=render.querySelector('.katex-html');html.textContent='different';
+assert.equal(getMap(html,'x',{}),null,'mismatched native renderer falls back');
+assert.equal(getMap(html,'\\invalidcommand',{}),null,'parse errors fall back');
+// The same native root can be mutated by another plugin: always revalidate it.
+html.textContent='x';assert.ok(getMap(html,'x',{}));
+assert.equal(getMap(html,'y',{}),null,'same root with a different source is not a cache hit');
+
+// The open hook must finish placement synchronously and preserve native return,
+// modifiers, drag behavior, teardown, and later hooks installed by other plugins.
+mapped('a+b+c');const target=render.querySelector('.katex-html .mathnormal');
 Object.defineProperty(win,'performance',{value:undefined,configurable:true});
-assert.equal(win.performance,undefined,'match Zotero resource editor without Performance API');
 win.Range.prototype.getBoundingClientRect=()=>({left:0,right:10,top:0,bottom:20,width:10,height:20});
-let id=0;const frames=new Map();win.requestAnimationFrame=f=>{frames.set(++id,f);return id;};win.cancelAnimationFrame=i=>frames.delete(i);
-const nativeOpen=function(){return 17;};
-const math={_node:{textContent:'x'},_mathRenderElt:doc.querySelector('.math-render'),renderMath(){},openEditor:nativeOpen,_innerView:null};node.pmViewDesc={spec:math};
+win.Element.prototype.getBoundingClientRect=()=>({left:0,right:10,top:0,bottom:20,width:10,height:20});
+const nativeHTML=render.querySelector('.katex-html'),shape=doc.createElementNS('http://www.w3.org/2000/svg','svg');nativeHTML.append(shape);
+const nativeMap=getMap(nativeHTML,'a+b+c',{});
+assert.equal(mathCaretAt(nativeHTML,nativeMap,shape,8,10),1,'transparent radical box does not block its argument');
+assert.equal(mathCaretAt(nativeHTML,nativeMap,shape,18,10),null,'radical stroke does not guess a nearby glyph');
+shape.remove();
+win.requestAnimationFrame=()=>{throw Error('Caret placement must not schedule frames');};
+const schema=new Schema({nodes:{doc:{content:'text*'},text:{}}});
+const math={_node:{textContent:'a+b+c'},_katexOptions:{},_mathRenderElt:render,_innerView:null};node.pmViewDesc={spec:math};
+const nativeOpen=function(){
+ const state=EditorState.create({schema,doc:schema.node('doc',null,schema.text('a+b+c'))});
+ this._innerView={state:state.apply(state.tr.setSelection(TextSelection.create(state.doc,5))),dispatch(tr){this.state=this.state.apply(tr);},focus(){}};
+ return 17;
+};math.openEditor=nativeOpen;
 const stop=installMathCaret(win);
-const click=(options={})=>{const event=new win.MouseEvent('mousedown',{bubbles:true,cancelable:true,button:0,detail:1,clientX:8,clientY:10,...options});target.dispatchEvent(event);if(options.earlyOpen)math.openEditor();target.dispatchEvent(new win.MouseEvent('mouseup',{bubbles:true,button:0,clientX:8,clientY:10,...options}));if(!options.delayOpen&&!options.earlyOpen)math.openEditor();assert.equal(event.defaultPrevented,false,'native opening untouched');};
-for(const options of [{button:2},{ctrlKey:true},{shiftKey:true},{altKey:true},{metaKey:true},{detail:2}]){click(options);assert.equal(frames.size,0);}
-click();assert.equal(frames.size,1);assert.equal(doc.querySelectorAll('.math-node[aria-hidden=true]').length,1);
-assert.ok(win.__latexSuiteMathCaretDiagnostic.events.some(e=>e.stage==='waiting-mouseup'));
-assert.ok(!JSON.stringify(win.__latexSuiteMathCaretDiagnostic).includes('textContent'),'trace excludes source/DOM text');
-doc.dispatchEvent(new win.MouseEvent('mousemove',{bubbles:true,buttons:1,clientX:9,clientY:10}));assert.equal(frames.size,1,'one-pixel movement is not a drag');
-assert.equal(node.childElementCount,1,'probe never inserted into editable node');
-doc.dispatchEvent(new win.KeyboardEvent('keydown',{bubbles:true,key:'x'}));assert.equal(frames.size,0);assert.equal(doc.querySelectorAll('.math-node[aria-hidden=true]').length,0);
-click();doc.dispatchEvent(new win.MouseEvent('mousemove',{bubbles:true,buttons:1}));assert.equal(frames.size,0,'drag cancels');
-click();math._innerView={editable:false};const f=[...frames.values()][0];frames.clear();f();assert.equal(doc.querySelectorAll('.math-node[aria-hidden=true]').length,0,'read-only cancels');
-math._innerView=null;click();win.dispatchEvent(new win.Event('blur'));assert.equal(frames.size,0);
-click({delayOpen:true});assert.equal(frames.size,0,'mouseup must not assume editor readiness');
-assert.notEqual(math.openEditor,nativeOpen,'hook waits for the actual native opening');
-await new Promise(resolve=>setTimeout(resolve,180));
-assert.equal(math.openEditor(),17,'preserve native return value');
-assert.equal(math.openEditor,nativeOpen,'restore original method after opening');
-assert.equal(frames.size,1,'only native opening schedules placement');
-doc.dispatchEvent(new win.KeyboardEvent('keydown',{bubbles:true,key:'x'}));
-delete math.openEditor;Object.setPrototypeOf(math,{openEditor:nativeOpen});
-click({delayOpen:true});assert.equal(Object.hasOwn(math,'openEditor'),true);
-win.dispatchEvent(new win.Event('blur'));
-assert.equal(Object.hasOwn(math,'openEditor'),false,'cancel restores inherited method without own-property leak');
-assert.equal(math.openEditor,nativeOpen);
-click({earlyOpen:true});assert.equal(frames.size,1,'opening before mouseup also qualifies after release');
-win.dispatchEvent(new win.Event('blur'));
-click({delayOpen:true});const laterHook=function(){return 23;};math.openEditor=laterHook;
-win.dispatchEvent(new win.Event('blur'));assert.equal(math.openEditor,laterHook,'cleanup preserves a later extension hook');
-const openingError=new Error('native opening failed');math.openEditor=function(){throw openingError;};
-const throwingOpen=math.openEditor;click({delayOpen:true});
-assert.throws(()=>math.openEditor(),e=>e===openingError,'native error propagates unchanged');
-assert.equal(math.openEditor,throwingOpen);assert.equal(frames.size,0);
-assert.equal(doc.querySelectorAll('.math-node[aria-hidden=true]').length,0,'native error cleans probe');
-math.openEditor=nativeOpen;
-click();stop();stop();assert.equal(frames.size,0);click();assert.equal(frames.size,0,'listeners removed');
-assert.equal(win.__latexSuiteMathCaretDiagnostic,undefined,'diagnostic removed on uninstall');
-console.log('Math caret candidate safety, native fallback, cancellation, bounds and cleanup passed.');
+function down(options={}){math._innerView=null;const e=new win.MouseEvent('mousedown',{bubbles:true,cancelable:true,detail:1,clientX:8,clientY:10,...options});target.dispatchEvent(e);assert.equal(e.defaultPrevented,false);}
+for(const options of [{button:2},{ctrlKey:true},{shiftKey:true},{altKey:true},{metaKey:true},{detail:2}]){down(options);assert.equal(math.openEditor,nativeOpen);}
+down();assert.notEqual(math.openEditor,nativeOpen);assert.equal(math.openEditor(),17);
+assert.equal(math._innerView.state.selection.head,1,'target caret before openEditor returns');
+assert.equal(math.openEditor,nativeOpen);assert.equal(doc.querySelectorAll('.math-node').length,1,'no probe DOM');
+for(const cancel of [()=>win.dispatchEvent(new win.Event('blur')),()=>doc.dispatchEvent(new win.KeyboardEvent('keydown',{bubbles:true,key:'x'})),()=>doc.dispatchEvent(new win.MouseEvent('mousemove',{bubbles:true,buttons:1,clientX:20}))]){down();cancel();assert.equal(math.openEditor,nativeOpen);}
+delete math.openEditor;Object.setPrototypeOf(math,{openEditor:nativeOpen});down();win.dispatchEvent(new win.Event('blur'));assert.equal(Object.hasOwn(math,'openEditor'),false);
+down();const other=()=>23;math.openEditor=other;win.dispatchEvent(new win.Event('blur'));assert.equal(math.openEditor,other);
+const openingError=new Error('native failed');math.openEditor=function(){throw openingError;};const throws=math.openEditor;
+down();assert.throws(()=>math.openEditor(),e=>e===openingError);assert.equal(math.openEditor,throws,'restore even when native opening throws');
+math.openEditor=function(){nativeOpen.call(this);this._innerView.editable=false;};const readonly=math.openEditor;
+down();math.openEditor();assert.equal(math._innerView.state.selection.head,5,'read-only view untouched');assert.equal(math.openEditor,readonly);
+math.openEditor=function(){nativeOpen.call(this);const v=this._innerView;v.state=v.state.apply(v.state.tr.insertText('new',0,5));};
+down();math.openEditor();assert.equal(math._innerView.state.selection.head,3,'changed source cancels stale mapping');
+math.openEditor=nativeOpen;down();stop();stop();assert.equal(math.openEditor,nativeOpen);down();assert.equal(math.openEditor,nativeOpen);
+assert.equal(win.__latexSuiteMathCaretDiagnostic,undefined);
+console.log('Source-map caret: numbers, commands, repeated symbols, scripts, matrices, macros, long equations, synchronous opening and cleanup passed.');

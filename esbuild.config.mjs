@@ -4,6 +4,9 @@
 import esbuild from "esbuild";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { buildKatexSourceMap } from "./scripts/katex-source-map.mjs";
+
+await buildKatexSourceMap();
 
 // `import x from "./file.js?raw"` gives the file's source text. The default
 // snippets are shipped as editable JavaScript (regex literals, functions) and
