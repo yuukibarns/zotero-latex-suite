@@ -125,6 +125,12 @@ for(let head=0;head<=nativeSource.length;head++){
  assert.equal(isolated._node,originalNode);assert.equal(render.textContent,'native untouched');
 }
 const marker=PREVIEW_CARET;
+const productSource=String.raw`d\mathbb{P} (\omega) = \left( \prod_{i = 1}^{n} Q_{t_{i}} (x_{i} | x_{i - 1}) \right) \exp \left(-\int_{0}^{T} \lambda_{t} (X_{t}) dt\right)`;
+for(const displayMode of [false,true])for(const position of ['i =','1}','n}','0}','T}']) {
+ const target=doc.createElement('div'),head=productSource.indexOf(position);
+ assert.equal(renderPreviewMarker({...isolated,_katexOptions:{displayMode}},target,productSource,head),true);
+ assert.ok(createMathSourceMap()(target.querySelector('.katex-html'),productSource,{displayMode}),`marker does not change delimiter representation at ${position}`);
+}
 for(const displayMode of [false,true])for(const command of ['\\prod','\\sum','\\int','\\bigcup'])for(const suffix of ['_{i=1}^{n}b','\\limits_{i=1}^{n}b','\\nolimits_{i=1}^{n}b']) {
  const value=command+suffix, target=doc.createElement('div');
  assert.equal(renderPreviewMarker({...isolated,_katexOptions:{displayMode}},target,value,command.length),true);

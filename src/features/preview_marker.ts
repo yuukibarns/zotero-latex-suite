@@ -1,6 +1,8 @@
 import { latexTokens } from "../highlight/tokenizer";
 
-export const PREVIEW_CARET = "\\htmlClass{ls-preview-caret}{\\text{$\\rule[-0.15em]{0.065em}{0.9em}$}}";
+// Keep the visible rule out of KaTeX's height/depth calculations: otherwise
+// markers in limits can turn surrounding text delimiters into SVG pieces.
+export const PREVIEW_CARET = "\\htmlClass{ls-preview-caret}{\\text{$\\smash{\\rule[-0.15em]{0.065em}{0.9em}}$}}";
 
 export function previewMarkerColor(value: unknown): string {
 	return typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value.trim()) ? value.trim() : "#d9468f";
