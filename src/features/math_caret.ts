@@ -7,16 +7,23 @@ function glyphs(root: Element): Glyph[] {
 	const doc = root.ownerDocument, walker = doc.createTreeWalker(root, 4), result: Glyph[] = [];
 	let node: Node | null;
 	while ((node = walker.nextNode())) {
+		const textNode = node, element = node.parentElement!;
 		let offset = 0;
 		for (const text of node.textContent || "") {
-			const range = doc.createRange();
-			range.setStart(node, offset); offset += text.length; range.setEnd(node, offset);
-			const r = range.getBoundingClientRect(), element = node.parentElement!;
-			// Gecko's text ranges can include a displaced line box in KaTeX
-			// vlists. The leaf element supplies the actual vertical geometry.
-			const b = element.getBoundingClientRect();
-			const rect = { left: r.left, right: r.right, width: r.width, top: b.height ? b.top : r.top, bottom: b.height ? b.bottom : r.bottom, height: b.height || r.height };
-			if (rect.width && rect.height && !/^[\s\u200b]$/.test(text)) result.push({ text, rect, element: node.parentElement! });
+			const from = offset; offset += text.length; const to = offset;
+			if (/^[\s\u200b]$/.test(text)) continue;
+			let rect: Glyph["rect"] | undefined;
+			// A probe needs geometry for only the marker and clicked glyph.
+			// Reading every glyph's layout on every candidate dominated the search.
+			result.push({ text, element, get rect() {
+				if (!rect) {
+					const range = doc.createRange(); range.setStart(textNode, from); range.setEnd(textNode, to);
+					const r = range.getBoundingClientRect(), b = element.getBoundingClientRect();
+					// The leaf box avoids Gecko's displaced KaTeX vlist line boxes.
+					rect = { left: r.left, right: r.right, width: r.width, top: b.height ? b.top : r.top, bottom: b.height ? b.bottom : r.bottom, height: b.height || r.height };
+				}
+				return rect;
+			} });
 		}
 	}
 	return result;
@@ -59,7 +66,7 @@ export function mathCaretPositions(source: string, glyph?: string): number[] {
 export function installMathCaret(win: Window): () => void {
 	const doc = win.document;
 	// Temporary diagnostic: bounded metadata only, never source/DOM text.
-	const diagnostic = { build: "0.5.3.87", events: [] as Record<string, unknown>[] };
+	const diagnostic = { build: "0.5.3.88", events: [] as Record<string, unknown>[] };
 	(win as any).__latexSuiteMathCaretDiagnostic = diagnostic;
 	// Some Zotero resource:// editor windows lack the Performance Web API.
 	// Millisecond Date timing is sufficient for our bounded probe batches.
@@ -91,7 +98,8 @@ export function installMathCaret(win: Window): () => void {
 		// Italic overhangs and script line boxes can overlap. Prefer the leaf
 		// Firefox actually hit rather than letting an overlapping base win.
 		const hit = original.map((g, i) => ({ g, i })).filter(({ g }) => g.element === target || g.element.contains(target));
-		const candidates = hit.length ? hit : original.map((g, i) => ({ g, i }));
+		const candidates = (hit.length ? hit : original.map((g, i) => ({ g, i }))).filter(({ g }) => g.rect.width && g.rect.height);
+		if (!candidates.length) return;
 		let anchor = candidates[0].i;
 		for (const { g, i } of candidates) if (distance(g) < distance(original[anchor])) anchor = i;
 		const positions = mathCaretPositions(source, original[anchor].text);
@@ -139,7 +147,8 @@ export function installMathCaret(win: Window): () => void {
 			}
 			elapsed += Date.now() - start;
 			if (index < positions.length) {
-				if (elapsed > 120) { cancel("render-budget"); return; }
+				// Yield between bounded batches, but retain progress on slower
+				// equations/devices. A CPU deadline must not discard a valid click.
 				frame = win.requestAnimationFrame(step); return;
 			}
 			if (best !== null && score < Math.max(24, original[anchor].rect.height * 2)) {
