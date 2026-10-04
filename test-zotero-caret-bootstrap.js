@@ -20,6 +20,7 @@ async function run(){
  await report({stage:'editor-ready',url:w.location.href,installed:!!w.__latexSuite,clock:typeof w.performance});
  function inject(code){const s=frame.document.createElement('script');s.textContent=code;frame.document.head.append(s);s.remove();}
  const cases=[
+  ...[true,false].map(before=>({kind:'math_display',source:String.raw`\log d \mathbb{P}(\omega) = \sum_{k = 1}^{n} \log Q_{t_{k}} (x_{k} | x_{k - 1}) - \int_{0}^{T} \lambda_{t} (X_{t}) d t `,glyph:'l',occurrence:1,expected:[49],focused:true,before})),
   {kind:'math_display',source:'a + b + c',glyph:'b',expected:[4,5],focused:true},
   {kind:'math_display',source:'a + b + c',glyph:'b',expected:[4,5],focused:false},
   {kind:'math_inline',source:'a + b + c',glyph:'b',expected:[4,5],focused:false},
@@ -40,13 +41,14 @@ async function run(){
  const slowSource=String.raw`\alpha+\beta+\gamma+\delta+\epsilon+\zeta+\eta+\theta+\iota+\kappa+\lambda+\mu+\nu+\xi+\pi+\rho+\omega`;
  cases.push({kind:'math_display',source:slowSource,glyph:'ρ',expected:[slowSource.indexOf('\\rho'),slowSource.indexOf('\\rho')+4],focused:true,slowProbe:true});
  const results=[];
+ if(CONFIG.reportedOnly)cases.splice(2);
  inject(`for(var type of ['pointerdown','mousedown','mouseup','click','selectionchange','focusin'])addEventListener(type,e=>{if(window.nativeTrace)nativeTrace.push({event:e.type,ms:Date.now()-window.testStarted,trusted:e.isTrusted,target:e.target.nodeName,inner:!!window.testMath?._innerView,selection:window._currentEditorInstance._editorCore.view.state.selection.constructor.name});},true);`);
  for(const test of cases){
  inject(`
   var v=window._currentEditorInstance._editorCore.view,sc=v.state.schema;
   var mathNode=sc.nodes.${test.kind}.create(null,sc.text(${JSON.stringify(test.source)}));
   v.dispatch(v.state.tr.replaceWith(0,v.state.doc.content.size,[sc.nodes.paragraph.create(null,sc.text('before')),${test.kind==='math_inline'?'sc.nodes.paragraph.create(null,mathNode)':'mathNode'},sc.nodes.paragraph.create(null,sc.text('after'))]));
-  var S=Object.getPrototypeOf(v.state.selection.constructor);v.dispatch(v.state.tr.setSelection(S.fromJSON(v.state.doc,{type:'text',anchor:v.state.doc.content.size-2,head:v.state.doc.content.size-2})));v.focus();
+  var S=Object.getPrototypeOf(v.state.selection.constructor),initial=${test.before?'1':'v.state.doc.content.size-2'};v.dispatch(v.state.tr.setSelection(S.fromJSON(v.state.doc,{type:'text',anchor:initial,head:initial})));v.focus();
   window.testMath=document.querySelector('.math-node').pmViewDesc.spec;
   window.nativeTrace=[];window.testStarted=Date.now();window.firstPaintHead=null;
   for(var name of ['selectNode','openEditor']){let original=testMath[name],label=name;testMath[name]=function(...args){nativeTrace.push({event:label+'-start',ms:Date.now()-testStarted});let result=original.apply(this,args);nativeTrace.push({event:label+'-end',ms:Date.now()-testStarted,head:this._innerView?.state.selection.head});return result;};}
@@ -61,6 +63,7 @@ async function run(){
  await report({stage:'click-point',kind:test.kind,focused:w.document.hasFocus(),x:point.x,y:point.y});
  frame.windowUtils.sendMouseEvent('mousemove',point.x,point.y,0,0,0);
  frame.windowUtils.sendMouseEvent('mousedown',point.x,point.y,0,1,0);
+ if(CONFIG.holdMs)await Zotero.Promise.delay(CONFIG.holdMs);
  frame.windowUtils.sendMouseEvent('mouseup',point.x,point.y,0,1,0);
  inject(`requestAnimationFrame(()=>{window.firstPaintHead=testMath._innerView?.state.selection.head;});`);
  await Zotero.Promise.delay(1000);
@@ -69,5 +72,5 @@ async function run(){
  await report({stage:'click-result',result:{...results.at(-1),native:undefined}});
  focusButton?.remove();
  }
- await report({done:true,results:results.map(r=>({...r,native:undefined})),error:results.some(r=>!r.passed)?'Caret placement failed':null});
+ await report({done:true,results:results.map(r=>({...r,native:r.passed?undefined:r.native})),error:results.some(r=>!r.passed)?'Caret placement failed':null});
 }

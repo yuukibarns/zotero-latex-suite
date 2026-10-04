@@ -73,11 +73,15 @@ for(const options of [{button:2},{ctrlKey:true},{shiftKey:true},{altKey:true},{m
 down();assert.notEqual(math.openEditor,nativeOpen);assert.equal(math.openEditor(),17);
 assert.equal(math._innerView.state.selection.head,1,'target caret before openEditor returns');
 assert.equal(math.openEditor,nativeOpen);assert.equal(doc.querySelectorAll('.math-node').length,1,'no probe DOM');
-for(const cancel of [()=>win.dispatchEvent(new win.Event('blur')),()=>doc.dispatchEvent(new win.KeyboardEvent('keydown',{bubbles:true,key:'x'})),()=>doc.dispatchEvent(new win.MouseEvent('mousemove',{bubbles:true,buttons:1,clientX:20}))]){down();cancel();assert.equal(math.openEditor,nativeOpen);}
+for(const [reason,cancel] of [['blur',()=>win.dispatchEvent(new win.Event('blur'))],['keydown',()=>doc.dispatchEvent(new win.KeyboardEvent('keydown',{bubbles:true,key:'x'}))],['drag-threshold',()=>doc.dispatchEvent(new win.MouseEvent('mousemove',{bubbles:true,buttons:1,clientX:20}))]]){
+ down();cancel();assert.equal(math.openEditor,nativeOpen);
+ assert.ok(win.__latexSuiteMathCaretDiagnostic.events.some(e=>e.stage==='cancel'&&e.reason===reason),'record why mapping was abandoned');
+}
 delete math.openEditor;Object.setPrototypeOf(math,{openEditor:nativeOpen});down();win.dispatchEvent(new win.Event('blur'));assert.equal(Object.hasOwn(math,'openEditor'),false);
 down();const other=()=>23;math.openEditor=other;win.dispatchEvent(new win.Event('blur'));assert.equal(math.openEditor,other);
 const openingError=new Error('native failed');math.openEditor=function(){throw openingError;};const throws=math.openEditor;
 down();assert.throws(()=>math.openEditor(),e=>e===openingError);assert.equal(math.openEditor,throws,'restore even when native opening throws');
+assert.ok(win.__latexSuiteMathCaretDiagnostic.events.some(e=>e.stage==='native-open-error'));
 math.openEditor=function(){nativeOpen.call(this);this._innerView.editable=false;};const readonly=math.openEditor;
 down();math.openEditor();assert.equal(math._innerView.state.selection.head,5,'read-only view untouched');assert.equal(math.openEditor,readonly);
 math.openEditor=function(){nativeOpen.call(this);const v=this._innerView;v.state=v.state.apply(v.state.tr.insertText('new',0,5));};

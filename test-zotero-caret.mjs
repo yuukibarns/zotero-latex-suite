@@ -15,7 +15,7 @@ await writeFile(path.join(profile,'user.js'),[
  ['browser.shell.checkDefaultBrowser',false],
 ].map(([k,v])=>`user_pref(${JSON.stringify(k)},${JSON.stringify(v)});`).join('\n'));
 await writeFile(path.join(helper,'manifest.json'),JSON.stringify({manifest_version:2,name:'Isolated caret test',version:'1.0',applications:{zotero:{id:'caret-test@example.invalid',strict_min_version:'6.999',strict_max_version:'10.0.*',update_url:'https://example.invalid/updates.json'}}}));
-await writeFile(path.join(helper,'bootstrap.js'),'const CONFIG='+JSON.stringify({result})+';\n'+await readFile('test-zotero-caret-bootstrap.js','utf8'));
+await writeFile(path.join(helper,'bootstrap.js'),'const CONFIG='+JSON.stringify({result,holdMs:Number(process.env.CARET_HOLD_MS)||0,reportedOnly:!!process.env.CARET_REPORTED_ONLY})+';\n'+await readFile('test-zotero-caret-bootstrap.js','utf8'));
 const {version}=JSON.parse(await readFile('manifest.json','utf8'));
 await copyFile(process.env.CARET_XPI||`../../outputs/latex-suite-completion-${version}.xpi`,path.join(profile,'extensions','latex-suite@ievlevpn.github.io.xpi'));
 let app,stderr='';

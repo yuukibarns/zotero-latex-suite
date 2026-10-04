@@ -59,17 +59,26 @@ export function mathCaretAt(html: Element, map: SourceGlyph[], target: Element, 
 /** One synchronous, one-shot native-opening hook. No delayed caret correction. */
 export function installMathCaret(win: Window): () => void {
 	const doc = win.document, getMap = createMathSourceMap();
-	const diagnostic = { build: "0.5.3.89", events: [] as Record<string, unknown>[] };
+	const diagnostic = { build: "0.5.3.90", events: [] as Record<string, unknown>[] };
 	(win as any).__latexSuiteMathCaretDiagnostic = diagnostic;
 	let started = 0, timer = 0, restoreOpen: (() => void) | null = null;
 	let pendingNode: HTMLElement | null = null, pendingX = 0, pendingY = 0;
 	function trace(stage: string, data: Record<string, unknown> = {}) {
 		diagnostic.events.push({ stage, ms: Date.now() - started, ...data });
-		if (diagnostic.events.length > 20) diagnostic.events.shift();
+		if (diagnostic.events.length > 30) diagnostic.events.shift();
 	}
-	function cancel() { win.clearTimeout(timer); restoreOpen?.(); pendingNode = null; }
+	function cancel(reason: string | Event = "replaced") {
+		if (pendingNode && reason !== "opening") trace("cancel", {
+			reason: typeof reason === "string" ? reason : reason.type,
+			connected: pendingNode.isConnected,
+			inner: !!(pendingNode as any).pmViewDesc?.spec?._innerView,
+			documentFocused: doc.hasFocus(),
+		});
+		win.clearTimeout(timer); restoreOpen?.(); pendingNode = null;
+	}
 	function down(event: MouseEvent) {
 		cancel(); started = Date.now(); diagnostic.events.length = 0;
+		trace("mousedown", { detail: event.detail, button: event.button, prevented: event.defaultPrevented });
 		if (event.defaultPrevented || event.button !== 0 || event.detail > 1 || event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return;
 		const target = event.target as Element, node = target?.closest?.(".math-node") as HTMLElement | null;
 		const math = (node as any)?.pmViewDesc?.spec, render = math?._mathRenderElt as HTMLElement | undefined;
@@ -89,10 +98,14 @@ export function installMathCaret(win: Window): () => void {
 			if (restoreOpen === restore) restoreOpen = null;
 		}
 		function hookedOpen(this: any, ...args: any[]) {
-			cancel();
+			trace("native-open-start"); cancel("opening");
 			// Native creates/focuses the inner view and chooses start/end. Set the
 			// mapped position in this SAME call stack, before the browser can paint.
-			const result = originalOpen.apply(this, args), view = math._innerView;
+			let result;
+			try { result = originalOpen.apply(this, args); }
+			catch (error) { trace("native-open-error"); throw error; }
+			const view = math._innerView;
+			trace("native-open-end", { connected: node!.isConnected, inner: !!view, destroyed: !!view?.isDestroyed, editable: view?.editable !== false, sameSource: view?.state?.doc?.textContent === source, empty: view?.state?.selection?.empty, head: view?.state?.selection?.head });
 			if (node!.isConnected && view && !view.isDestroyed && view.editable !== false && view.state.doc.textContent === source && view.state.selection.empty) {
 				rememberSelectionClass(view);
 				PMBuffer.forMath(view, node!.tagName.toLowerCase() === "math-inline" ? "math_inline" : "math_display").setSelection(head!, head!);
@@ -102,13 +115,17 @@ export function installMathCaret(win: Window): () => void {
 		}
 		math.openEditor = hookedOpen; restoreOpen = restore;
 		pendingNode = node; pendingX = event.clientX; pendingY = event.clientY;
-		timer = win.setTimeout(cancel, 2000);
+		timer = win.setTimeout(() => cancel("opening-timeout"), 2000);
 	}
 	function move(event: MouseEvent) {
-		if (event.buttons & 1 && pendingNode && (Math.abs(event.clientX - pendingX) > 4 || Math.abs(event.clientY - pendingY) > 4)) cancel();
+		if (event.buttons & 1 && pendingNode && (Math.abs(event.clientX - pendingX) > 4 || Math.abs(event.clientY - pendingY) > 4)) {
+			trace("movement", { dx: Math.round(event.clientX - pendingX), dy: Math.round(event.clientY - pendingY) }); cancel("drag-threshold");
+		}
 	}
 	function release(event: MouseEvent) {
-		if (pendingNode && (event.button !== 0 || event.ctrlKey || event.altKey || event.metaKey || event.shiftKey || !pendingNode.contains(event.target as Node) || Math.abs(event.clientX - pendingX) > 5 || Math.abs(event.clientY - pendingY) > 5)) cancel();
+		if (!pendingNode) return;
+		trace("mouseup", { inside: pendingNode.contains(event.target as Node), dx: Math.round(event.clientX - pendingX), dy: Math.round(event.clientY - pendingY) });
+		if (event.button !== 0 || event.ctrlKey || event.altKey || event.metaKey || event.shiftKey || !pendingNode.contains(event.target as Node) || Math.abs(event.clientX - pendingX) > 5 || Math.abs(event.clientY - pendingY) > 5) cancel("release-rejected");
 	}
 	doc.addEventListener("mousedown", down, true);
 	doc.addEventListener("mousemove", move, true);
