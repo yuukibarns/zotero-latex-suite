@@ -88,6 +88,19 @@ async function run(){
   const previewHead=w.testMath._innerView?.state.selection.head;
   results.push({preview:true,source:test.source,head:previewHead,passed:test.expected.includes(previewHead)});
   await report({stage:'preview-click-result',result:results.at(-1)});
+  if(test.source==='a + b + c') {
+   await Zotero.Promise.delay(200);
+   inject(`window.dragPoints=[];for(var letter of ['b','a']){var root=document.querySelector('#latex-suite-math-preview .katex-html'),walker=document.createTreeWalker(root,4),n;while(n=walker.nextNode()){if(n.textContent===letter){var r=document.createRange();r.selectNodeContents(n);var b=r.getBoundingClientRect(),leaf=n.parentElement.getBoundingClientRect();dragPoints.push({x:letter==='b'?b.right-1:b.left+1,y:(leaf.top+leaf.bottom)/2});break;}}}`);
+   const [b,a]=w.dragPoints;
+   frame.windowUtils.sendMouseEvent('mousedown',b.x,b.y,0,1,0);
+   frame.windowUtils.sendMouseEvent('mousemove',a.x,a.y,0,0,0);
+   frame.windowUtils.sendMouseEvent('mouseup',a.x,a.y,0,1,0);
+   await Zotero.Promise.delay(100);
+   const sel=w.testMath._innerView.state.selection;
+   const boxes=frame.document.querySelectorAll('.ls-preview-selection span').length;
+   results.push({previewDrag:true,anchor:sel.anchor,head:sel.head,boxes,passed:sel.anchor===5&&sel.head===0&&boxes===3});
+   await report({stage:'preview-drag-result',result:results.at(-1)});
+  }
  }
  focusButton?.remove();
  }

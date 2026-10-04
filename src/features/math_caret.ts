@@ -35,6 +35,19 @@ export function createMathSourceMap() {
 }
 
 /** Locate a source boundary from actual native glyph geometry, never a probe. */
+export function mathSelectionRects(html: Element, map: SourceGlyph[], from: number, to: number): DOMRect[] {
+	const result: DOMRect[] = [];
+	for (const [i, g] of glyphs(html).entries()) {
+		const m = map[i];
+		if (m?.from == null || m.to == null || m.from >= to || m.to <= from) continue;
+		const range = html.ownerDocument.createRange();
+		range.setStart(g.node, g.offset); range.setEnd(g.node, g.offset + g.text.length);
+		const rect = range.getBoundingClientRect(), leaf = g.element.getBoundingClientRect();
+		if (rect.width && leaf.height) result.push({ left: rect.left, top: leaf.top, width: rect.width, height: leaf.height } as DOMRect);
+	}
+	return result;
+}
+
 export function mathCaretAt(html: Element, map: SourceGlyph[], target: Element, x: number, y: number): number | null {
 	// A radical's SVG box can overlay its argument. Permit a glyph directly
 	// under that box, but do not guess a nearby letter when clicking the stroke.
@@ -60,7 +73,7 @@ export function mathCaretAt(html: Element, map: SourceGlyph[], target: Element, 
 /** One synchronous, one-shot native-opening hook. No delayed caret correction. */
 export function installMathCaret(win: Window): () => void {
 	const doc = win.document, getMap = createMathSourceMap();
-	const diagnostic = { build: "0.5.3.95", events: [] as Record<string, unknown>[] };
+	const diagnostic = { build: "0.5.3.96", events: [] as Record<string, unknown>[] };
 	(win as any).__latexSuiteMathCaretDiagnostic = diagnostic;
 	let started = 0, timer = 0, restoreOpen: (() => void) | null = null;
 	let pendingNode: HTMLElement | null = null, pendingX = 0, pendingY = 0;

@@ -225,6 +225,22 @@ for(const tag of ['math-inline','math-display'])for(const value of ['a+b+c','\\f
  doc.dispatchEvent(new win.MouseEvent('mousemove',{bubbles:true,clientX:50,clientY:10,buttons:1}));
  glyph.dispatchEvent(new win.MouseEvent('click',{bubbles:true,clientX:8,clientY:10}));
  assert.equal(math._innerView.state.selection.head,0,'dragging away and back does not place caret');
+ if(tag==='math-display') {
+  const index=value.lastIndexOf('b');
+  math._innerView.state=math._innerView.state.apply(math._innerView.state.tr.setSelection(TextSelection.create(math._innerView.state.doc,index,index+1)));
+  doc.dispatchEvent(new win.Event('selectionchange'));await step();
+  assert.equal(popup().querySelector('.ls-preview-selection').children.length,1,'source selection highlights only selected glyph');
+  for(const backward of [false,true]) {
+   const b=[...popup().querySelectorAll('.katex-html span')].find(el=>el.textContent==='b'&&!el.children.length);
+   b.dispatchEvent(new win.MouseEvent('mousedown',{bubbles:true,cancelable:true,clientX:backward?9:1,clientY:10}));
+   b.dispatchEvent(new win.MouseEvent('mousemove',{bubbles:true,cancelable:true,buttons:1,clientX:backward?1:9,clientY:10}));
+   doc.dispatchEvent(new win.MouseEvent('mouseup',{bubbles:true,clientX:backward?1:9,clientY:10}));
+   await step();
+   assert.equal(math._innerView.state.selection.anchor,index+(backward?1:0));
+   assert.equal(math._innerView.state.selection.head,index+(backward?0:1));
+   assert.equal(popup().querySelector('.ls-preview-selection').children.length,1);
+  }
+ }
  // A retained old preview must never map into newly typed source.
  math._innerView.state=math._innerView.state.apply(math._innerView.state.tr.insertText('z',0));
  const before=math._innerView.state.selection.head;clickGlyph('b');assert.equal(math._innerView.state.selection.head,before);
