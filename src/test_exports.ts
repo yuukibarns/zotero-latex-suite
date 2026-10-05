@@ -27,7 +27,7 @@ export { createMathSourceMap, mathCaretAt, installMathCaret } from "./features/m
 export { latexTokens, installMathHighlight } from "./features/math_highlight";
 export { deleteMathWord } from "./features/math_delete";
 export { deleteMathNode } from "./editor/pm";
-export { installNoteMenu } from "./features/note_menu";
+export { installPrintDiagnostic } from "./features/print_diagnostic";
 export { commitImageSize, installImageResize } from "./features/image_resize";
 export { annotationToken, annotationMatches, installAnnotationCompletion } from "./features/annotation_completion";
 export { WordIndex, BufferWords, TextSources, textToken, parseWordList } from "./features/text_sources";

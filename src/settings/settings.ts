@@ -14,6 +14,7 @@ import DEFAULT_SNIPPET_VARIABLES_SOURCE from "../default_snippet_variables.js?ra
 export type SnippetDebugLevel = "off" | "info" | "verbose";
 
 export interface RawSettings {
+	pdfTheme: "auto" | "light" | "dark";
 	completionEnabled: boolean;
 	bufferCompletionEnabled: boolean;
 	dictionaryCompletionEnabled: boolean;
@@ -95,6 +96,7 @@ export const DEFAULT_SNIPPETS = DEFAULT_SNIPPETS_SOURCE;
 export const DEFAULT_SNIPPET_VARIABLES = DEFAULT_SNIPPET_VARIABLES_SOURCE;
 
 export const DEFAULT_SETTINGS: RawSettings = {
+	pdfTheme: "auto",
 	completionEnabled: true,
 	bufferCompletionEnabled: true,
 	dictionaryCompletionEnabled: true,
