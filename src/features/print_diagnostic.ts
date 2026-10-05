@@ -52,9 +52,22 @@ export function installPrintDiagnostic(win: Window, getTheme: () => "auto" | "li
 			const theme = printTheme(win, source, getTheme());
 			const copy = source.cloneNode(true) as HTMLElement;
 			const copies = copy.querySelectorAll(".math-node");
-			source.querySelectorAll(".math-node").forEach((node, i) => {
+			const rendererStyles = new Set<string>();
+			const nodes = source.querySelectorAll(".math-node");
+			for (let i = 0; i < nodes.length; i++) {
+				const node = nodes[i];
 				const math = (node as any).pmViewDesc?.spec;
 				math?._innerView?.domObserver?.forceFlush?.();
+				const request: {node: Element; math: any; rendered: Promise<HTMLElement> | null; css: string} = {node, math, rendered:null, css:""};
+				win.document.dispatchEvent(new (win as any).CustomEvent("latex-suite-export-math", {detail:request}));
+				if (request.rendered) {
+					const replacement = win.document.createElement("div");
+					replacement.className = "ls-print-display";
+					replacement.append(await request.rendered);
+					copies[i].replaceWith(replacement);
+					rendererStyles.add(request.css);
+					continue;
+				}
 				math?.renderMath?.();
 				const rendered = node.querySelector(".math-render");
 				if (!rendered || rendered.classList.contains("parse-error") || rendered.querySelector(".katex-error")) throw new Error("Correct invalid equations before printing");
@@ -62,7 +75,7 @@ export function installPrintDiagnostic(win: Window, getTheme: () => "auto" | "li
 				if (replacement.tagName.toLowerCase() === "div") replacement.className = "ls-print-display";
 				replacement.append(...Array.from(rendered.childNodes, child => child.cloneNode(true)));
 				copies[i].replaceWith(replacement);
-			});
+			}
 			const images = source.querySelectorAll<HTMLImageElement>("img");
 			copy.querySelectorAll<HTMLImageElement>("img").forEach((image, i) => {
 				const live = images[i];
@@ -76,12 +89,13 @@ export function installPrintDiagnostic(win: Window, getTheme: () => "auto" | "li
 			copy.querySelectorAll("script,style,iframe,object,embed,link,meta,base,button,input,textarea,select,#latex-suite-math-preview,#latex-suite-completion").forEach(el => el.remove());
 			for (const el of [copy, ...Array.from(copy.querySelectorAll("*"))]) {
 				for (const attr of Array.from(el.attributes)) {
-					if (/^on/i.test(attr.name) || ["contenteditable", "id", "tabindex"].includes(attr.name)) el.removeAttribute(attr.name);
+					const svgID = attr.name === "id" && el.namespaceURI === "http://www.w3.org/2000/svg";
+					if (/^on/i.test(attr.name) || (!svgID && ["contenteditable", "id", "tabindex"].includes(attr.name))) el.removeAttribute(attr.name);
 				}
 			}
 			const bridge = (win as any).__latexSuiteDiagnosePrint;
 			if (!bridge) throw new Error("Diagnostic bridge missing; restart Zotero");
-			const css = await embeddedPrintCSS(win);
+			const css = await embeddedPrintCSS(win) + [...rendererStyles].join("\n");
 			if (stopped) return;
 			bridge(printDocument(copy.outerHTML, css, theme));
 		} catch (error) { if (!stopped) win.alert("PDF snapshot: " + String(error)); }
