@@ -81,6 +81,7 @@ function describeFocus(): string {
 
 let lastSettingsJSON: string | undefined;
 let pdfTheme: RawSettings["pdfTheme"] = "auto";
+let stopPrintDiagnostic: (() => void) | null = null;
 let completionMinimum = 2;
 let mathClickTimeout = 1000;
 
@@ -121,6 +122,8 @@ function loadSettings(json: string | undefined) {
 
 	automaticSnippets = settings ? settings.snippets.filter((s) => s.options.automatic) : [];
 	pdfTheme = raw.pdfTheme === "light" || raw.pdfTheme === "dark" ? raw.pdfTheme : "auto";
+	stopPrintDiagnostic?.();
+	stopPrintDiagnostic = raw.notePdfExportEnabled !== false && !isReaderWindow(window) && window.document.createElement ? installPrintDiagnostic(window, () => pdfTheme) : null;
 	completionMinimum = Math.max(1, Math.floor(Number(raw.completionMinLength) || 2));
 	mathClickTimeout = normalizeMathClickTimeout(raw.mathSelectionClickTimeoutMs);
 	if (window.document.createEvent) {
@@ -291,7 +294,6 @@ function install() {
 	const stopScrollPastEnd = isReaderWindow(window) || !window.document.createElement ? null : installScrollPastEnd(window);
 	const stopAnnotations = isReaderWindow(window) || !window.document.createElement ? null : installAnnotationCompletion(window, () => completionMinimum,
 		() => ({ bufferCompletionEnabled: settings?.bufferCompletionEnabled ?? false, dictionaryCompletionEnabled: settings?.dictionaryCompletionEnabled ?? false, textDictionaryWords: settings?.textDictionaryWords }));
-	const stopPrintDiagnostic = isReaderWindow(window) || !window.document.createElement ? null : installPrintDiagnostic(window, () => pdfTheme);
 
 	// Set when we handled a printable key, so the insertion it would otherwise
 	// have caused can be cancelled again at `beforeinput`. Belt and braces:

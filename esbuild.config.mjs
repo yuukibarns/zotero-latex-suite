@@ -7,6 +7,7 @@ import path from "node:path";
 import { buildKatexSourceMap } from "./scripts/katex-source-map.mjs";
 
 await buildKatexSourceMap();
+await import('./scripts/build-modules.mjs');
 
 // `import x from "./file.js?raw"` gives the file's source text. The default
 // snippets are shipped as editable JavaScript (regex literals, functions) and

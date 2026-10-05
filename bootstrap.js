@@ -22,6 +22,11 @@ const PREF = "extensions.zotero.latexSuite.settings";
  * These exist so the settings pane can show what a field falls back to.
  * test.js fails if the two drift apart. */
 const FIELDS = [
+	{ group: "Modules", key: "tikzcdEnabled", type: "bool", default: true, label: "TikZ-CD diagrams", hint: "Render Quiver-compatible diagrams, including live preview and PDF export. Defers to an enabled standalone TikZ-CD plugin." },
+	{ group: "Modules", key: "pdfPageToolsEnabled", type: "bool", default: true, label: "PDF Page Tools", hint: "Copy PDF pages and export page ranges. Defers to the standalone plugin when enabled." },
+	{ group: "Modules", key: "annotationBacklinksEnabled", type: "bool", default: true, label: "Annotation Backlinks", hint: "Find notes referencing selected annotations. Defers to the standalone plugin when enabled." },
+	{ group: "Modules", key: "compactMenuEnabled", type: "bool", default: true, label: "Compact Menu", hint: "Uses your existing menu-bar preference. Defers to the standalone plugin when enabled." },
+	{ group: "PDF export", key: "notePdfExportEnabled", type: "bool", default: true, label: "Enable note Print / PDF action" },
 	{ group: "PDF export", key: "pdfTheme", type: "select", default: "auto",
 		options: ["auto", "light", "dark"], optionLabels: { auto: "Follow note editor", light: "Light", dark: "Dark" },
 		label: "PDF theme", hint: "Applies to both the preview and exported PDF. Existing previews keep their theme." },
@@ -131,6 +136,8 @@ let prefPane = null;
 let prefObserver = null;
 let origRegisterEditorInstance = null;
 let onReaderEvent = null;
+let suiteModules = null;
+let suiteGeneration = 0;
 
 /* --- settings ------------------------------------------------------------ */
 
@@ -557,6 +564,7 @@ function pushSettings() {
 
 async function onSettingsChanged() {
 	forgetOverrides();
+	suiteModules?.refresh();
 
 	// A reader that started with rendering off has no KaTeX yet; give it one
 	// before telling the engine to look again.
@@ -683,6 +691,7 @@ function installNoteTabMenu(window) {
 }
 
 function onMainWindowLoad({ window }) {
+	suiteModules?.windowOpened(window);
 	installNoteTabMenu(window);
 	if (!rootURI || itemPaneWindows.has(window)) return;
 	try {
@@ -694,6 +703,7 @@ function onMainWindowLoad({ window }) {
 }
 
 function onMainWindowUnload({ window }) {
+	suiteModules?.windowClosed(window);
 	noteTabMenus.get(window)?.(); noteTabMenus.delete(window);
 	const handle = itemPaneWindows.get(window);
 	if (!handle) return;
@@ -704,6 +714,7 @@ function onMainWindowUnload({ window }) {
 /* --- plugin lifecycle ---------------------------------------------------- */
 
 async function startup({ id, rootURI: uri }) {
+	const generation = ++suiteGeneration;
 	rootURI = uri;
 
 	// getResourceAsync, not getContentsFromURLAsync: rootURI is a jar: URL when
@@ -777,6 +788,12 @@ async function startup({ id, rootURI: uri }) {
 		try { attachReader(reader); } catch (e) { Zotero.debug("LaTeX Suite: " + e); }
 	}
 	for (const window of Zotero.getMainWindows()) onMainWindowLoad({ window });
+	const scope = {};
+	Services.scriptloader.loadSubScript(rootURI + "suite-modules.js", scope);
+	const { AddonManager } = ChromeUtils.importESModule("resource://gre/modules/AddonManager.sys.mjs");
+	const modules = await scope.SuiteModules.install({ Zotero, Services, Components, ChromeUtils, IOUtils, AddonManager, setTimeout, clearTimeout }, rootURI, readOverrides);
+	if (generation !== suiteGeneration) modules.dispose();
+	else suiteModules = modules;
 }
 
 /* Shutdown runs during an upgrade, and every step of it touches something that
@@ -791,6 +808,8 @@ function safely(what, fn) {
 }
 
 function shutdown() {
+	suiteGeneration++;
+	suiteModules?.dispose(); suiteModules = null;
 	stopAnnotationCache();
 	for (const cleanup of noteTabMenus.values()) cleanup();
 	noteTabMenus.clear();

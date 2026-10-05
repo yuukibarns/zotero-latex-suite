@@ -4,3 +4,7 @@ node_modules/
 misc/
 build/
 vendor/
+!modules/tikzcd/vendor/
+!modules/tikzcd/vendor/**
+modules/tikzcd/content/
+modules/backlinks/bootstrap.js
