@@ -6,7 +6,7 @@ export function installMathFocus(win: Window): () => void {
 	const doc = win.document;
 	const hooks = new Map<any, () => void>();
 	function scan() {
-		for (const node of doc.querySelectorAll<HTMLElement>(".math-node")) {
+		for (const node of Array.from(doc.querySelectorAll<HTMLElement>(".math-node"))) {
 			const outer = (node as any).pmViewDesc?.spec?._outerView;
 			if (!outer || typeof outer.focus !== "function" || hooks.has(outer)) continue;
 			const original = outer.focus, descriptor = Object.getOwnPropertyDescriptor(outer, "focus");

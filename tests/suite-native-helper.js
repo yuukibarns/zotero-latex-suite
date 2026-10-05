@@ -127,5 +127,20 @@ C \arrow[r,"k"'] & D
   check(doc.querySelectorAll('math-display')[1].querySelector('.katex'),'Disable leaves normal equations intact');
   Zotero.Prefs.set(pref,JSON.stringify({tikzcdEnabled:true}),true);
   await waitFor(()=>doc.querySelector('math-display .tikzcd-diagram')?.style.visibility==='','Re-enable attaches to existing editor');
+  // Exercise Zotero's actual asynchronous note-focus entry point for both kinds.
+  for(const type of ['math_display','math_inline']){
+    inject(`var pos;v.state.doc.descendants((node,p)=>{if(node.type.name===${JSON.stringify(type)}&&node.textContent==='${type==='math_display'?'a+b':'x^2'}')pos=p;});
+      v.dispatch(v.state.tr.setSelection(S.fromJSON(v.state.doc,{type:'node',anchor:pos})));
+      window.focusMath=[...document.querySelectorAll('.math-node')].map(el=>el.pmViewDesc.spec).find(m=>m._innerView&&m._node.textContent==='${type==='math_display'?'a+b':'x^2'}');
+      var iv=focusMath._innerView;iv.dispatch(iv.state.tr.setSelection(iv.state.selection.constructor.create(iv.state.doc,1,2)));iv.focus();`);
+    await waitFor(()=>doc.getElementById('latex-suite-math-preview'),type+' preview visible');
+    inject(`document.activeElement.blur();`);
+    await Zotero.Promise.delay(150);
+    check(doc.getElementById('latex-suite-math-preview'),type+' preview remains on blur');
+    instance.focus();await Zotero.Promise.delay(150);
+    check(w.focusMath._innerView.hasFocus(),type+' tab-return focuses inner editor');
+    check(w.focusMath._innerView.state.selection.anchor===1&&w.focusMath._innerView.state.selection.head===2,type+' selection retained');
+    check(w.focusMath._innerView.dom.contains(doc.getSelection().anchorNode),type+' DOM selection belongs to inner editor');
+  }
   await IOUtils.writeUTF8(CONFIG.result,JSON.stringify({done:true,passed:true,zotero:Zotero.version,withLatex:CONFIG.withLatex,screenshot:CONFIG.screenshot}));
 }

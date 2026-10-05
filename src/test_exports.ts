@@ -35,4 +35,5 @@ export { installScrollPastEnd } from "./features/scroll_past_end";
 export { TextBuffer } from "./editor/contenteditable";
 export { mathSelectionRegions, mathDelimiterIndex, createMathSelection, createMathDragSelection, installMathMouseSelection, normalizeMathClickTimeout } from "./features/math_selection";
 export { installMathVisibility } from "./features/math_visibility";
+export { installMathFocus } from "./features/math_focus";
 export { newlineMatrixShortcut, lineBreakMatrixShortcut, exitMatrixShortcut } from "./features/matrix_shortcuts";
