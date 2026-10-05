@@ -23,7 +23,7 @@ import { installMathPaste } from "./features/paste_math";
 import { installImageResize } from "./features/image_resize";
 import { installScrollPastEnd } from "./features/scroll_past_end";
 import { installAnnotationCompletion } from "./features/annotation_completion";
-import { installPrintDiagnostic } from "./features/print_diagnostic";
+import { installNoteMenu } from "./features/note_menu";
 import { installMathPreview } from "./features/math_preview";
 import { installMathHighlight } from "./features/math_highlight";
 import { installMathVisibility } from "./features/math_visibility";
@@ -80,7 +80,6 @@ function describeFocus(): string {
 }
 
 let lastSettingsJSON: string | undefined;
-let pdfTheme: RawSettings["pdfTheme"] = "auto";
 let completionMinimum = 2;
 let mathClickTimeout = 1000;
 
@@ -120,7 +119,6 @@ function loadSettings(json: string | undefined) {
 	}
 
 	automaticSnippets = settings ? settings.snippets.filter((s) => s.options.automatic) : [];
-	pdfTheme = raw.pdfTheme === "light" || raw.pdfTheme === "dark" ? raw.pdfTheme : "auto";
 	completionMinimum = Math.max(1, Math.floor(Number(raw.completionMinLength) || 2));
 	mathClickTimeout = normalizeMathClickTimeout(raw.mathSelectionClickTimeoutMs);
 	if (window.document.createEvent) {
@@ -291,7 +289,7 @@ function install() {
 	const stopScrollPastEnd = isReaderWindow(window) || !window.document.createElement ? null : installScrollPastEnd(window);
 	const stopAnnotations = isReaderWindow(window) || !window.document.createElement ? null : installAnnotationCompletion(window, () => completionMinimum,
 		() => ({ bufferCompletionEnabled: settings?.bufferCompletionEnabled ?? false, dictionaryCompletionEnabled: settings?.dictionaryCompletionEnabled ?? false, textDictionaryWords: settings?.textDictionaryWords }));
-	const stopPrintDiagnostic = isReaderWindow(window) || !window.document.createElement ? null : installPrintDiagnostic(window, () => pdfTheme);
+	const stopNoteMenu = isReaderWindow(window) || !window.document.createElement ? null : installNoteMenu(window);
 
 	// Set when we handled a printable key, so the insertion it would otherwise
 	// have caused can be cancelled again at `beforeinput`. Belt and braces:
@@ -361,7 +359,7 @@ function install() {
 		stopImageResize?.();
 		stopScrollPastEnd?.();
 		stopAnnotations?.();
-		stopPrintDiagnostic?.();
+		stopNoteMenu?.();
 		stopMathPreview?.();
 		stopMathPreview = null;
 		stopMathHighlight?.();
