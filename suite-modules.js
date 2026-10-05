@@ -29,7 +29,10 @@ var SuiteModules = {
           Services.scriptloader.loadSubScript(uri + 'bootstrap.js', scope);
           running.set(key, scope);
           await scope.startup({ id: 'latex-suite@ievlevpn.github.io', rootURI: uri });
-          if (stopped || settings()[key] === false || blocked.has(id)) stop(key);
+          // An add-on enable or suite shutdown can stop the scope while its
+          // startup is awaiting Zotero. Clean any resources acquired afterward.
+          if (running.get(key) !== scope) scope.shutdown();
+          else if (stopped || settings()[key] === false || blocked.has(id)) stop(key);
         } catch (error) { stop(key); report(error); }
       }
     }

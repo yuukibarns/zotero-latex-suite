@@ -1,5 +1,16 @@
 # LaTeX Suite for Zotero
 
+## Unified suite
+
+One installation now includes TikZ-CD rendering, PDF Page Tools, Annotation
+Backlinks, and Compact Menu alongside LaTeX editing and note PDF export.
+Each added module can be enabled or disabled in LaTeX Suite settings.
+Existing enabled standalone plugins take precedence, preventing duplicate UI.
+To consolidate, install this build, then disable the four standalone plugins;
+their integrated versions take over. Keep Better BibTeX installed separately.
+Existing snippets, PDF theme, and Compact Menu preferences are preserved.
+See [module architecture and migration](modules/README.md).
+
 Completion fork maintained by **yuukibarns**, based on
 [Pavel Ievlev's Zotero LaTeX Suite](https://github.com/ievlevpn/zotero-latex-suite).
 Original licenses and attribution are retained, including Obsidian LaTeX Suite
