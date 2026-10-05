@@ -34,12 +34,6 @@ export function installMathPreview(win: Window, debounceMs = 100, inlineEnabled 
 	doc.head.append(style);
 	let frame = 0, stopped = false, composing = false;
 	let owner: any = null, lastText: string | null = null;
-	let externalPreview = false;
-	function releaseExternal() {
-		if (!externalPreview) return;
-		doc.dispatchEvent(new (win as any).CustomEvent("latex-suite-preview-release", { detail: { math: owner, output } }));
-		externalPreview = false;
-	}
 	let lastHead: number | null | undefined;
 	let ownerNode: HTMLElement | null = null, interacting = false;
 	const getMap = createMathSourceMap();
@@ -62,7 +56,7 @@ export function installMathPreview(win: Window, debounceMs = 100, inlineEnabled 
 		output.append(selectionLayer);
 	}
 	function dragSelection(e: MouseEvent) {
-		if (externalPreview || !drag || !(e.buttons & 1)) return;
+		if (!drag || !(e.buttons & 1)) return;
 		if (Math.abs(e.clientX-drag.x)>5 || Math.abs(e.clientY-drag.y)>5) drag.moved = true;
 		if (!drag.moved) return;
 		clicks = null;
@@ -81,7 +75,6 @@ export function installMathPreview(win: Window, debounceMs = 100, inlineEnabled 
 	}
 	let press: { x: number; y: number; owner: any; source: string } | null = null;
 	function placeCaret(e: MouseEvent) {
-		if (externalPreview) return;
 		// Use the decorated preview's geometry but the unmodified source map.
 		// Never map a retained/debounced preview into a newer source document.
 		const gesture = press; press = null;
@@ -119,7 +112,7 @@ export function installMathPreview(win: Window, debounceMs = 100, inlineEnabled 
 		}, 600);
 	}
 	function cancelRender() { win.clearTimeout(timer); timer = 0; pendingText = null; ready = false; }
-	function close() { releaseExternal(); clicks = null; drag = null; press = null; selectionLayer.replaceChildren(); cancelRender(); owner = null; pauseBlink(); panel.remove(); panel.style.visibility = ""; output.replaceChildren(); status.textContent = ""; ownerNode = null; interacting = false; lastText = null; lastHead = undefined; activityText = null; activityHead = undefined; }
+	function close() { clicks = null; drag = null; press = null; selectionLayer.replaceChildren(); cancelRender(); owner = null; pauseBlink(); panel.remove(); panel.style.visibility = ""; output.replaceChildren(); status.textContent = ""; ownerNode = null; interacting = false; lastText = null; lastHead = undefined; activityText = null; activityHead = undefined; }
 	function refresh() {
 		frame = 0;
 		if (stopped || composing) return;
@@ -129,18 +122,6 @@ export function installMathPreview(win: Window, debounceMs = 100, inlineEnabled 
 		if (!node || !math?._innerView || typeof math.renderMath !== "function" || !math._mathRenderElt) { close(); return; }
 		if (owner !== math) { close(); owner = math; ownerNode = node; }
 		const text = math._innerView.state.doc.textContent;
-		// Optional renderers supply content, not a second preview panel.
-		const request = { math, output, handled: false };
-		if (node.localName === "math-display") doc.dispatchEvent(new (win as any).CustomEvent("latex-suite-preview-request", { detail: request }));
-		if (request.handled) {
-			externalPreview = true; cancelRender(); lastText = text;
-			selectionLayer.remove(); status.textContent = "";
-			panel.dataset.inline = "false";
-			panel.style.removeProperty("left"); panel.style.removeProperty("top");
-			if (panel.parentNode !== node) node.append(panel);
-			return;
-		}
-		if (externalPreview) { releaseExternal(); output.replaceChildren(); lastText = null; }
 		const selection = math._innerView.state.selection;
 		const head = selection?.empty && Number.isFinite(selection.head) ? selection.head : null;
 		if (text !== activityText || head !== activityHead) { activityText = text; activityHead = head; pauseBlink(); }
@@ -218,7 +199,7 @@ export function installMathPreview(win: Window, debounceMs = 100, inlineEnabled 
 		if (e.type === "mousedown") {
 			if (!inside || mouse.button !== 0 || mouse.ctrlKey || mouse.altKey || mouse.metaKey || mouse.shiftKey) clicks = null;
 			drag = null;
-			press = !externalPreview && inside && mouse.button === 0 && !mouse.ctrlKey && !mouse.altKey && !mouse.metaKey && !mouse.shiftKey && lastText !== null
+			press = inside && mouse.button === 0 && !mouse.ctrlKey && !mouse.altKey && !mouse.metaKey && !mouse.shiftKey && lastText !== null
 				&& !!(e.target as Element).closest?.(".katex-html") ? { x: mouse.clientX, y: mouse.clientY, owner, source: lastText } : null;
 			if (press && !composing && owner?._innerView?.state.doc.textContent === lastText && !status.textContent) {
 				const html = (e.target as Element).closest(".katex-html")!, map = getMap(html, lastText!, owner._katexOptions);
