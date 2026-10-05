@@ -1,5 +1,5 @@
 import { getEditorCore } from "../editor/pm";
-import { PRINT_STYLES } from "./print_styles";
+import { PRINT_STYLES, PRINT_FONT_SIZE } from "./print_styles";
 
 /** Self-contained snapshot: no cross-process viewer DOM access. */
 export function installPrintDiagnostic(win: Window, getTheme: () => "auto" | "light" | "dark" = () => "auto") {
@@ -53,17 +53,19 @@ export function installPrintDiagnostic(win: Window, getTheme: () => "auto" | "li
 			const copy = source.cloneNode(true) as HTMLElement;
 			const copies = copy.querySelectorAll(".math-node");
 			const rendererStyles = new Set<string>();
+			const warnings: string[] = [];
 			const nodes = source.querySelectorAll(".math-node");
 			for (let i = 0; i < nodes.length; i++) {
 				const node = nodes[i];
 				const math = (node as any).pmViewDesc?.spec;
 				math?._innerView?.domObserver?.forceFlush?.();
-				const request: {node: Element; math: any; rendered: Promise<HTMLElement> | null; css: string} = {node, math, rendered:null, css:""};
+				const request: {node: Element; math: any; rendered: Promise<HTMLElement> | null; css: string; fontSize: string; warnings: string[]} = {node, math, rendered:null, css:"", fontSize:PRINT_FONT_SIZE, warnings:[]};
 				win.document.dispatchEvent(new (win as any).CustomEvent("latex-suite-export-math", {detail:request}));
 				if (request.rendered) {
 					const replacement = win.document.createElement("div");
 					replacement.className = "ls-print-display";
 					replacement.append(await request.rendered);
+					warnings.push(...request.warnings);
 					copies[i].replaceWith(replacement);
 					rendererStyles.add(request.css);
 					continue;
@@ -98,6 +100,7 @@ export function installPrintDiagnostic(win: Window, getTheme: () => "auto" | "li
 			const css = await embeddedPrintCSS(win) + [...rendererStyles].join("\n");
 			if (stopped) return;
 			bridge(printDocument(copy.outerHTML, css, theme));
+			if (warnings.length) win.alert("PDF prepared with warnings:\n" + [...new Set(warnings)].join("\n"));
 		} catch (error) { if (!stopped) win.alert("PDF snapshot: " + String(error)); }
 		finally {
 			busy = false;

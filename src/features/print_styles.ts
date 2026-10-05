@@ -1,4 +1,5 @@
 /** Print-only typography; deliberately independent of editor UI rules. */
+export const PRINT_FONT_SIZE = "11pt";
 export const PRINT_STYLES = `
 :root { color-scheme: light; --paper: #fff; --ink: #20242b; --rule: #d2d7df; --panel: #f0f3f6; --code: #f3f5f7; }
 :root[data-theme="dark"] { color-scheme: dark; --paper: #202124; --ink: #e6e8eb; --rule: #50545c; --panel: #2d3036; --code: #2b2e33; }
@@ -8,7 +9,7 @@ body { margin: 0; background: var(--paper); }
   max-width: 54rem; margin: 0 auto; padding: 16mm 18mm;
   box-sizing: border-box; box-decoration-break: clone;
   font-family: Georgia, "Noto Serif", "Times New Roman", serif;
-  font-size: 11pt; line-height: 1.45;
+  font-size: ${PRINT_FONT_SIZE}; line-height: 1.45;
   overflow-wrap: break-word; white-space: normal;
 }
 .primary-editor p { margin: 0 0 .7em; orphans: 3; widows: 3; }
