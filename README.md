@@ -18,7 +18,7 @@ and Completr contributions.
 
 ## Fork builds and releases
 
-GitHub Actions typechecks, builds, tests, and uploads a `latex-suite-completion`
+GitHub Actions typechecks, builds, tests, and uploads a `latex-suite`
 artifact on pushes to `master` and `feat/**`, and on pull requests. Download the
 artifact from the workflow run and extract the XPI to install it.
 

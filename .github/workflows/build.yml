@@ -31,15 +31,15 @@ jobs:
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: node -e 'if (process.env.RELEASE_TAG !== "v" + require("./manifest.json").version) process.exit(1)'
-      - run: python3 scripts/package-local.py dist/latex-suite-completion.xpi
+      - run: python3 scripts/package-local.py dist/latex-suite.xpi
       - name: Validate package and record checksum
         run: |
-          unzip -t dist/latex-suite-completion.xpi
+          unzip -t dist/latex-suite.xpi
           cd dist
-          sha256sum latex-suite-completion.xpi > SHA256SUMS
+          sha256sum latex-suite.xpi > SHA256SUMS
       - uses: actions/upload-artifact@v4
         with:
-          name: latex-suite-completion
+          name: latex-suite
           path: dist/*
           if-no-files-found: error
           retention-days: 30
@@ -53,7 +53,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: latex-suite-completion
+          name: latex-suite
           path: dist
       - name: Publish release
         env:
@@ -64,5 +64,5 @@ jobs:
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             gh release upload "$RELEASE_TAG" dist/* --clobber
           else
-            gh release create "$RELEASE_TAG" dist/* --verify-tag --title "LaTeX completion $RELEASE_TAG" --generate-notes
+            gh release create "$RELEASE_TAG" dist/* --verify-tag --title "LaTeX Suite $RELEASE_TAG" --generate-notes
           fi
