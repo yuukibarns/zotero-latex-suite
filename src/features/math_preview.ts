@@ -124,7 +124,12 @@ export function installMathPreview(win: Window, debounceMs = 100, inlineEnabled 
 	function refresh() {
 		frame = 0;
 		if (stopped || composing) return;
-		const node = (interacting && ownerNode?.isConnected ? ownerNode : doc.activeElement?.closest(".math-node")) as HTMLElement | null;
+		// Focus can leave an open math editor for a toolbar or another tab.
+		// Its inner view, not DOM focus, determines whether the preview is alive.
+		const focused = doc.activeElement?.closest(".math-node") as HTMLElement | null;
+		const open = (node: HTMLElement | null) => !!node?.isConnected && !!(node as any).pmViewDesc?.spec?._innerView;
+		const node = open(focused) ? focused : open(ownerNode) ? ownerNode :
+			Array.from(doc.querySelectorAll<HTMLElement>(".math-node")).find(open) ?? null;
 		const math = (node as any)?.pmViewDesc?.spec;
 		if (node && !(node.localName === "math-inline" ? inlineEnabled : displayEnabled)) { close(); return; }
 		if (!node || !math?._innerView || typeof math.renderMath !== "function" || !math._mathRenderElt) { close(); return; }
@@ -256,7 +261,7 @@ export function installMathPreview(win: Window, debounceMs = 100, inlineEnabled 
 	const observer = new (win as any).MutationObserver((records: MutationRecord[]) => {
 		if (records.some(r => {
 			const el = r.target.nodeType === 1 ? r.target as Element : r.target.parentElement;
-			return el?.closest(".math-src");
+			return el?.closest(".math-src") || (ownerNode && (!ownerNode.isConnected || !owner?._innerView));
 		})) schedule();
 	});
 	observer.observe(doc.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ["style"] });

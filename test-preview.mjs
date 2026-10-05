@@ -33,8 +33,10 @@ await step(50);assert.equal(renders,2);assert.equal(popup().firstChild.textConte
 await type('pending');source.dispatchEvent(new win.Event('compositionstart',{bubbles:true}));
 await step(200);assert.equal(renders,2);
 source.dispatchEvent(new win.Event('compositionend',{bubbles:true}));await step();await step(100);assert.equal(renders,3);
-await type('discard');source.blur();await step();await step(100);
+source.blur();await step();assert.ok(popup(),'Open editor retains preview without focus');
+await type('discard');const innerBeforeClose=math._innerView;math._innerView=null;await step();await step(100);
 assert.equal(renders,3);assert.equal(popup(),null);
+math._innerView=innerBeforeClose;
 source.focus();await step();stop();await step(200);
 assert.equal(renders,3);assert.equal(popup(),null);assert.equal(timers.size,0);assert.equal(frames.size,0);
 stop=installMathPreview(win,0);await step();assert.equal(renders,4);

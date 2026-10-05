@@ -24,6 +24,7 @@ import { installImageResize } from "./features/image_resize";
 import { installScrollPastEnd } from "./features/scroll_past_end";
 import { installAnnotationCompletion } from "./features/annotation_completion";
 import { installPrintDiagnostic } from "./features/print_diagnostic";
+import { installMathFocus } from "./features/math_focus";
 import { installMathPreview } from "./features/math_preview";
 import { installMathHighlight } from "./features/math_highlight";
 import { installMathVisibility } from "./features/math_visibility";
@@ -288,6 +289,7 @@ function install() {
 
 	loadSettings(window.__latexSuiteSettings);
 	const stopMathPaste = isReaderWindow(window) ? null : installMathPaste(window);
+	const stopMathFocus = isReaderWindow(window) || !window.document.createElement ? null : installMathFocus(window);
 	const stopMathCaret = isReaderWindow(window) || !window.document.createElement ? null : installMathCaret(window);
 	const stopMathSelection = isReaderWindow(window) || !window.document.createElement ? null : installMathMouseSelection(window, () => completion?.suppress(), () => mathClickTimeout);
 	const stopImageResize = isReaderWindow(window) || !window.document.createElement ? null : installImageResize(window);
@@ -358,6 +360,7 @@ function install() {
 
 	// Called from bootstrap.js when the plugin is disabled or updated.
 	window.__latexSuiteUninstall = () => {
+		stopMathFocus?.();
 		stopMathSelection?.();
 		stopMathCaret?.();
 		stopImageResize?.();
