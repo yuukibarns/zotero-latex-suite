@@ -3,17 +3,33 @@ import { parse } from 'acorn';
 
 // Select methods from the pinned upstream source, rather than maintaining a
 // second handwritten implementation of Quiver's geometry or arrow semantics.
-export async function extract() {
-  const base = new URL('../vendor/quiver/', import.meta.url);
-  const out = new URL('../build/quiver/', import.meta.url);
+export function uiPrelude(ui) {
+  const ast = parse(ui, { ecmaVersion: 'latest', sourceType: 'module' });
+  const paths = ['./arrow.mjs', './curve.mjs', './dom.mjs', './ds.mjs'];
+  const imports = paths.map(path => {
+    const matches = ast.body.filter(n => n.type === 'ImportDeclaration' && n.source.value === path);
+    if (matches.length !== 1) throw new Error(`Upstream import changed: ${path}`);
+    return ui.slice(matches[0].start, matches[0].end);
+  }).join('\n');
+  const constants = ast.body.filter(n => {
+    const call = n.type === 'ExpressionStatement' && n.expression;
+    return call?.type === 'CallExpression' && call.callee.type === 'MemberExpression'
+      && !call.callee.computed && call.callee.object.name === 'Object'
+      && call.callee.property.name === 'assign' && call.arguments[0]?.name === 'CONSTANTS';
+  });
+  if (constants.length !== 1) throw new Error('Upstream constants changed');
+  return { ast, imports, constants: ui.slice(constants[0].start, constants[0].end) };
+}
+
+export async function extract(base = new URL('../vendor/quiver/', import.meta.url), out = new URL('../build/quiver/', import.meta.url)) {
   await mkdir(out, { recursive: true });
   const read = name => readFile(new URL(name, base), 'utf8');
   const save = (name, text) => writeFile(new URL(name, out), '// Derived from Quiver; see vendor/quiver/LICENSE.\n' + text);
   const ui = await read('ui.mjs');
-  const ast = parse(ui, { ecmaVersion: 'latest', sourceType: 'module' });
+  const { ast, imports, constants } = uiPrelude(ui);
   const classes = new Map(ast.body.map(n => n.declaration || n).filter(n => n.type === 'ClassDeclaration').map(n => [n.id.name, n]));
   function method(cls, name) {
-    const matches = classes.get(cls).body.body.filter(n => n.key.name === name);
+    const matches = classes.get(cls)?.body.body.filter(n => n.key.name === name) ?? [];
     if (matches.length !== 1) throw new Error(`Upstream method changed: ${cls}.${name}`);
     return ui.slice(matches[0].start, matches[0].end);
   }
@@ -21,9 +37,6 @@ export async function extract() {
     if (source.split(from).length !== 2) throw new Error(`Upstream structure changed: ${from}`);
     return source.replace(from, to);
   }
-  const imports = ui.slice(0, ast.body[3].end); // Arrow, geometry, DOM, data only.
-  const constants = ui.slice(ast.body[6].start, ast.body[6].end); // Object.assign(CONSTANTS, ...)
-  if (!constants.includes('Object.assign(CONSTANTS')) throw new Error('Upstream constants changed');
   const cell = `class Cell {
     constructor(quiver, level, label = '', label_colour = Colour.black()) {
       if (quiver.all_cells().length >= 200) throw new Error('Diagram exceeds 200 cells.');

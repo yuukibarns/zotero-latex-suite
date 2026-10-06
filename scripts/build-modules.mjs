@@ -1,5 +1,8 @@
 import { build } from 'esbuild';
 import { extract } from '../modules/tikzcd/scripts/extract.mjs';
+import { readFile } from 'node:fs/promises';
+import { verify } from './quiver-upstream.mjs';
+await verify(JSON.parse(await readFile(new URL('../modules/tikzcd/upstream.json',import.meta.url),'utf8')));
 await extract();
 await build({entryPoints:['modules/tikzcd/src/note-entry.mjs'],outfile:'modules/tikzcd/content/note.js',bundle:true,format:'iife',target:'firefox128',loader:{'.css':'text'},alias:{katex:'katex-zotero'}});
 await build({entryPoints:['modules/backlinks/src/bootstrap.ts'],outfile:'modules/backlinks/bootstrap.js',bundle:true,format:'iife',globalName:'AnnotationBacklinks',target:'firefox128',footer:{js:'var startup=AnnotationBacklinks.startup; var shutdown=AnnotationBacklinks.shutdown;'}});

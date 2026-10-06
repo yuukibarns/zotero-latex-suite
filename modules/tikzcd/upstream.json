@@ -1,0 +1,43 @@
+{
+  "repository": "varkor/quiver",
+  "ref": "master",
+  "commit": "2f289ecbae9b7e5a473e04b924750c538ed5c4cf",
+  "files": {
+    "arrow.mjs": {
+      "path": "src/arrow.mjs",
+      "sha256": "3809a9aed4b647ae761c26d7742283549edcf9439628e653db6eb12e91e8422e"
+    },
+    "curve.mjs": {
+      "path": "src/curve.mjs",
+      "sha256": "797ea51ce646a6d3181303459923b5d356aa5117bd530c3313d59e132fa11c09"
+    },
+    "dom.mjs": {
+      "path": "src/dom.mjs",
+      "sha256": "c1023d77ca3b136fc43ba7379a0b43d80307a0be8ae7d861e3622f29506b538f"
+    },
+    "ds.mjs": {
+      "path": "src/ds.mjs",
+      "sha256": "3e0786d37548fdffa3d77205376a7e26cb8cdbf694daa18d466e66ee357ba01b"
+    },
+    "parser.mjs": {
+      "path": "src/parser.mjs",
+      "sha256": "a82b146c3a5deabebfdb5706ed800a72a0d09f3683088788e20a2be6bc638ec0"
+    },
+    "quiver.mjs": {
+      "path": "src/quiver.mjs",
+      "sha256": "7b6219ae5fe818c638026db07ba529de2b5ba3b667db54e39d698424a17e376b"
+    },
+    "ui.mjs": {
+      "path": "src/ui.mjs",
+      "sha256": "9961ffdf5a631482e3c76876b41f04d46ffa09e5a963724016183695b30155eb"
+    },
+    "parser-fixtures.tex": {
+      "path": "src/tests/parser.tex",
+      "sha256": "95db9c0f18ce8d2e1cf35e43ce734959cfc604ac0cb7fb4c4c94431b30132bc2"
+    },
+    "LICENSE": {
+      "path": "LICENSE",
+      "sha256": "497ab3be2c00c0f2af001b07f80ec68c0d2325879105fb19f51269f1ddddec43"
+    }
+  }
+}
