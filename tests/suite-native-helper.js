@@ -156,7 +156,7 @@ C \arrow[r,"k"'] & D
     const block=doc.querySelector('.pseudocode-diagram'), output=block.parentElement;
     check(frame.getComputedStyle(block.querySelector('.ps-root')).fontSize===frame.getComputedStyle(doc.querySelector('.ProseMirror > p')).fontSize,'Algorithm matches prose font size');
     const comment=block.querySelector('.ps-comments'), line=comment.closest('.ps-line');
-    check(comment.textContent.includes('▷'),'Comment uses triangular marker');
+    check(comment.querySelector('.ps-comment-marker annotation')?.textContent === '\\triangleright','Comment uses math triangular marker');
     check(Math.abs(comment.getBoundingClientRect().right-line.getBoundingClientRect().right)<1,'Comment is right aligned');
     check(Math.abs(block.getBoundingClientRect().left-output.getBoundingClientRect().left)<1,'Algorithm is left aligned');
     check(Math.abs(block.getBoundingClientRect().width-output.getBoundingClientRect().width)<1,'Algorithm fills available text width even for short content');
