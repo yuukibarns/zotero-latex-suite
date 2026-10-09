@@ -24,6 +24,7 @@ function layerFor(doc: Document): HTMLElement {
 	if (layer) return layer as HTMLElement;
 
 	const style = doc.createElement("style");
+	style.id = LAYER_ID + "-style";
 	style.textContent = STYLE;
 	doc.head?.appendChild(style);
 
@@ -51,5 +52,6 @@ export function showTabstopMarks(doc: Document, rects: DOMRect[]) {
 }
 
 export function hideTabstopMarks(doc: Document | null | undefined) {
-	doc?.getElementById(LAYER_ID)?.replaceChildren();
+	doc?.getElementById(LAYER_ID)?.remove();
+	doc?.getElementById(LAYER_ID + "-style")?.remove();
 }

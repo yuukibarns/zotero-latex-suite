@@ -210,6 +210,7 @@ for (const command of ['STA','\\STA']) {
  assert.equal(popup().querySelector('[role=option]').textContent,'\\STATE');
  assert.equal(key('Enter').defaultPrevented,true);
  assert.equal(view.state.doc.textContent,'\\begin{algorithmic}\n\\STATE ');
+ key('Tab'); // Finish the inserted command's final jump stop.
 }
 assert.deepEqual(ls.candidates(ls.DEFAULT_COMMANDS,'alpha',true),[]);
 key('Escape');
@@ -270,6 +271,6 @@ win.__latexSuiteReload(JSON.stringify({snippets:'export default [{trigger:"alp",
 reset('al');await input();key('p');assert.equal(view.state.doc.textContent,'CUSTOM');assert.equal(popup(),null);
 doc.dispatchEvent(new win.Event('selectionchange'));await tick();assert.equal(popup(),null);
 win.__latexSuiteUninstall();await tick();assert.equal(popup(),null);
-assert.equal(doc.querySelector('style'),null);
+assert.equal(doc.querySelector('style'),null,doc.querySelector('style')?.outerHTML);
 win.close();
 console.log(`Completion checks passed (${ls.DEFAULT_COMMANDS.length} math and pseudocode dictionary entries).`);
