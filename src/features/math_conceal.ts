@@ -3,10 +3,12 @@ import { latexTokens } from '../highlight/tokenizer';
 import * as maps from '../conceal/maps';
 import symbolFonts from '../conceal/fonts.json';
 
-type Range = { from:number; to:number; symbol:string; className?:string; revealFrom?:number; revealTo?:number; styleOnly?:boolean };
-const symbols = { ...maps.cmd_symbols, ...maps.greek, ...maps.brackets };
+type Range = { from:number; to:number; symbol:string; font?:string; className?:string; revealFrom?:number; revealTo?:number; styleOnly?:boolean };
+// KaTeX's implication macros use the long arrows, unlike Rightarrow/Leftarrow.
+const symbols = { ...maps.cmd_symbols, ...maps.greek, ...maps.brackets, implies:'⟹', impliedby:'⟸', iff:'⟺' };
 const styles: Record<string,string> = { mathbf:'bold', boldsymbol:'bold', mathrm:'roman', underline:'underline', operatorname:'roman', 'operatorname*':'roman', text:'text' };
-const alphabets: Record<string,Record<string,string>> = { mathbb:maps.mathbb, mathcal:maps.mathscrcal, mathscr:maps.mathscrcal, mathfrak:maps.mathfrak };
+const alphabets: Record<string,Record<string,string>> = { mathbb:maps.mathbb, mathfrak:maps.mathfrak };
+const alphabetFonts: Record<string,string> = { mathcal:'Caligraphic-Regular', mathscr:'Script-Regular' };
 
 /** Upstream-backed rules, with UTF-16 offsets and conservative argument parsing.
  * Compound replacements reveal together, including their nested replacements. */
@@ -36,7 +38,7 @@ export function concealRanges(source: string): Range[] {
  for(const t of tokens) {
   if(t.from < consumed || t.literal) continue;
   const raw=source.slice(t.from,t.to), name=raw.slice(1);
-  const add=(to:number,symbol:string,className?:string) => {result.push({from:t.from,to,symbol,className});consumed=to;};
+  const add=(to:number,symbol:string,className?:string,font?:string) => {result.push({from:t.from,to,symbol,className,font});consumed=to;};
   if(t.kind==='operator' && (raw==='^' || raw==='_')) {
    const g=group(t.to), next=byStart.get(t.to);
    const end=g?.to ?? (next?.kind==='command' ? next.to : t.to+(source.codePointAt(t.to)!>0xffff?2:1));
@@ -47,13 +49,17 @@ export function concealRanges(source: string): Range[] {
    continue;
   }
   if(t.kind!=='command') continue;
-  if(styles[name] || alphabets[name]) {
+  if(styles[name] || alphabets[name] || alphabetFonts[name]) {
    const g=group(t.to);
    if(!g) { if(source[skipSpace(t.to)]==='{') consumed=source.length; continue; }
    if(/[\n\r%$]/.test(g.body)) { consumed=g.to; continue; }
    if(name==='text' && /[^A-Za-z0-9 .!?()-]/.test(g.body)) { consumed=g.to; continue; }
    const text=plain(g.body);
-   if(alphabets[name]) {
+   if(alphabetFonts[name]) {
+    // These KaTeX alphabets encode uppercase Latin glyphs at ASCII positions.
+    // Preserve unsupported arguments instead of guessing a Unicode substitute.
+    if(/^[A-Z]+$/.test(g.body)) add(g.to,g.body,undefined,alphabetFonts[name]);
+   } else if(alphabets[name]) {
     const mapped=[...g.body].map(c=>alphabets[name][c]);
     if(mapped.length && mapped.every(c=>c!==undefined)) add(g.to,mapped.join(''));
    } else if(text !== undefined && text.length) add(g.to,text,styles[name]);
@@ -99,8 +105,8 @@ export function concealDecorations(ranges: Range[], from: number, to: number) {
  })
   .filter(r=>r.to>r.from).flatMap(r => {
    const style=r.className?' ls-conceal-'+r.className:'';
-   const font=!r.className ? (symbolFonts as Record<string,string>)[r.symbol] : undefined;
-   const options={inclusiveStart:false,inclusiveEnd:false,concealKey:JSON.stringify([r.styleOnly,r.className,r.symbol])};
+   const font=r.font ?? (!r.className ? (symbolFonts as Record<string,string>)[r.symbol] : undefined);
+   const options={inclusiveStart:false,inclusiveEnd:false,concealKey:JSON.stringify([r.styleOnly,r.className,r.symbol,font])};
    const hidden=Decoration.inline(r.from,r.to,{class:(r.styleOnly?'ls-conceal-style':'ls-tex-concealed')+style},options);
    // ProseMirror splits inline decorations at every overlapping highlight.
    // Attach replacement content only to the first source code unit (ASCII

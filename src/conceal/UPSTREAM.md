@@ -32,3 +32,8 @@ choices. Large operators absent from those fonts use verified Size1-Regular
 glyphs (compact operators, not display-size Size2), with the same 1.2 scale.
 These are display-only font
 choices, not a reproduction of KaTeX's full typesetting/font-selection logic.
+
+Local semantic corrections follow bundled KaTeX: implies/impliedby/iff use
+long arrows. mathcal and mathscr retain ASCII uppercase letters with explicit
+Caligraphic-Regular and Script-Regular fonts respectively; unsupported arguments
+remain visible. Font identity participates in the decoration cache key.
