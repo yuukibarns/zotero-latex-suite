@@ -16,6 +16,7 @@ manifest["applications"]["zotero"]["strict_min_version"] = "10.0"
 for field in ("id", "update_url", "strict_max_version"):
     assert manifest["applications"]["zotero"].get(field), f"Zotero requires {field}"
 files = [
+    "src/conceal/LICENSE.md", "src/conceal/UPSTREAM.md",
     "suite-modules.js", "modules/compact-menu/bootstrap.js",
     "modules/page-tools/bootstrap.js", "modules/page-tools/page-tools.js",
     "modules/backlinks/bootstrap.js", "modules/backlinks/LICENSE",

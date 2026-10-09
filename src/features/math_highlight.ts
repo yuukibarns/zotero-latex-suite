@@ -28,6 +28,11 @@ math-inline.math-node .math-src .ProseMirror{white-space:break-spaces}
 .math-node .ls-tex-number{color:light-dark(#745300,#dfc276)}
 .math-node .ls-tex-concealed{font-size:0}
 .math-node .ls-tex-concealed::after{content:attr(data-symbol);font-size:var(--ls-conceal-font-size);pointer-events:none}
+.math-node .ls-conceal-bold{font-weight:bold}
+.math-node .ls-conceal-roman{font-style:normal}
+.math-node .ls-conceal-underline{text-decoration:underline}
+.math-node .ls-conceal-sup::after{font-size:calc(var(--ls-conceal-font-size)*0.8);vertical-align:super}
+.math-node .ls-conceal-sub::after{font-size:calc(var(--ls-conceal-font-size)*0.8);vertical-align:sub}
 `;
 	doc.head.append(style);
 	const attached = new Map<any, { original: any; provider: any; oldSize: string }>();
