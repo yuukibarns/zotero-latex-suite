@@ -143,7 +143,7 @@ C \arrow[r,"k"'] & D
     check(w.focusMath._innerView.dom.contains(doc.getSelection().anchorNode),type+' DOM selection belongs to inner editor');
   }
   // Pseudocode uses the same closed/live/export surface, without altering source.
-  const algorithm=String.raw`\begin{algorithm}\caption{Sum}\begin{algorithmic}\STATE $s \gets 0$\FOR{$i=1$ to $n$}\STATE $s \gets s+i$\ENDFOR\RETURN $s$\end{algorithmic}\end{algorithm}`;
+  const algorithm=String.raw`\begin{algorithm}\caption{Sum}\begin{algorithmic}\REQUIRE A sequence of values to sum\ENSURE The sum of the values\INPUT $n$\OUTPUT $s$\STATE $s \gets 0$\FOR{$i=1$ to $n$}\STATE $s \gets s+i$\ENDFOR\RETURN $s$\end{algorithmic}\end{algorithm}`;
   inject(`v.dispatch(v.state.tr.replaceWith(0,v.state.doc.content.size,[sc.nodes.paragraph.create(null,sc.text('Algorithm')),sc.nodes.math_display.create(null,sc.text(${JSON.stringify(algorithm)})),sc.nodes.paragraph.create(null,sc.text('after'))]));v.dispatch(v.state.tr.setSelection(S.fromJSON(v.state.doc,{type:'text',anchor:1,head:1})));v.focus();window.pseudo=document.querySelector('math-display').pmViewDesc.spec;`);
   await waitFor(()=>doc.querySelector('.math-render .ps-algorithm'),'Closed pseudocode renders');
   check(w.pseudo._node.textContent===algorithm,'Pseudocode preserves source');
@@ -153,6 +153,14 @@ C \arrow[r,"k"'] & D
     check(Math.abs(block.getBoundingClientRect().left-output.getBoundingClientRect().left)<1,'Algorithm is left aligned');
     check(Math.abs(block.getBoundingClientRect().width-output.getBoundingClientRect().width)<1,'Algorithm fills available text width even for short content');
     check(Math.abs(block.querySelector('.ps-algorithm').getBoundingClientRect().width-block.getBoundingClientRect().width)<1,'Algorithm rules span the full block');
+    const labels=block.querySelectorAll('.ps-algorithmic .ps-line:not(.ps-code)');
+    check(labels.length===4,'All input/output labels rendered');
+    for(const line of labels) {
+      check(frame.getComputedStyle(line).textIndent==='0px','Input/output label has no negative indent');
+      const range=doc.createRange();range.selectNodeContents(line);
+      check(range.getBoundingClientRect().left>=block.getBoundingClientRect().left,'Input/output label is not clipped');
+      check(Math.abs(line.getBoundingClientRect().left-block.querySelector('.ps-algorithm > .ps-line').getBoundingClientRect().left-parseFloat(frame.getComputedStyle(block.querySelector('.ps-algorithmic')).paddingLeft))<1,'Label uses body inset');
+    }
   }
   checkAlgorithmLeft();
   const algorithmBox=doc.querySelector('.ps-algorithm'), caption=algorithmBox.querySelector('.ps-line');

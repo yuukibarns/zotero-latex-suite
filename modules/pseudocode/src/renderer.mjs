@@ -12,6 +12,9 @@ export const rendererCSS = css.replace(/^@import[^;]+;\s*/m, '') + `
  * Reset just the caption; retain indentation and numbering inside the body. */
 .pseudocode-diagram .ps-algorithm.with-caption > .ps-line:first-child { text-indent:0!important; padding:0.15em 0.6em 0.35em!important; border-bottom:1px solid; }
 .pseudocode-diagram .ps-algorithmic { padding:0.35em 0.6em; }
+/* Zotero's paragraph reset can remove the padding that compensates upstream's
+ * negative indent. Non-code input/output lines need neither; keep code alone. */
+.pseudocode-diagram .ps-algorithmic .ps-line:not(.ps-code) { text-indent:0!important; padding:0!important; }
 .pseudocode-diagram .ps-line { line-height:1.45; }
 `;
 export const isPseudocode = source => /^\s*\\begin\{(?:algorithm|algorithmic)\}/.test(source);
