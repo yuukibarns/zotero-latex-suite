@@ -1,6 +1,7 @@
 import { Decoration } from 'prosemirror-view';
 import { latexTokens } from '../highlight/tokenizer';
 import * as maps from '../conceal/maps';
+import symbolFonts from '../conceal/fonts.json';
 
 type Range = { from:number; to:number; symbol:string; className?:string; revealFrom?:number; revealTo?:number; styleOnly?:boolean };
 const symbols = { ...maps.cmd_symbols, ...maps.greek, ...maps.brackets };
@@ -98,12 +99,13 @@ export function concealDecorations(ranges: Range[], from: number, to: number) {
  })
   .filter(r=>r.to>r.from).flatMap(r => {
    const style=r.className?' ls-conceal-'+r.className:'';
+   const font=!r.className ? (symbolFonts as Record<string,string>)[r.symbol] : undefined;
    const options={inclusiveStart:false,inclusiveEnd:false,concealKey:JSON.stringify([r.styleOnly,r.className,r.symbol])};
    const hidden=Decoration.inline(r.from,r.to,{class:(r.styleOnly?'ls-conceal-style':'ls-tex-concealed')+style},options);
    // ProseMirror splits inline decorations at every overlapping highlight.
    // Attach replacement content only to the first source code unit (ASCII
    // command/script/brace prefix), never to the splittable hidden range.
    return r.styleOnly || !r.symbol ? [hidden] : [hidden,
-    Decoration.inline(r.from,r.from+1,{class:'ls-conceal-symbol'+style,'data-symbol':r.symbol},options)];
+    Decoration.inline(r.from,r.from+1,{class:'ls-conceal-symbol'+style+(font?' ls-conceal-font-'+font:''),'data-symbol':r.symbol},options)];
   });
 }

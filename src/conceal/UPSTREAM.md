@@ -23,3 +23,9 @@ retains identical decoration sets across unchanged reveal states. Appearance
 metrics are refreshed outside decoration callbacks through coalesced DOM/resize
 and theme notifications; all observers and composition listeners are cleaned up.
 CodeMirror-specific atomic ranges and delayed reveal are not ported.
+
+fonts.json records glyph availability from katex-zotero 0.16.22's
+src/fontMetricsData.js for the Unicode characters in maps.ts. Prefer Main,
+then AMS, then Math Italic; lowercase Greek prefers Math Italic. Characters
+without a known glyph retain the source font. These are display-only font
+choices, not a reproduction of KaTeX's full typesetting/font-selection logic.
