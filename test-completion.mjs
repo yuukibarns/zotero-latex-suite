@@ -9,6 +9,10 @@ import * as ls from './build/test-exports.mjs';
 import { mathView, winFor } from './test-editor.mjs';
 
 const commands = ls.parseCommands(['\\alpha', '\\Alpha', '\\varalpha', '\\frac{#}{#}']);
+for (const [query, replacement] of [['limits','\\limits'],['nolimits','\\nolimits'],['operatorname','\\operatorname*{#}'],['middle','\\middle|']]) {
+ assert(ls.candidates(ls.DEFAULT_COMMANDS,query).some(c=>c.replacement===replacement), `${query} completion is available`);
+ assert.equal(ls.replacementOf(replacement).insert, replacement.replace('#',''));
+}
 for(const [prefix, expected] of [
  ['\\begin{algorithmic}\n\\STATE ', '$$'],
  ['\\begin{algorithm}\n\\caption{', '$$'],

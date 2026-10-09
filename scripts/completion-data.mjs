@@ -18,11 +18,19 @@ for (const m of source.matchAll(/\{ name: "([^"]+)", paramCount: (\d+), hasStarV
  }
 }
 const fixtures = {
+ '\\limits': '\\sum\\limits_{i=1}^{n}x_i',
+ '\\nolimits': '\\sum\\nolimits_{i=1}^{n}x_i',
+ '\\operatorname*{#}': '\\operatorname*{argmax}_{x} f(x)',
+ '\\middle|': '\\left(x\\middle|y\\right)',
  '\\hline': '\\begin{array}{c}x\\\\\\hline y\\end{array}',
  '\\above{#}{#}': '{x \\above 1pt y}',
  '\\left\\': '\\left\\backslash x\\right.',
  '\\right\\': '\\left. x\\right\\backslash',
 };
+// Useful KaTeX commands absent from the pinned upstream completion dictionary.
+for (const name of ['\\limits', '\\nolimits', '\\operatorname*{#}', '\\middle|']) {
+ if (!commands.some(c => c.displayName === name)) commands.push({ displayName:name, replacement:name });
+}
 function sample(c) {
  if (fixtures[c.replacement]) return fixtures[c.replacement];
  let s = c.replacement.replace(/(?<!\\)#/g, 'x').replace(/~/g, 'x');

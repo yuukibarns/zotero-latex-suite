@@ -1,4 +1,8 @@
 [
+  { "displayName": "\\limits", "replacement": "\\limits" },
+  { "displayName": "\\nolimits", "replacement": "\\nolimits" },
+  { "displayName": "\\operatorname*{#}", "replacement": "\\operatorname*{#}" },
+  { "displayName": "\\middle|", "replacement": "\\middle|" },
   {
     "displayName": "\\above{#}{#}",
     "replacement": "\\above{#}{#}"

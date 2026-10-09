@@ -1,4 +1,8 @@
 {
+  "\\limits": "\\sum\\limits_{i=1}^{n}x_i",
+  "\\nolimits": "\\sum\\nolimits_{i=1}^{n}x_i",
+  "\\operatorname*{#}": "\\operatorname*{argmax}_{x} f(x)",
+  "\\middle|": "\\left(x\\middle|y\\right)",
   "\\above{#}{#}": "{x \\above 1pt y}",
   "\\verb|#|": "\\verb|x|",
   "\\left\\": "\\left\\backslash x\\right.",
