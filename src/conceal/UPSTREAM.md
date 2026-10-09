@@ -16,3 +16,10 @@ does not hide limits/style controls, incomplete groups, or multiline forms.
 Unknown content is not flattened. Compound forms reveal together. This is
 not full parity with upstream (custom mapping configuration and bra/ket/set
 handlers are not included).
+
+The lifecycle follows conceal.ts at the same revision: source parsing is
+cached separately from selection-driven reveal state. Our adapter additionally
+retains identical decoration sets across unchanged reveal states. Appearance
+metrics are refreshed outside decoration callbacks through coalesced DOM/resize
+and theme notifications; all observers and composition listeners are cleaned up.
+CodeMirror-specific atomic ranges and delayed reveal are not ported.
