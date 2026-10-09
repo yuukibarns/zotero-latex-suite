@@ -151,6 +151,8 @@ C \arrow[r,"k"'] & D
   function checkAlgorithmLeft() {
     const block=doc.querySelector('.pseudocode-diagram'), output=block.parentElement;
     check(Math.abs(block.getBoundingClientRect().left-output.getBoundingClientRect().left)<1,'Algorithm is left aligned');
+    check(Math.abs(block.getBoundingClientRect().width-output.getBoundingClientRect().width)<1,'Algorithm fills available text width even for short content');
+    check(Math.abs(block.querySelector('.ps-algorithm').getBoundingClientRect().width-block.getBoundingClientRect().width)<1,'Algorithm rules span the full block');
   }
   checkAlgorithmLeft();
   const algorithmBox=doc.querySelector('.ps-algorithm'), caption=algorithmBox.querySelector('.ps-line');

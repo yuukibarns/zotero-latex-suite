@@ -6,7 +6,7 @@ import css from '../vendor/static/pseudocode.css';
 
 // Reuse the note/exporter's local KaTeX fonts; never fetch CDN styles.
 export const rendererCSS = css.replace(/^@import[^;]+;\s*/m, '') + `
-.pseudocode-diagram { font-size:1em; text-align:left; white-space:normal; width:max-content; max-width:100%; color:inherit; background:transparent; }
+.pseudocode-diagram { box-sizing:border-box; font-size:1em; text-align:left; white-space:normal; width:100%; max-width:100%; color:inherit; background:transparent; }
 .pseudocode-diagram .ps-algorithm { margin:0; border-top:1px solid; border-bottom:1px solid; padding:0.25em 0; }
 /* Upstream applies a hanging indent to captions as well as preconditions.
  * Reset just the caption; retain indentation and numbering inside the body. */
