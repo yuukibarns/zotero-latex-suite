@@ -25,7 +25,7 @@ assert.equal(concealRanges(String.raw`\operatorname{Rescale}`)[0].className,'rom
 for(const [source,expected] of [
  [String.raw`\boldsymbol{P}^{\mathrm{blk}}`,['P','blk']],
  [String.raw`\mathbf{AB}+\mathrm{foo}+\underline{x}`,['AB','foo','x']],
- [String.raw`\mathbb{R}\mathcal{F}\mathfrak{g}`,['ℝ','F','𝔤']],
+ [String.raw`\mathbb{E}\mathbb{R}\mathcal{F}\mathfrak{g}`,['E','R','F','𝔤']],
  [String.raw`\Rightarrow\implies\Leftarrow\impliedby\Leftrightarrow\iff`,['⇒','⟹','⇐','⟸','⇔','⟺']],
  [String.raw`\hat{\beta}+\vec{x}`,['β']],
  [String.raw`\frac{1}{2}+\dfrac{a}{b}`,[]],
@@ -58,7 +58,7 @@ for(const [from,to] of [[2,2],[4,4],[8,8],[0,9],[3,7]]) assert.equal(concealDeco
 assert.equal(concealDecorations(concealed,0,0).length,2);
 
 const pieces = source => latexTokens(source).map(t => [source.slice(t.from,t.to),t.kind]);
-for(const [command,font] of [['mathcal','Caligraphic-Regular'],['mathscr','Script-Regular']]) {
+for(const [command,font] of [['mathbb','AMS-Regular'],['mathcal','Caligraphic-Regular'],['mathscr','Script-Regular']]) {
  const source='\\'+command+'{ABCDEFGHIJKLMNOPQRSTUVWXYZ}';
  const ranges=concealRanges(source);
  assert.equal(ranges[0].symbol,'ABCDEFGHIJKLMNOPQRSTUVWXYZ');

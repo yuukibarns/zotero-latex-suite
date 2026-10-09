@@ -35,5 +35,6 @@ choices, not a reproduction of KaTeX's full typesetting/font-selection logic.
 
 Local semantic corrections follow bundled KaTeX: implies/impliedby/iff use
 long arrows. mathcal and mathscr retain ASCII uppercase letters with explicit
-Caligraphic-Regular and Script-Regular fonts respectively; unsupported arguments
+Caligraphic-Regular and Script-Regular fonts respectively. mathbb likewise uses
+ASCII uppercase letters in AMS-Regular rather than Unicode fallback glyphs; unsupported arguments
 remain visible. Font identity participates in the decoration cache key.

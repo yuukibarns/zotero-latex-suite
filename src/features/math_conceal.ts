@@ -7,8 +7,8 @@ type Range = { from:number; to:number; symbol:string; font?:string; className?:s
 // KaTeX's implication macros use the long arrows, unlike Rightarrow/Leftarrow.
 const symbols = { ...maps.cmd_symbols, ...maps.greek, ...maps.brackets, implies:'⟹', impliedby:'⟸', iff:'⟺' };
 const styles: Record<string,string> = { mathbf:'bold', boldsymbol:'bold', mathrm:'roman', underline:'underline', operatorname:'roman', 'operatorname*':'roman', text:'text' };
-const alphabets: Record<string,Record<string,string>> = { mathbb:maps.mathbb, mathfrak:maps.mathfrak };
-const alphabetFonts: Record<string,string> = { mathcal:'Caligraphic-Regular', mathscr:'Script-Regular' };
+const alphabets: Record<string,Record<string,string>> = { mathfrak:maps.mathfrak };
+const alphabetFonts: Record<string,string> = { mathbb:'AMS-Regular', mathcal:'Caligraphic-Regular', mathscr:'Script-Regular' };
 
 /** Upstream-backed rules, with UTF-16 offsets and conservative argument parsing.
  * Compound replacements reveal together, including their nested replacements. */
