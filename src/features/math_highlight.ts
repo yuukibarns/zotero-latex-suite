@@ -38,44 +38,60 @@ math-inline.math-node .math-src .ProseMirror{white-space:break-spaces}
 .math-node .ls-conceal-symbol.ls-conceal-sub::after{font-size:calc(var(--ls-conceal-font-size)*0.8);vertical-align:calc(var(--ls-conceal-font-size)*-0.2)}
 `;
 	doc.head.append(style);
-	const attached = new Map<any, { original: any; provider: any; oldSize: string; oldColor: string }>();
+	const attached = new Map<any, { original: any; provider: any; oldSize: string; oldColor: string; composition: () => void }>();
+	const resize = conceal && (win as any).ResizeObserver ? new (win as any).ResizeObserver(() => schedule()) : null;
+	const theme = conceal ? win.matchMedia?.('(prefers-color-scheme: dark)') : null;
 	let frame = 0, stopped = false;
+	const compositionUpdates = new Set<any>();
 	function detach(view: any) {
 		const entry = attached.get(view);
 		if (!entry) return;
 		// Do not overwrite another extension's later direct-prop replacement.
 		if (!view.isDestroyed && view.props.decorations === entry.provider) view.setProps({ decorations: entry.original });
 		if (conceal) {
+			resize?.unobserve(view.dom);
+			view.dom.removeEventListener('compositionstart', entry.composition);
+			view.dom.removeEventListener('compositionend', entry.composition);
 			if (entry.oldSize) view.dom.style.setProperty('--ls-conceal-font-size', entry.oldSize);
 			else view.dom.style.removeProperty('--ls-conceal-font-size');
 			if (entry.oldColor) view.dom.style.setProperty('--ls-conceal-text-color', entry.oldColor);
 			else view.dom.style.removeProperty('--ls-conceal-text-color');
 		}
 		attached.delete(view);
+		compositionUpdates.delete(view);
 	}
 	function scan() {
 		frame = 0;
 		if (stopped) return;
 		for (const view of attached.keys()) if (view.isDestroyed || !view.dom.isConnected) detach(view);
+		if (conceal) for (const view of attached.keys()) syncMetrics(view);
+		for (const view of compositionUpdates) {
+			const entry = attached.get(view);
+			if (entry && view.props.decorations === entry.provider) view.setProps({decorations:entry.provider});
+		}
+		compositionUpdates.clear();
 		const views = Array.from(doc.querySelectorAll(".math-node")).map(el => (el as any).pmViewDesc?.spec?._innerView).filter(view => view?.props && typeof view.setProps === "function" && !view.isDestroyed);
 		for (const view of views) {
 			if (!view?.props || typeof view.setProps !== "function" || view.isDestroyed || attached.has(view)) continue;
 			const original = view.props.decorations;
 			const oldSize = view.dom.style.getPropertyValue('--ls-conceal-font-size');
 			const oldColor = view.dom.style.getPropertyValue('--ls-conceal-text-color');
-			if (conceal) view.dom.style.setProperty('--ls-conceal-font-size', win.getComputedStyle(view.dom).fontSize);
+			if (conceal) syncMetrics(view);
 			let ranges: ReturnType<typeof concealRanges> = [];
 			let cachedDoc: any, cached: DecorationSet;
 			let pairIndex: Map<number, MathDelimiter>;
 			let active: MathDelimiter | undefined, displayed: DecorationSet | null = null;
+			let lastBase: DecorationSet | null = null, lastResult: DecorationSet | null = null;
+			let lastFrom = -1, lastTo = -1, lastComposing = false;
+			let lastConceal: Decoration[] = [];
 			const provider = (state: any) => {
-				if (conceal) view.dom.style.setProperty('--ls-conceal-text-color', win.getComputedStyle(view.dom).color);
 				if (cachedDoc !== state.doc) {
 					cachedDoc = state.doc;
 					const source = state.doc.textContent, tokens = latexTokens(source);
 					ranges = conceal ? concealRanges(source) : [];
 					pairIndex = mathDelimiterIndex(source, tokens);
 					active = undefined;displayed = null;
+					lastResult = null;
 					cached = DecorationSet.create(state.doc, (highlight ? tokens : []).map(token =>
 						Decoration.inline(token.from, token.to, { class: token.kind === "command" && /^\\(?:left|middle|right)$/.test(source.slice(token.from, token.to)) ? "ls-tex-command ls-tex-boundary" : `ls-tex-${token.kind}` })));
 				}
@@ -85,17 +101,39 @@ math-inline.math-node .math-src .ProseMirror{white-space:break-spaces}
 					displayed = match ? cached.add(state.doc, (match.partners || [match.range]).map(range => Decoration.inline(range.from, range.to, { class: match.partners ? "ls-tex-match" : "ls-tex-unmatched" }))) : cached;
 				}
 				const previous = original?.(state);
-				const result = conceal && !view.composing ? displayed.add(state.doc, concealDecorations(ranges, state.selection.from, state.selection.to)) : displayed;
+				const composing = !!view.composing;
+				if (!lastResult || lastBase !== displayed || lastFrom !== state.selection.from || lastTo !== state.selection.to || lastComposing !== composing) {
+					const next = conceal && !composing ? concealDecorations(ranges, state.selection.from, state.selection.to) : [];
+					// Like upstream, retain parsed specs on selection-only updates.
+					// Also retain the set when moving inside the same reveal region.
+					if (!lastResult || lastBase !== displayed || next.length !== lastConceal.length || next.some((d,i) => d.from !== lastConceal[i].from || d.to !== lastConceal[i].to || d.spec.concealKey !== lastConceal[i].spec.concealKey))
+						lastResult = next.length ? displayed.add(state.doc,next) : displayed;
+					lastConceal = next;lastBase = displayed;
+					lastFrom = state.selection.from;lastTo = state.selection.to;lastComposing = composing;
+				}
+				const result = lastResult;
 				return previous ? DecorationSet.create(state.doc, [...previous.find(), ...result.find()]) : result;
 			};
-			attached.set(view, { original, provider, oldSize, oldColor });
+			const composition = () => { compositionUpdates.add(view); schedule(); };
+			attached.set(view, { original, provider, oldSize, oldColor, composition });
+			if (conceal) {
+				resize?.observe(view.dom);
+				view.dom.addEventListener('compositionstart', composition);
+				view.dom.addEventListener('compositionend', composition);
+			}
 			view.setProps({ decorations: provider });
 		}
+	}
+	function syncMetrics(view: any) {
+		const computed = win.getComputedStyle(view.dom);
+		for (const [name,value] of [['--ls-conceal-font-size',computed.fontSize],['--ls-conceal-text-color',computed.color]])
+			if (view.dom.style.getPropertyValue(name) !== value) view.dom.style.setProperty(name,value);
 	}
 	function schedule() { if (!stopped && !frame) frame = win.requestAnimationFrame(scan); }
 	// Token spans and preview updates do not create editors. Only rescan for
 	// editor/node insertion or teardown, not every decoration DOM mutation.
 	const observer = new (win as any).MutationObserver((records: MutationRecord[]) => {
+		if (conceal && records.some(r => r.type === 'attributes' && [...attached.keys()].some(view => (r.target as Element).contains(view.dom)))) { schedule();return; }
 		for (const view of attached.keys()) if (view.isDestroyed || !view.dom.isConnected) { schedule();return; }
 		for (const record of records) for (const node of Array.from(record.addedNodes)) {
 			if (node.nodeType !== 1) continue;
@@ -103,7 +141,8 @@ math-inline.math-node .math-src .ProseMirror{white-space:break-spaces}
 			if (element.matches(".math-node,.math-src,.ProseMirror") || element.querySelector(".math-node,.math-src,.ProseMirror")) { schedule();return; }
 		}
 	});
-	observer.observe(doc.body, { childList: true, subtree: true });
+	observer.observe(doc.documentElement, { childList: true, subtree: true, ...(conceal ? {attributes:true,attributeFilter:['class','style']} : {}) });
+	theme?.addEventListener('change', schedule);
 	doc.addEventListener("focusin", schedule);
 	win.addEventListener("unload", stop);
 	schedule();
@@ -111,6 +150,8 @@ math-inline.math-node .math-src .ProseMirror{white-space:break-spaces}
 		if (stopped) return;
 		stopped = true;
 		observer.disconnect();
+		resize?.disconnect();
+		theme?.removeEventListener('change', schedule);
 		if (frame) win.cancelAnimationFrame(frame);
 		doc.removeEventListener("focusin", schedule);
 		win.removeEventListener("unload", stop);

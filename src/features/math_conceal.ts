@@ -98,7 +98,7 @@ export function concealDecorations(ranges: Range[], from: number, to: number) {
  })
   .filter(r=>r.to>r.from).flatMap(r => {
    const style=r.className?' ls-conceal-'+r.className:'';
-   const options={inclusiveStart:false,inclusiveEnd:false};
+   const options={inclusiveStart:false,inclusiveEnd:false,concealKey:JSON.stringify([r.styleOnly,r.className,r.symbol])};
    const hidden=Decoration.inline(r.from,r.to,{class:(r.styleOnly?'ls-conceal-style':'ls-tex-concealed')+style},options);
    // ProseMirror splits inline decorations at every overlapping highlight.
    // Attach replacement content only to the first source code unit (ASCII
