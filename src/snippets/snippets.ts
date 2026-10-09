@@ -14,7 +14,7 @@ export const VISUAL_SNIPPET_MAGIC_SELECTION_PLACEHOLDER = "${VISUAL}";
 export type SnippetType = "visual" | "regex" | "string";
 
 /** The unstable handle handed to replacement functions. */
-export type SnippetReplacementApi = { _view: unknown; _buffer: unknown };
+export type SnippetReplacementApi = { _view: unknown; _buffer: unknown; algorithmText?: boolean };
 
 function convertOutputToNode(rawReplacement: unknown): ArrayNode | null {
 	if (rawReplacement === false) return null;

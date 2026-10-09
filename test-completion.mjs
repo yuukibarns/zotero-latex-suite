@@ -9,6 +9,21 @@ import * as ls from './build/test-exports.mjs';
 import { mathView, winFor } from './test-editor.mjs';
 
 const commands = ls.parseCommands(['\\alpha', '\\Alpha', '\\varalpha', '\\frac{#}{#}']);
+for(const [prefix, expected] of [
+ ['\\begin{algorithmic}\n\\STATE ', '$$'],
+ ['\\begin{algorithm}\n\\caption{', '$$'],
+ ['\\text{', '\\(\\)'],
+]) {
+ ls.clearTabstops();
+ const settings=ls.processSettings(ls.DEFAULT_SETTINGS), view=mathView(prefix+'m');
+ const buffer=()=>ls.PMBuffer.forMath(view,'math_display');
+ assert(ls.runSnippets(winFor(view),{snippets:settings.snippets.filter(s=>s.options.automatic),key:'k'},settings,buffer()));
+ assert.equal(view.state.doc.textContent,prefix+expected);
+ assert.equal(view.state.selection.from,prefix.length+(expected==='$$'?1:2));
+ assert(ls.setSelectionToNextTabstop(buffer(),false));
+ assert.equal(view.state.selection.from,prefix.length+expected.length);
+ ls.clearTabstops();
+}
 for (const environment of ['algorithm','algorithmic']) {
  const prefix='\\begin{'+environment+'}\n\\STATE ';
  const context = text => ls.Context.fromBuffer(ls.PMBuffer.forMath(mathView(text),'math_display'));

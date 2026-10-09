@@ -73,7 +73,7 @@ function runSnippetCursor(
 	const effectiveLine = line + key;
 
 	const scopes = ctx.getEnvNames();
-	const api = { _view: buffer.owner, _buffer: buffer };
+	const api = { _view: buffer.owner, _buffer: buffer, algorithmText: ctx.algorithmText };
 
 	for (const snippet of snippetInfo.snippets) {
 		const inIncludedScope = snippet.isWithinIncludedScope(scopes);
