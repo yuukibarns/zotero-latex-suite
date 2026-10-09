@@ -45,5 +45,7 @@ by source (128 entries, 512 characters and 8 brace levels per expression), with
 an allowed-command check, trust disabled, and bounded macro expansion. Script
 groups containing these accents render at normal KaTeX style inside the existing
 80%/vertical-offset wrapper, without applying script style a second time.
+Both normal and script accent widgets include the same 1.2 font enlargement
+as other KaTeX conceal glyphs (script size is 1.2 × 0.8 of the editor size).
 Noneditable decorations reveal the original source when selected or clicked.
 Malformed/unsupported forms stay visible; fractions are not flattened.
