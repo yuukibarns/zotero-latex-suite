@@ -13,6 +13,13 @@ assert.deepEqual(concealRanges(String.raw`\verb|\alpha| + \beta`).map(r=>r.symbo
 assert.deepEqual(concealRanges(String.raw`\begin{algorithm}\caption{\alpha}\STATE prose \beta $\gamma\gets x$\end{algorithm}`).map(r=>r.symbol),['γ','←']);
 assert.deepEqual(concealRanges(String.raw`\begin{tikzcd}\alpha\end{tikzcd}`),[]);
 const concealed=concealRanges(String.raw`x+\alpha+y`);
+for(const source of [String.raw`\left(`,String.raw`\right\}`,String.raw`\middle|`,String.raw`\left.`]) {
+ const ranges=concealRanges(source);
+ assert.equal(ranges[0].className,'boundary');
+ const decos=concealDecorations(ranges,source.length+1,source.length+1);
+ if(ranges[0].symbol) assert(decos.some(d=>d.type.attrs.class.includes('ls-conceal-boundary')));
+ for(let p=0;p<=source.length;p++) assert.equal(concealDecorations(ranges,p,p).length,0);
+}
 {
  const source=String.raw`x_{i=1+\alpha}^{2}`;
  const ranges=concealRanges(source);

@@ -92,9 +92,9 @@ export function concealRanges(source: string): Range[] {
   }
   if(name==='left' || name==='right' || name==='middle') {
    const p=skipSpace(t.to), next=byStart.get(p);
-   const end=next?.kind==='command'?next.to:p+1, value=source.slice(p,end);
-   const symbol=maps.leftrightBrackets[value] ?? (value.startsWith('\\') ? maps.brackets[value.slice(1)] : '()[]|'.includes(value) && value ? value : undefined);
-   if(symbol!==undefined) add(end,symbol);
+   const end=next && (next.kind==='command' || next.kind==='escape')?next.to:p+1, value=source.slice(p,end);
+   const symbol=maps.leftrightBrackets[value] ?? (value==='\\{' || value==='\\}' ? value.slice(1) : value.startsWith('\\') ? maps.brackets[value.slice(1)] : '()[]|'.includes(value) && value ? value : undefined);
+   if(symbol!==undefined) add(end,symbol,'boundary',(symbolFonts as Record<string,string>)[symbol]);
    continue;
   }
   if(name==='not') {

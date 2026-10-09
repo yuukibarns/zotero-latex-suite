@@ -205,6 +205,12 @@ C \arrow[r,"k"'] & D
     check(colorOf('.ls-conceal-script-number')===frame.getComputedStyle([...root.querySelectorAll('.ls-tex-number')].at(-1)).color,type+' script digit retains number color');
     check(colorOf('.ls-conceal-script-text')===frame.getComputedStyle(root).color,type+' script variable retains plain text color');
     check(colorOf('.ls-conceal-script-operator')===frame.getComputedStyle([...root.querySelectorAll('.ls-tex-operator')].at(-1)).color,type+' script operator retains operator color');
+    const delimiters=String.raw`\left( x \middle| y \right) + z`;
+    inject(`cv.dispatch(cv.state.tr.insertText(${JSON.stringify(delimiters)},0,cv.state.doc.content.size));`);
+    const boundaryColor=frame.getComputedStyle(root.querySelector('.ls-tex-boundary')).color;
+    const concealedBounds=[...root.querySelectorAll('.ls-conceal-symbol.ls-conceal-boundary')];
+    check(concealedBounds.length===3,type+' all scalable delimiters concealed');
+    check(concealedBounds.every(el=>frame.getComputedStyle(el,'::after').color===boundaryColor),type+' concealed delimiters retain boundary color');
     inject(`cv.dispatch(cv.state.tr.insertText('x^{n}',0,cv.state.doc.content.size));cv.dispatch(cv.state.tr.setSelection(cv.state.selection.constructor.create(cv.state.doc,4)));cv.focus();`);
     const tabEvent=new frame.KeyboardEvent('keydown',{key:'Tab',bubbles:true,cancelable:true});
     root.dispatchEvent(tabEvent);

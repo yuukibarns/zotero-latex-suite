@@ -17,6 +17,7 @@ math-inline.math-node .math-src .ProseMirror{white-space:break-spaces}
 .math-node{--ls-conceal-command-color:${highlight ? 'light-dark(#0957b4,#8ab4f8)' : 'var(--ls-conceal-text-color)'};--ls-conceal-script-color:${highlight ? 'light-dark(#8a2578,#dca1d6)' : 'var(--ls-conceal-text-color)'}}
 .math-node .ls-tex-command{color:var(--ls-conceal-command-color)}
 .math-node .ls-tex-boundary{color:light-dark(#a3264c,#ff8fac)}
+.math-node .ls-conceal-symbol.ls-conceal-boundary::after{color:${highlight ? 'light-dark(#a3264c,#ff8fac)' : 'var(--ls-conceal-text-color)'}}
 .math-node .ls-tex-match{background:light-dark(#eadff7,#49364f);border-radius:2px;box-shadow:inset 0 -1px light-dark(#81549c,#c19acf)}
 .math-node .ls-tex-unmatched{text-decoration:underline wavy light-dark(#b3261e,#ff958d);text-underline-offset:3px}
 .math-node .ls-tex-brace{color:light-dark(#8a3700,#e9ad71)}
