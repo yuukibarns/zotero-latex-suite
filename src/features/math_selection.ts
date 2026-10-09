@@ -199,6 +199,25 @@ export function mathWordRange(source: string, pos: number): Range {
 	return { from, to: from + (source.codePointAt(from)! > 0xffff ? 2 : 1) };
 }
 
+/** Freeze the starting level for a drag, rather than expanding its parent
+ * repeatedly as the selection grows. Returns contiguous source ranges. */
+export function createMathSiblingDrag(source: string, seed: Range, words = false) {
+	const regions = mathSelectionRegions(source, true);
+	const parent = words ? {from:0,to:source.length} : regions.filter(r=>r.from<=seed.from && r.to>=seed.to && (r.from<seed.from || r.to>seed.to))
+		.sort((a,b)=>(a.to-a.from)-(b.to-b.from))[0] ?? {from:0,to:source.length};
+	const siblings = regions.filter(r=>r.from>=parent.from && r.to<=parent.to && (r.from!==parent.from || r.to!==parent.to))
+		.sort((a,b)=>(b.to-b.from)-(a.to-a.from));
+	return (position:number) => {
+		const head=Math.max(parent.from,Math.min(parent.to,position));
+		if(head>=seed.from && head<=seed.to) return {anchor:seed.from,head:seed.to};
+		const probe=head>seed.to ? Math.max(parent.from,head-1) : head;
+		const item=(!words && siblings.find(r=>r.from<=probe && probe<r.to)) || mathWordRange(source,probe);
+		return head<seed.from
+			? {anchor:seed.to,head:Math.max(parent.from,Math.min(head,item.from))}
+			: {anchor:seed.from,head:Math.min(parent.to,Math.max(head,item.to))};
+	};
+}
+
 /** Extend only across adjacent, matched syntax braces whose other side is
  * already selected. Keep glyph-only selections and ordinary caret hits exact. */
 export function createMathDragSelection() {
@@ -247,7 +266,7 @@ export function normalizeMathClickTimeout(value: unknown): number {
 export function installMathMouseSelection(win: Window, onSelect: () => void = () => {}, timeout: () => number = () => 1000) {
 	const doc = win.document;
 	let expand = createMathSelection(), composing = false, stopped = false;
-	let series: { view: any; source: string; x: number; y: number; time: number; count: number; selected?: Range; anchor: number; down: boolean; released?: number } | undefined;
+	let series: { view: any; source: string; x: number; y: number; time: number; count: number; selected?: Range; anchor: number; down: boolean; released?: number; extend?: ReturnType<typeof createMathSiblingDrag> } | undefined;
 	let gesture: typeof series;
 	let lastClick: { gesture: NonNullable<typeof series>; time: number; x: number; y: number; detail: number } | undefined;
 	function reset() { expand = createMathSelection();series = undefined;gesture = undefined;lastClick = undefined; }
@@ -285,6 +304,7 @@ export function installMathMouseSelection(win: Window, onSelect: () => void = ()
 			expand(PMBuffer.forMath(view, kind), false, false, true);
 		}
 		series.selected = { from: view.state.selection.from, to: view.state.selection.to };
+		if(count>1) series.extend=createMathSiblingDrag(source,series.selected,count===2);
 		gesture = series;
 		view.focus();onSelect();
 	}
@@ -322,14 +342,15 @@ export function installMathMouseSelection(win: Window, onSelect: () => void = ()
 		}
 	}
 	function mousemove(event: MouseEvent) {
-		if (!gesture?.down || gesture.count !== 1 || composing || !(event.buttons & 1)) return;
+		if (!gesture?.down || composing || !(event.buttons & 1)) return;
 		const { view, source, anchor } = gesture;
 		if (view.isDestroyed || view.state.doc.textContent !== source) { reset();return; }
 		const end = position(view, event);
 		if (end === null) { reset();return; }
 		const kind = view.dom.closest("math-display") ? "math_display" : "math_inline";
-		PMBuffer.forMath(view, kind).setSelection(anchor, end);
-		gesture.selected = { from: anchor, to: end };
+		const selection=gesture.extend?.(end) ?? {anchor,head:end};
+		PMBuffer.forMath(view, kind).setSelection(selection.anchor, selection.head);
+		gesture.selected = { from: selection.anchor, to: selection.head };
 		gesture.x = event.clientX;gesture.y = event.clientY;
 		// A drag is not the start of a subsequent multi-click expansion series.
 		if (end !== anchor) series = undefined;

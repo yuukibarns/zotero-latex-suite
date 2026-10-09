@@ -266,5 +266,23 @@ for(const tag of ['math-inline','math-display'])for(const value of ['a+b+c','\\f
  const before=math._innerView.state.selection.head;clickGlyph('b');assert.equal(math._innerView.state.selection.head,before);
  stop();host.remove();
 }
+for(const tag of ['math-inline','math-display']) {
+ const value='(a)+(b)+(c)';
+ const host=doc.createElement(tag);host.className='math-node';host.pmViewDesc={spec:math};host.append(source,render);doc.body.append(host);
+ math._innerView={dom:source,state:EditorState.create({schema,doc:schema.node('doc',null,schema.text(value))}),dispatch(tr){this.state=this.state.apply(tr);},focus(){source.focus();}};
+ source.focus();stop=installMathPreview(win,0);await step();
+ const leaf=letter=>[...popup().querySelectorAll('.katex-html span')].find(el=>el.textContent===letter&&!el.children.length);
+ const mouse=(type,letter)=>leaf(letter).dispatchEvent(new win.MouseEvent(type,{bubbles:true,cancelable:true,buttons:type==='mouseup'?0:1,clientX:letter==='a'?8:18,clientY:10}));
+ clickGlyph('a');clickGlyph('a');
+ mouse('mousedown','a');
+ assert.deepEqual([math._innerView.state.selection.from,math._innerView.state.selection.to],[0,3],'third press selects initial group');
+ mouse('mousemove','b');
+ assert.deepEqual([math._innerView.state.selection.anchor,math._innerView.state.selection.head],[0,7],'preview drag extends over sibling group');
+ mouse('mousemove','a');
+ assert.deepEqual([math._innerView.state.selection.anchor,math._innerView.state.selection.head],[0,3],'preview drag shrinks to original seed');
+ mouse('mousemove','c');mouse('mouseup','c');mouse('click','c');
+ assert.deepEqual([math._innerView.state.selection.from,math._innerView.state.selection.to],[0,11],'release preserves sibling range');
+ stop();host.remove();
+}
 dom.window.close();
 console.log('Preview debounce, retention, positioning events, IME and cleanup tests passed.');

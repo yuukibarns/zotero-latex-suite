@@ -2,7 +2,21 @@ import assert from 'node:assert/strict';
 import {JSDOM} from 'jsdom';
 import {Schema} from 'prosemirror-model';
 import {EditorState} from 'prosemirror-state';
-import {mathSelectionRegions,createMathSelection,createMathDragSelection,installMathMouseSelection,normalizeMathClickTimeout} from './build/test-exports.mjs';
+import {mathSelectionRegions,createMathSelection,createMathDragSelection,createMathSiblingDrag,installMathMouseSelection,normalizeMathClickTimeout} from './build/test-exports.mjs';
+{
+ const source=String.raw`z+\frac{a}{b}+\frac{c+d}{e}+w`;
+ const start=source.indexOf('\\frac'),end=source.indexOf('+\\frac',start+1);
+ const extend=createMathSiblingDrag(source,{from:start,to:end});
+ const secondEnd=source.lastIndexOf('+w');
+ assert.deepEqual(extend(source.indexOf('c+d')+1),{anchor:start,head:secondEnd},'drag includes complete sibling fraction, not parent');
+ assert.deepEqual(extend(start+2),{anchor:start,head:end},'return to seed shrinks back');
+ assert.deepEqual(extend(0),{anchor:end,head:0},'reverse drag keeps original far edge');
+ const nested=String.raw`\frac{(a)+(b)+(c)}{d}`;
+ const a=nested.indexOf('(a)'),b=nested.indexOf('(b)');
+ const inside=createMathSiblingDrag(nested,{from:a,to:a+3});
+ assert.deepEqual(inside(b+2),{anchor:a,head:b+3},'same-level bracket groups');
+ assert.equal(inside(nested.length).head,nested.indexOf('}{'),'drag stays in starting parent');
+}
 const dragBounds=createMathDragSelection();
 for(const [source,from,to,expectedFrom,expectedTo] of [
  [String.raw`p_{t} = \alpha_{t} p_{0} + (1 - \alpha_{t}) \pi_{t}`,6,50,6,51],
@@ -180,6 +194,21 @@ mouse('mousedown',1,6);mouse('mousemove',1,0);mouse('mouseup',1,0);
 assert.deepEqual([view.state.selection.anchor,view.state.selection.head],[6,0],'backward drag direction preserved');
 assert.equal(mouse('mousedown',3,0,win.document.querySelector('p')).defaultPrevented,false,'ordinary notes untouched');
 stopMouse();assert.equal(mouse('mousedown',1).defaultPrevented,false,'cleanup removes custom handlers');
+{
+ const before=view.state;
+ view.state=EditorState.create({schema,doc:schema.node('doc',null,schema.text('(abc)+(def)+(ghi)'))});
+ const stop=installMathMouseSelection(win);
+ mouseTime+=2000;mouse('mousedown',1,2);mouse('mouseup',1,2);
+ mouse('mousedown',2,2);mouse('mousemove',2,8);mouse('mouseup',2,8);mouse('click',2,8);
+ assert.deepEqual([view.state.selection.from,view.state.selection.to],[1,10],'double-click drag extends by words and survives release');
+ win.document.dispatchEvent(new win.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+ mouseTime+=2000;mouse('mousedown',1,2);mouse('mouseup',1,2);mouse('mousedown',2,2);mouse('mouseup',2,2);
+ mouse('mousedown',3,2);mouse('mousemove',3,8);
+ assert.deepEqual([view.state.selection.from,view.state.selection.to],[0,11],'structural drag extends across sibling groups');
+ mouse('mousemove',3,2);mouse('mouseup',3,2);
+ assert.deepEqual([view.state.selection.from,view.state.selection.to],[0,5],'structural drag can shrink to seed');
+ stop();view.state=before;
+}
 let timeout=1800;
 const stopTimed=installMathMouseSelection(win,()=>{},()=>timeout);
 mouseTime=100;mouse('mousedown',1);mouse('mouseup',1);

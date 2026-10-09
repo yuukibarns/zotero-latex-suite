@@ -1,7 +1,7 @@
 import { previewMarkerColor, renderPreviewMarker } from "./preview_marker";
 import { createMathSourceMap, mathCaretAt, mathSelectionRects } from "./math_caret";
 import { PMBuffer, rememberSelectionClass } from "../editor/pm";
-import { createMathDragSelection, createMathSelection, mathWordRange, normalizeMathClickTimeout } from "./math_selection";
+import { createMathDragSelection, createMathSiblingDrag, createMathSelection, mathWordRange, normalizeMathClickTimeout } from "./math_selection";
 
 /** View-only previews using the renderer already owned by Zotero's MathView. */
 export function installMathPreview(win: Window, debounceMs = 100, inlineEnabled = true, displayEnabled = true, marker: { color?: unknown; blink?: boolean; clickTimeout?: number } = {}) {
@@ -47,7 +47,7 @@ export function installMathPreview(win: Window, debounceMs = 100, inlineEnabled 
 	const expandSelection = createMathSelection();
 	const dragBoundaries = createMathDragSelection();
 	let clicks: { owner: any; source: string; x: number; y: number; time: number; count: number; anchor: number; from: number; to: number } | null = null;
-	let drag: { source: string; owner: any; anchor: number; x: number; y: number; moved: boolean } | null = null;
+	let drag: { source: string; owner: any; anchor: number; x: number; y: number; moved: boolean; extend?: ReturnType<typeof createMathSiblingDrag> } | null = null;
 	function paintSelection() {
 		selectionLayer.replaceChildren();
 		const view = owner?._innerView, sel = view?.state.selection, html = output.querySelector(".katex-html");
@@ -74,7 +74,7 @@ export function installMathPreview(win: Window, debounceMs = 100, inlineEnabled 
 		const map = getMap(html, drag.source, owner._katexOptions);
 		const head = map ? mathCaretAt(html, map, target, e.clientX, e.clientY) : null;
 		if (head === null) return;
-		const selected = dragBoundaries(drag.source, drag.anchor, head);
+		const selected = drag.extend?.(head) ?? dragBoundaries(drag.source, drag.anchor, head);
 		if (view.state.selection.anchor === selected.anchor && view.state.selection.head === selected.head) return;
 		rememberSelectionClass(view);
 		PMBuffer.forMath(view, ownerNode.localName === "math-inline" ? "math_inline" : "math_display").setSelection(selected.anchor, selected.head);
@@ -231,6 +231,14 @@ export function installMathPreview(win: Window, debounceMs = 100, inlineEnabled 
 				const html = (e.target as Element).closest(".katex-html")!, map = getMap(html, lastText!, owner._katexOptions);
 				const anchor = map ? mathCaretAt(html, map, e.target as Element, mouse.clientX, mouse.clientY) : null;
 				if (anchor !== null) drag = { ...press, anchor, moved: false };
+				// Establish the multi-click selection on press so this same gesture
+				// can extend it. Consuming press prevents a second expansion on click.
+				if(drag && clicks && clicks.owner===owner && clicks.source===lastText
+					&& mouse.timeStamp>=clicks.time && mouse.timeStamp-clicks.time<normalizeMathClickTimeout(marker.clickTimeout)
+					&& Math.abs(mouse.clientX-clicks.x)<=5 && Math.abs(mouse.clientY-clicks.y)<=5) {
+					placeCaret(mouse);
+					if(clicks && clicks.count>1) drag.extend=createMathSiblingDrag(drag.source,{from:clicks.from,to:clicks.to},clicks.count===2);
+				}
 			}
 		}
 		if (e.type === "mouseup") { if (drag?.moved) press = null; drag = null; }
