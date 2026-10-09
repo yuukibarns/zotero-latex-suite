@@ -27,13 +27,21 @@ export async function renderPseudocode(container, source, { signal } = {}) {
   signal?.throwIfAborted();
   if (source.length > 20000 || (source.match(/\\[a-zA-Z]+|[{}]/g) || []).length > 1000)
     throw new Error('Algorithm is too large (20,000 characters / 1,000 commands and braces maximum).');
-  const renderer = new Renderer(new Parser(new Lexer(source)), { lineNumber:true, captionCount:0, commentDelimiter:'▷ ' });
+  const renderer = new Renderer(new Parser(new Lexer(source)), { lineNumber:true, captionCount:0, commentDelimiter:'' });
   renderer.backend = { name:'katex', driver:{ renderToString(text) {
     return katex.renderToString(text, { trust:false, maxExpand:500, maxSize:20, macros:{} });
   } } };
   const element = container.ownerDocument.createElement('div');
   element.className = 'pseudocode-diagram';
   element.innerHTML = renderer.toMarkup();
+  // algorithmicx's default: \hfill\(\triangleright\) followed by a text space.
+  // Typeset the marker as math, rather than using the text font's Unicode glyph.
+  for (const comment of element.querySelectorAll('.ps-comment')) {
+    const marker = container.ownerDocument.createElement('span');
+    marker.className = 'ps-comment-marker';
+    marker.innerHTML = renderer.backend.driver.renderToString('\\triangleright');
+    comment.prepend(marker, container.ownerDocument.createTextNode(' '));
+  }
   // Preserve upstream inline typesetting within the statement. Only the
   // trailing comments form a separate, right-aligned, wrapping layout item.
   for (const line of element.querySelectorAll('.ps-code')) {

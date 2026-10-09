@@ -37,6 +37,14 @@ for (const body of [
  result.dispose();
 }
 await assert.rejects(renderPseudocode(host,'x'.repeat(20001)),/too large/);
+const commentTest = await renderPseudocode(host, String.raw`\begin{algorithmic}\STATE $x$\COMMENT{Compare $y$}\end{algorithmic}`);
+const comment = commentTest.element.querySelector('.ps-comment');
+assert(comment.closest('.ps-comments'), 'Comment retains right-aligned container');
+assert.equal(comment.querySelectorAll('.ps-comment-marker').length, 1);
+assert.equal(comment.querySelector('.ps-comment-marker annotation').textContent, String.raw`\triangleright`);
+assert.equal(comment.querySelectorAll('.katex').length, 2, 'Math marker and comment math both render');
+assert(comment.textContent.includes('Compare'));
+commentTest.dispose();
 await assert.rejects(renderPseudocode(host,String.raw`\begin{algorithmic}\IF{x}`));
 const controller = new AbortController();controller.abort();
 await assert.rejects(renderPseudocode(host,source,{signal:controller.signal}),{name:'AbortError'});
