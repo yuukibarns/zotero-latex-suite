@@ -4,7 +4,7 @@ import * as maps from '../conceal/maps';
 
 type Range = { from:number; to:number; symbol:string; className?:string; revealFrom?:number; revealTo?:number; styleOnly?:boolean };
 const symbols = { ...maps.cmd_symbols, ...maps.greek, ...maps.brackets };
-const styles: Record<string,string> = { mathbf:'bold', boldsymbol:'bold', mathrm:'roman', underline:'underline', operatorname:'roman', 'operatorname*':'roman', text:'roman' };
+const styles: Record<string,string> = { mathbf:'bold', boldsymbol:'bold', mathrm:'roman', underline:'underline', operatorname:'roman', 'operatorname*':'roman', text:'text' };
 const alphabets: Record<string,Record<string,string>> = { mathbb:maps.mathbb, mathcal:maps.mathscrcal, mathscr:maps.mathscrcal, mathfrak:maps.mathfrak };
 
 /** Upstream-backed rules, with UTF-16 offsets and conservative argument parsing.

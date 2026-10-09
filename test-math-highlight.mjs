@@ -12,6 +12,8 @@ assert.deepEqual(concealRanges(String.raw`\verb|\alpha| + \beta`).map(r=>r.symbo
 assert.deepEqual(concealRanges(String.raw`\begin{algorithm}\caption{\alpha}\STATE prose \beta $\gamma\gets x$\end{algorithm}`).map(r=>r.symbol),['γ','←']);
 assert.deepEqual(concealRanges(String.raw`\begin{tikzcd}\alpha\end{tikzcd}`),[]);
 const concealed=concealRanges(String.raw`x+\alpha+y`);
+assert.equal(concealRanges(String.raw`\text{Rescale}`)[0].className,'text','Text conceal keeps its semantic color');
+assert.equal(concealRanges(String.raw`\operatorname{Rescale}`)[0].className,'roman','Operators remain distinct from prose');
 for(const [source,expected] of [
  [String.raw`\boldsymbol{P}^{\mathrm{blk}}`,['P','blk']],
  [String.raw`\mathbf{AB}+\mathrm{foo}+\underline{x}`,['AB','foo','x']],

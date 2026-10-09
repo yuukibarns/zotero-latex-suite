@@ -30,6 +30,7 @@ math-inline.math-node .math-src .ProseMirror{white-space:break-spaces}
 .math-node .ls-conceal-symbol::after{content:attr(data-symbol);font-size:var(--ls-conceal-font-size);pointer-events:none}
 .math-node .ls-conceal-bold{font-weight:bold}
 .math-node .ls-conceal-roman{font-style:normal}
+.math-node .ls-conceal-symbol.ls-conceal-text::after{color:var(--ls-conceal-text-color);font-style:normal}
 .math-node .ls-conceal-underline{text-decoration:underline}
 /* Keyword super/sub uses the hidden parent's zero-size font metrics. Position
  * scripts with the original editor font size, like their visible glyph size. */
@@ -37,7 +38,7 @@ math-inline.math-node .math-src .ProseMirror{white-space:break-spaces}
 .math-node .ls-conceal-symbol.ls-conceal-sub::after{font-size:calc(var(--ls-conceal-font-size)*0.8);vertical-align:calc(var(--ls-conceal-font-size)*-0.2)}
 `;
 	doc.head.append(style);
-	const attached = new Map<any, { original: any; provider: any; oldSize: string }>();
+	const attached = new Map<any, { original: any; provider: any; oldSize: string; oldColor: string }>();
 	let frame = 0, stopped = false;
 	function detach(view: any) {
 		const entry = attached.get(view);
@@ -47,6 +48,8 @@ math-inline.math-node .math-src .ProseMirror{white-space:break-spaces}
 		if (conceal) {
 			if (entry.oldSize) view.dom.style.setProperty('--ls-conceal-font-size', entry.oldSize);
 			else view.dom.style.removeProperty('--ls-conceal-font-size');
+			if (entry.oldColor) view.dom.style.setProperty('--ls-conceal-text-color', entry.oldColor);
+			else view.dom.style.removeProperty('--ls-conceal-text-color');
 		}
 		attached.delete(view);
 	}
@@ -59,12 +62,14 @@ math-inline.math-node .math-src .ProseMirror{white-space:break-spaces}
 			if (!view?.props || typeof view.setProps !== "function" || view.isDestroyed || attached.has(view)) continue;
 			const original = view.props.decorations;
 			const oldSize = view.dom.style.getPropertyValue('--ls-conceal-font-size');
+			const oldColor = view.dom.style.getPropertyValue('--ls-conceal-text-color');
 			if (conceal) view.dom.style.setProperty('--ls-conceal-font-size', win.getComputedStyle(view.dom).fontSize);
 			let ranges: ReturnType<typeof concealRanges> = [];
 			let cachedDoc: any, cached: DecorationSet;
 			let pairIndex: Map<number, MathDelimiter>;
 			let active: MathDelimiter | undefined, displayed: DecorationSet | null = null;
 			const provider = (state: any) => {
+				if (conceal) view.dom.style.setProperty('--ls-conceal-text-color', win.getComputedStyle(view.dom).color);
 				if (cachedDoc !== state.doc) {
 					cachedDoc = state.doc;
 					const source = state.doc.textContent, tokens = latexTokens(source);
@@ -83,7 +88,7 @@ math-inline.math-node .math-src .ProseMirror{white-space:break-spaces}
 				const result = conceal && !view.composing ? displayed.add(state.doc, concealDecorations(ranges, state.selection.from, state.selection.to)) : displayed;
 				return previous ? DecorationSet.create(state.doc, [...previous.find(), ...result.find()]) : result;
 			};
-			attached.set(view, { original, provider, oldSize });
+			attached.set(view, { original, provider, oldSize, oldColor });
 			view.setProps({ decorations: provider });
 		}
 	}
