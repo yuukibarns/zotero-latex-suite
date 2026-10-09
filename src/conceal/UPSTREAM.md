@@ -8,8 +8,9 @@ the preserved table header. Local changes remove configuration/schema code and
 normalize TypeScript table types. No Obsidian or CodeMirror runtime is bundled.
 
 The rule adapter in ../features/math_conceal.ts follows conceal_fns.ts at the
-same revision: symbols, operators, alphabets, simple accents, formatted text,
-scripts, negation and fraction display. It uses the existing tokenizer and a
+same revision: symbols, operators, alphabets, formatted text,
+scripts and negation. Fraction and accent syntax deliberately remains visible;
+their arguments still support conceal. It uses the existing tokenizer and a
 balanced-group index rather than upstream's Lezer parser. It intentionally
 does not hide limits/style controls, incomplete groups, or multiline forms.
 Unknown content is not flattened. Compound forms reveal together. This is

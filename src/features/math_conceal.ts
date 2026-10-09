@@ -4,7 +4,6 @@ import * as maps from '../conceal/maps';
 
 type Range = { from:number; to:number; symbol:string; className?:string; revealFrom?:number; revealTo?:number; styleOnly?:boolean };
 const symbols = { ...maps.cmd_symbols, ...maps.greek, ...maps.brackets };
-const accents: Record<string,string> = { hat:'\u0302', dot:'\u0307', ddot:'\u0308', overline:'\u0304', bar:'\u0304', tilde:'\u0303', vec:'\u20d7' };
 const styles: Record<string,string> = { mathbf:'bold', boldsymbol:'bold', mathrm:'roman', underline:'underline', operatorname:'roman', 'operatorname*':'roman', text:'roman' };
 const alphabets: Record<string,Record<string,string>> = { mathbb:maps.mathbb, mathcal:maps.mathscrcal, mathscr:maps.mathscrcal, mathfrak:maps.mathfrak };
 
@@ -47,7 +46,7 @@ export function concealRanges(source: string): Range[] {
    continue;
   }
   if(t.kind!=='command') continue;
-  if(styles[name] || alphabets[name] || accents[name]) {
+  if(styles[name] || alphabets[name]) {
    const g=group(t.to);
    if(!g) { if(source[skipSpace(t.to)]==='{') consumed=source.length; continue; }
    if(/[\n\r%$]/.test(g.body)) { consumed=g.to; continue; }
@@ -56,23 +55,12 @@ export function concealRanges(source: string): Range[] {
    if(alphabets[name]) {
     const mapped=[...g.body].map(c=>alphabets[name][c]);
     if(mapped.length && mapped.every(c=>c!==undefined)) add(g.to,mapped.join(''));
-   } else if(accents[name]) {
-    if(text && [...text].length===1) add(g.to,text+accents[name]);
    } else if(text !== undefined && text.length) add(g.to,text,styles[name]);
    else if(['mathbf','boldsymbol','mathrm','underline'].includes(name) && g.body.length) {
     result.push({from:t.from,to:g.from+1,symbol:'',revealFrom:t.from,revealTo:g.to},
      {from:g.to-1,to:g.to,symbol:'',revealFrom:t.from,revealTo:g.to},
      {from:g.from+1,to:g.to-1,symbol:'',className:styles[name],styleOnly:true,revealFrom:t.from,revealTo:g.to});
    }
-   continue;
-  }
-  if(['frac','dfrac','tfrac','gfrac'].includes(name)) {
-   const a=group(t.to), b=a && group(a.to);
-   if(!a || !b || /[\n\r%$]/.test(source.slice(t.to,b.to))) { if(a) consumed=a.to; continue; }
-   const fraction=maps.fractions['{'+a.body+'}{'+b.body+'}'];
-   if(fraction) { add(b.to,fraction);continue; }
-   for(const r of [{from:t.from,to:a.from+1,symbol:'('},{from:a.to-1,to:b.from+1,symbol:')/('},{from:b.to-1,to:b.to,symbol:')'}])
-    result.push({...r,revealFrom:t.from,revealTo:b.to});
    continue;
   }
   if(name==='left' || name==='right' || name==='middle') {

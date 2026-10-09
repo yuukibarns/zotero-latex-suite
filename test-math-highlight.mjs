@@ -16,15 +16,15 @@ for(const [source,expected] of [
  [String.raw`\boldsymbol{P}^{\mathrm{blk}}`,['P','blk']],
  [String.raw`\mathbf{AB}+\mathrm{foo}+\underline{x}`,['AB','foo','x']],
  [String.raw`\mathbb{R}\mathcal{F}\mathfrak{g}`,['ℝ','𝓕','𝔤']],
- [String.raw`\hat{\beta}+\vec{x}`,['β\u0302','x\u20d7']],
- [String.raw`\frac{1}{2}+\dfrac{a}{b}`,['½','(',')/(',')']],
+ [String.raw`\hat{\beta}+\vec{x}`,['β']],
+ [String.raw`\frac{1}{2}+\dfrac{a}{b}`,[]],
  [String.raw`x_{ij}+y^2+\sin x+\not\in A`,['ij','2','sin','∉']],
  [String.raw`\left\langle x\right\rangle`,['⟨','⟩']],
  [String.raw`\longmapsto\nsubseteq\varnothing`,['⟼','⊈','∅']],
 ]) assert.deepEqual(concealRanges(source).filter(r=>!r.styleOnly).map(r=>r.symbol),expected,source);
 for(const source of [String.raw`\mathbb{?}`,String.raw`\hat{ab}`,String.raw`\boldsymbol{\alpha`,String.raw`\unknown{x}`,String.raw`\frac{a}`])
  assert.equal(concealRanges(source).length,0,'Unsupported/incomplete form stays visible: '+source);
-for(const source of [String.raw`\frac{\alpha}{\mathbf{x}}`,String.raw`\boldsymbol{x+\beta}`]) {
+for(const source of [String.raw`\boldsymbol{x+\beta}`]) {
  const ranges=concealRanges(source);
  for(let p=0;p<=source.length;p++) assert.equal(concealDecorations(ranges,p,p).length,0,'Compound reveal at '+p+' in '+source);
  const decos=concealDecorations(ranges,source.length+1,source.length+1);
@@ -32,6 +32,11 @@ for(const source of [String.raw`\frac{\alpha}{\mathbf{x}}`,String.raw`\boldsymbo
  for(const r of ranges) assert(r.from>=0 && r.to<=source.length && r.from<r.to);
 }
 // Exercise every malformed prefix of a nested expression, including UTF-16.
+for(const command of ['frac','dfrac','tfrac','gfrac','vec','hat','widehat','tilde','widetilde','bar','overline','dot','ddot']) {
+ const source='\\'+command+'{\\alpha}'+(command.endsWith('frac')?'{\\beta}':'');
+ const ranges=concealRanges(source);
+ assert.deepEqual(ranges.map(r=>source.slice(r.from,r.to)),command.endsWith('frac')?['\\alpha','\\beta']:['\\alpha'],'Only arguments conceal: '+command);
+}
 const nested=String.raw`😀+\frac{\boldsymbol{\alpha+x}}{\mathbb{R}_{i}}+\unknown{z}`;
 for(let end=0;end<=nested.length;end++) {
  const ranges=concealRanges(nested.slice(0,end));

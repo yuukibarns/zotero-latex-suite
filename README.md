@@ -121,7 +121,8 @@ arrows and operators without changing stored LaTeX. Touching a command with the
 caret or selection reveals its source. Algorithm prose, comments, verbatim text,
 and TikZ-CD source are excluded; math inside algorithm `$...$` is supported.
 Conceal also covers bold/roman/underlined groups, blackboard/script/Fraktur
-alphabets, simple accents, scripts, negated symbols, and fractions. Complete
+alphabets, scripts, and negated symbols. Fraction and accent commands retain
+their syntax and braces; symbols inside their arguments still conceal. Complete
 compound forms reveal together. Multiline or unsupported arguments remain
 unflattened. Block folding and custom conceal maps are not implemented.
 Mappings are pinned from upstream with attribution in `src/conceal/UPSTREAM.md`.
