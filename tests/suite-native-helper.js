@@ -155,6 +155,11 @@ C \arrow[r,"k"'] & D
     await waitFor(()=>w.focusMath._innerView.dom.querySelector('.ls-conceal-bold'),type+' formatted conceal');
     const replacements=[...w.focusMath._innerView.dom.querySelectorAll('[data-symbol]')].map(el=>el.getAttribute('data-symbol'));
     check(JSON.stringify(replacements)===JSON.stringify(['P','blk','(','α',')/(',')','𝓡']),type+' exactly one replacement per range: '+JSON.stringify(replacements));
+    if(type==='math_display') {
+      const shot=doc.createElement('canvas');shot.width=frame.innerWidth;shot.height=frame.innerHeight;
+      shot.getContext('2d').drawWindow(frame,0,0,shot.width,shot.height,'white');
+      await IOUtils.write(CONFIG.screenshot+'.conceal.png',Uint8Array.from(atob(shot.toDataURL('image/png').split(',')[1]),c=>c.charCodeAt(0)));
+    }
     inject(`cv.dispatch(cv.state.tr.setSelection(cv.state.selection.constructor.create(cv.state.doc,0,cv.state.doc.content.size)));`);
     check(!w.focusMath._innerView.dom.querySelector('.ls-tex-concealed'),type+' select all reveals formatted source');
     check(doc.getSelection().toString()===formatted,type+' native selection contains original source only');
