@@ -24,13 +24,13 @@ export function tokenAt(buffer: Buffer, minimum: number) {
 	// Share the snippet engine's brace-aware text/metadata argument detection.
 	// tokenAt is also called on acceptance, so a stale popup cannot bypass this.
 	const { mode, algorithmText } = Context.fromBuffer(buffer);
-	// Algorithm prose is not math; only an explicit command starts completion.
-	if (mode.snippetlessEnv || (mode.textEnv && !(algorithmText && match[0].startsWith("\\")))) return null;
-	return { from: match.index, to: buffer.to, query, text: match[0] };
+	if (mode.snippetlessEnv || (mode.textEnv && !algorithmText)) return null;
+	return { from: match.index, to: buffer.to, query, text: match[0], algorithmText };
 }
-export function candidates(commands: Command[], query: string): Command[] {
+export function candidates(commands: Command[], query: string, algorithmText = false): Command[] {
 	const lower = query.toLowerCase();
 	if (!lower) return [];
+	if (algorithmText) commands = commands.filter(c => pseudocode.some(p => p.displayName === c.displayName));
 	return commands.map((command, index) => {
 		const name = command.displayName.replace(/^\\/, "");
 		const folded = name.toLowerCase();

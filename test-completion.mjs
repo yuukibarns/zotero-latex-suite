@@ -18,7 +18,7 @@ for (const environment of ['algorithm','algorithmic']) {
  assert.equal(context(prefix+'\\$ prose').mode.textEnv,true);
  assert.equal(context(prefix+'$x_{i} + y').mode.textEnv,false);
  assert.equal(context(prefix+'\\end{'+environment+'} x').mode.textEnv,false);
- assert.equal(ls.tokenAt(ls.PMBuffer.forMath(mathView(prefix+'STA'),'math_display'),2),null);
+ assert.equal(ls.tokenAt(ls.PMBuffer.forMath(mathView(prefix+'STA'),'math_display'),2)?.query,'STA');
  assert.equal(ls.tokenAt(ls.PMBuffer.forMath(mathView(prefix+'\\STA'),'math_display'),2)?.query,'STA');
  assert.equal(ls.tokenAt(ls.PMBuffer.forMath(mathView(prefix+'$alp'),'math_display'),2)?.query,'alp');
 }
@@ -204,6 +204,14 @@ assert.equal(key('ArrowUp').defaultPrevented,true);
 assert.equal(key('Enter').defaultPrevented,true);
 assert.equal(view.state.doc.textContent,'\\alpha'); assert.equal(popup(),null);
 function reset(s='alp') {view.dispatch(view.state.tr.insertText(s,0,view.state.doc.content.size));}
+for (const command of ['STA','\\STA']) {
+ reset('\\begin{algorithmic}\n'+command);await input();
+ assert.ok(popup(),'Algorithm command popup opens with and without backslash');
+ assert.equal(popup().querySelector('[role=option]').textContent,'\\STATE');
+ assert.equal(key('Enter').defaultPrevented,true);
+ assert.equal(view.state.doc.textContent,'\\begin{algorithmic}\n\\STATE ');
+}
+assert.deepEqual(ls.candidates(ls.DEFAULT_COMMANDS,'alpha',true),[]);
 key('Escape');
 const oldCoords=view.coordsAtPos;
 view.coordsAtPos=()=>({left:20,right:20,top:win.innerHeight-120,bottom:win.innerHeight-100});

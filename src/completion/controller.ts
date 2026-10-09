@@ -52,7 +52,7 @@ export function installCompletion(win: Window, commands: Command[], minimum: num
 		if (owner !== b.owner) dismissed = "";
 		if (dismissed === nextKey && owner === b.owner) { close(); return; }
 		dismissed = "";
-		const next = candidates(commands, token.query);
+		const next = candidates(commands, token.query, token.algorithmText);
 		if (!next.length) { close(); return; }
 		if (owner !== b.owner || key !== nextKey || !items.length) {
 			selected = 0; popup.replaceChildren(); popup.scrollTop = 0;
