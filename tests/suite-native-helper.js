@@ -150,11 +150,16 @@ C \arrow[r,"k"'] & D
     inject(`cv.dispatch(cv.state.tr.setSelection(cv.state.selection.constructor.create(cv.state.doc,3)));`);
     check(!w.focusMath._innerView.dom.querySelector('.ls-tex-concealed'),type+' caret reveals command');
     check(w.focusMath._innerView.state.doc.textContent==='\\alpha + x',type+' conceal preserves document');
-    const formatted=String.raw`\text{Rescale} \boldsymbol{P}^{\mathrm{blk}} + \frac{\alpha}{x} + \mathcal{R} + x_i + \cos^2 x + z`;
+    const formatted=String.raw`\text{Rescale} \boldsymbol{P}^{\mathrm{blk}} + \frac{\alpha}{x} + \mathcal{R} + x_i + \cos^2 x + \to \longrightarrow \mapsto + z`;
     inject(`cv.dispatch(cv.state.tr.insertText(${JSON.stringify(formatted)},0,cv.state.doc.content.size));`);
     await waitFor(()=>w.focusMath._innerView.dom.querySelector('.ls-conceal-bold'),type+' formatted conceal');
     const replacements=[...w.focusMath._innerView.dom.querySelectorAll('[data-symbol]')].map(el=>el.getAttribute('data-symbol'));
-    check(JSON.stringify(replacements)===JSON.stringify(['Rescale','P','blk','α','𝓡','i','cos','2']),type+' exactly one replacement per range: '+JSON.stringify(replacements));
+    check(JSON.stringify(replacements)===JSON.stringify(['Rescale','P','blk','α','𝓡','i','cos','2','→','⟶','↦']),type+' exactly one replacement per range: '+JSON.stringify(replacements));
+    for(const glyph of ['→','⟶','↦']) {
+      const arrow=[...w.focusMath._innerView.dom.querySelectorAll('[data-symbol]')].find(el=>el.getAttribute('data-symbol')===glyph);
+      check(frame.getComputedStyle(arrow,'::after').fontFamily.includes('KaTeX_Main'),type+' math font for '+glyph);
+    }
+    await doc.fonts.ready;
     const textSymbol=w.focusMath._innerView.dom.querySelector('.ls-conceal-symbol.ls-conceal-text');
     check(frame.getComputedStyle(textSymbol,'::after').color===frame.getComputedStyle(w.focusMath._innerView.dom).color,type+' concealed prose uses editor text color');
     for(const [kind,offset] of [['sup',0.4],['sub',-0.2]]) {
