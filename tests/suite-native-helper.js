@@ -157,6 +157,8 @@ C \arrow[r,"k"'] & D
     check(JSON.stringify(replacements)===JSON.stringify(['Rescale','P','blk','α','R','i','cos','2','→','⟶','↦','A','A','3','⇒','⟹','E']),type+' exactly one replacement per range: '+JSON.stringify(replacements));
     const scriptLetter=w.focusMath._innerView.dom.querySelector('.ls-conceal-font-Script-Regular');
     const scriptStyle=frame.getComputedStyle(scriptLetter,'::after');
+    const commandColor=scriptStyle.color;
+    const scriptColor=frame.getComputedStyle(w.focusMath._innerView.dom.querySelector('.ls-conceal-symbol.ls-conceal-sub'),'::after').color;
     check(Math.abs(parseFloat(scriptStyle.marginRight)-parseFloat(scriptStyle.fontSize)*0.22925)<0.1,type+' script A reserves KaTeX italic correction at current scale');
     for(const [font,family] of [['AMS-Regular','KaTeX_AMS'],['Caligraphic-Regular','KaTeX_Caligraphic'],['Script-Regular','KaTeX_Script']]) {
       const el=w.focusMath._innerView.dom.querySelector('.ls-conceal-font-'+font);
@@ -189,9 +191,11 @@ C \arrow[r,"k"'] & D
     await waitFor(()=>w.focusMath._innerView.dom.querySelectorAll('.ls-conceal-render').length===4,type+' accent conceal');
     const root=w.focusMath._innerView.dom, size=parseFloat(frame.getComputedStyle(root).fontSize);
     const normalAccent=root.querySelector('.ls-conceal-render:not(.ls-conceal-sub):not(.ls-conceal-sup)');
+    check(frame.getComputedStyle(normalAccent.querySelector('.katex')).color===commandColor,type+' accent matches concealed command color');
     check(Math.abs(parseFloat(frame.getComputedStyle(normalAccent.querySelector('.katex')).fontSize)-size*1.25)<0.1,type+' normal accent matches enlarged KaTeX glyph scale');
     for(const [kind,offset] of [['sub',-0.2],['sup',0.4]]) {
       const el=root.querySelector('.ls-conceal-render.ls-conceal-'+kind), style=frame.getComputedStyle(el);
+      check(frame.getComputedStyle(el.querySelector('.katex')).color===scriptColor,type+' accent preserves script color');
       check(Math.abs(parseFloat(style.fontSize)-size*1.25*0.8)<0.1,type+' accent '+kind+' wrapper scale');
       check(Math.abs(parseFloat(style.verticalAlign)-size*offset)<0.1,type+' accent '+kind+' offset');
       check(Math.abs(parseFloat(frame.getComputedStyle(el.querySelector('.katex')).fontSize)-size*1.25*0.8)<0.1,type+' accent not scaled twice');

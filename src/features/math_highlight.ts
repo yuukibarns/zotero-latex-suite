@@ -14,7 +14,8 @@ export function installMathHighlight(win: Window, conceal = false, highlight = t
 	style.textContent = `
 /* Decoration boundaries must preserve typed whitespace, as in display math. */
 math-inline.math-node .math-src .ProseMirror{white-space:break-spaces}
-.math-node .ls-tex-command{color:light-dark(#0957b4,#8ab4f8)}
+.math-node{--ls-conceal-command-color:${highlight ? 'light-dark(#0957b4,#8ab4f8)' : 'var(--ls-conceal-text-color)'};--ls-conceal-script-color:${highlight ? 'light-dark(#8a2578,#dca1d6)' : 'var(--ls-conceal-text-color)'}}
+.math-node .ls-tex-command{color:var(--ls-conceal-command-color)}
 .math-node .ls-tex-boundary{color:light-dark(#a3264c,#ff8fac)}
 .math-node .ls-tex-match{background:light-dark(#eadff7,#49364f);border-radius:2px;box-shadow:inset 0 -1px light-dark(#81549c,#c19acf)}
 .math-node .ls-tex-unmatched{text-decoration:underline wavy light-dark(#b3261e,#ff958d);text-underline-offset:3px}
@@ -28,11 +29,13 @@ math-inline.math-node .math-src .ProseMirror{white-space:break-spaces}
 .math-node .ls-tex-number{color:light-dark(#745300,#dfc276)}
 .math-node .ls-tex-concealed{font-size:0}
 .math-node{--ls-conceal-katex-scale:1.25}
-.math-node .ls-conceal-render{display:inline-block;font-size:calc(var(--ls-conceal-font-size)*var(--ls-conceal-katex-scale));color:var(--ls-conceal-text-color);user-select:none}
+.math-node .ls-conceal-render{display:inline-block;font-size:calc(var(--ls-conceal-font-size)*var(--ls-conceal-katex-scale));color:var(--ls-conceal-command-color);user-select:none}
 .math-node .ls-conceal-render .katex{font-size:1em}
 .math-node .ls-conceal-render.ls-conceal-sub{font-size:calc(var(--ls-conceal-font-size)*var(--ls-conceal-katex-scale)*0.8);vertical-align:calc(var(--ls-conceal-font-size)*-0.2)}
 .math-node .ls-conceal-render.ls-conceal-sup{font-size:calc(var(--ls-conceal-font-size)*var(--ls-conceal-katex-scale)*0.8);vertical-align:calc(var(--ls-conceal-font-size)*0.4)}
-.math-node .ls-conceal-symbol::after{content:attr(data-symbol);font-size:var(--ls-conceal-font-size);pointer-events:none}
+.math-node .ls-conceal-symbol::after{content:attr(data-symbol);font-size:var(--ls-conceal-font-size);color:var(--ls-conceal-command-color);pointer-events:none}
+.math-node .ls-conceal-render.ls-conceal-sub,.math-node .ls-conceal-render.ls-conceal-sup,
+.math-node .ls-conceal-symbol.ls-conceal-sub::after,.math-node .ls-conceal-symbol.ls-conceal-sup::after{color:var(--ls-conceal-script-color)}
 .math-node .ls-conceal-font-Main-Regular::after{font-family:KaTeX_Main,serif;font-style:normal}
 .math-node .ls-conceal-font-AMS-Regular::after{font-family:KaTeX_AMS,serif;font-style:normal}
 .math-node .ls-conceal-font-Math-Italic::after{font-family:KaTeX_Math,serif;font-style:italic}
