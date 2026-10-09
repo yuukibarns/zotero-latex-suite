@@ -7,15 +7,15 @@ import {mathView, StringBuffer, winFor} from './test-editor.mjs';
 const ts=(index,from,to=from)=>({index:[index],from,to});
 const fraction={insert:'\\frac{}{}',tabstops:[ts(0,6),ts(1,8),ts(2,9)]};
 const caret=view=>view.state.selection.to;
-for(const script of ['^{n}','_{i}','^{7}']) {
+for(const script of ['^{n}','_{i}','^{7}']) for(const position of [3,4]) {
  const view=mathView('x'+script);
  view.state=EditorState.create({doc:view.state.doc,plugins:[history()]});
  const b=()=>ls.PMBuffer.forMath(view,'math_inline');
- b().setSelection(4);
+ b().setSelection(position);
  assert(ls.simplifyScriptOnExit(b(),5));
  assert.equal(b().text,'x'+script[0]+script[2]);
  assert.equal(b().to,3);
- assert(undo(view.state,view.dispatch));assert.equal(b().text,'x'+script);assert.equal(b().to,4);
+ assert(undo(view.state,view.dispatch));assert.equal(b().text,'x'+script);assert.equal(b().to,position);
  assert(redo(view.state,view.dispatch));assert.equal(b().to,3);
 }
 for(const source of [String.raw`x^{10}`,String.raw`x_{ij}`,String.raw`x^{}`,String.raw`\text{^{n}}`,String.raw`\^{n}`,String.raw`\frac{a}{b}`,String.raw`x^{\alpha}`]) {
