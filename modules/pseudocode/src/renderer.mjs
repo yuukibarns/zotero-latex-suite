@@ -7,7 +7,12 @@ import css from '../vendor/static/pseudocode.css';
 // Reuse the note/exporter's local KaTeX fonts; never fetch CDN styles.
 export const rendererCSS = css.replace(/^@import[^;]+;\s*/m, '') + `
 .pseudocode-diagram { font-size:1em; text-align:left; white-space:normal; width:max-content; max-width:100%; color:inherit; background:transparent; }
-.pseudocode-diagram .ps-algorithm { margin:0; }
+.pseudocode-diagram .ps-algorithm { margin:0; border-top:1px solid; border-bottom:1px solid; padding:0.25em 0; }
+/* Upstream applies a hanging indent to captions as well as preconditions.
+ * Reset just the caption; retain indentation and numbering inside the body. */
+.pseudocode-diagram .ps-algorithm.with-caption > .ps-line:first-child { text-indent:0!important; padding:0.15em 0.6em 0.35em!important; border-bottom:1px solid; }
+.pseudocode-diagram .ps-algorithmic { padding:0.35em 0.6em; }
+.pseudocode-diagram .ps-line { line-height:1.45; }
 `;
 export const isPseudocode = source => /^\s*\\begin\{(?:algorithm|algorithmic)\}/.test(source);
 

@@ -1,10 +1,11 @@
 import defaults from "./commands.json";
+import pseudocode from "./pseudocode.json";
 import { Buffer } from "../editor/buffer";
 import { ResultInsert } from "../snippets/luasnip_api/node";
 import { Context } from "../utils/context";
 
 export type Command = { displayName: string; replacement: string };
-export const DEFAULT_COMMANDS: Command[] = defaults;
+export const DEFAULT_COMMANDS: Command[] = [...defaults, ...pseudocode];
 export function parseCommands(value: unknown): Command[] {
 	if (!Array.isArray(value)) throw new Error("Completion dictionary must be a JSON array");
 	return value.map(entry => {

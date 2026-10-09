@@ -136,10 +136,20 @@ for (const replacement of ['\\alpha', '\\frac{#}{#}']) {
 ls.clearTabstops();
 
 const fixtures = JSON.parse(fs.readFileSync('src/completion/fixtures.json','utf8'));
+const pseudoCommands = JSON.parse(fs.readFileSync('src/completion/pseudocode.json','utf8'));
 for (const c of ls.DEFAULT_COMMANDS) {
+ if(pseudoCommands.some(p=>p.displayName===c.displayName)) continue;
  assert.ok(fixtures[c.displayName]);
  assert.doesNotThrow(()=>katex.renderToString(fixtures[c.displayName],{throwOnError:true,displayMode:true,strict:'ignore',trust:false}), c.displayName);
 }
+
+// Exercise the actual built entrypoint with a DOM and real ProseMirror states.
+for(const query of ['STATE','FOR','algorithm']) {
+ assert(ls.candidates(ls.DEFAULT_COMMANDS,query).some(c=>pseudoCommands.some(p=>p.displayName===c.displayName)));
+}
+const algorithmCompletion=ls.replacementOf(pseudoCommands[0].replacement);
+assert.equal(algorithmCompletion.tabstops.length,2);
+assert.equal(algorithmCompletion.insert.slice(algorithmCompletion.tabstops[1].from).trimStart().startsWith('\\end{algorithmic}'),true);
 
 // Exercise the actual built entrypoint with a DOM and real ProseMirror states.
 const dom = new JSDOM('<html><head></head><body><math-inline class="math-node"><div contenteditable="true" tabindex="0"></div></math-inline></body></html>', {pretendToBeVisual:true});

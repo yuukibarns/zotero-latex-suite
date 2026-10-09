@@ -1,0 +1,110 @@
+[
+  {
+    "displayName": "\\begin{algorithm}...",
+    "replacement": "\\begin{algorithm}\n\\caption{#}\n\\begin{algorithmic}\n~\n\\end{algorithmic}\n\\end{algorithm}"
+  },
+  {
+    "displayName": "\\begin{algorithmic}...",
+    "replacement": "\\begin{algorithmic}\n~\n\\end{algorithmic}"
+  },
+  {
+    "displayName": "\\STATE",
+    "replacement": "\\STATE ~"
+  },
+  {
+    "displayName": "\\RETURN",
+    "replacement": "\\RETURN ~"
+  },
+  {
+    "displayName": "\\PRINT",
+    "replacement": "\\PRINT ~"
+  },
+  {
+    "displayName": "\\REQUIRE",
+    "replacement": "\\REQUIRE ~"
+  },
+  {
+    "displayName": "\\ENSURE",
+    "replacement": "\\ENSURE ~"
+  },
+  {
+    "displayName": "\\INPUT",
+    "replacement": "\\INPUT ~"
+  },
+  {
+    "displayName": "\\OUTPUT",
+    "replacement": "\\OUTPUT ~"
+  },
+  {
+    "displayName": "\\IF",
+    "replacement": "\\IF{#}\n~\n\\ENDIF"
+  },
+  {
+    "displayName": "\\FOR",
+    "replacement": "\\FOR{#}\n~\n\\ENDFOR"
+  },
+  {
+    "displayName": "\\WHILE",
+    "replacement": "\\WHILE{#}\n~\n\\ENDWHILE"
+  },
+  {
+    "displayName": "\\FUNCTION",
+    "replacement": "\\FUNCTION{#}{#}\n~\n\\ENDFUNCTION"
+  },
+  {
+    "displayName": "\\PROCEDURE",
+    "replacement": "\\PROCEDURE{#}{#}\n~\n\\ENDPROCEDURE"
+  },
+  {
+    "displayName": "\\ELIF",
+    "replacement": "\\ELIF{#}~"
+  },
+  {
+    "displayName": "\\UNTIL",
+    "replacement": "\\UNTIL{#}~"
+  },
+  {
+    "displayName": "\\COMMENT",
+    "replacement": "\\COMMENT{#}~"
+  },
+  {
+    "displayName": "\\ELSE",
+    "replacement": "\\ELSE"
+  },
+  {
+    "displayName": "\\ENDIF",
+    "replacement": "\\ENDIF"
+  },
+  {
+    "displayName": "\\ENDFOR",
+    "replacement": "\\ENDFOR"
+  },
+  {
+    "displayName": "\\ENDWHILE",
+    "replacement": "\\ENDWHILE"
+  },
+  {
+    "displayName": "\\ENDFUNCTION",
+    "replacement": "\\ENDFUNCTION"
+  },
+  {
+    "displayName": "\\ENDPROCEDURE",
+    "replacement": "\\ENDPROCEDURE"
+  },
+  {
+    "displayName": "\\REPEAT",
+    "replacement": "\\REPEAT"
+  },
+  {
+    "displayName": "\\BREAK",
+    "replacement": "\\BREAK"
+  },
+  {
+    "displayName": "\\CONTINUE",
+    "replacement": "\\CONTINUE"
+  },
+  {
+    "displayName": "\\caption",
+    "replacement": "\\caption{#}~"
+  }
+]
