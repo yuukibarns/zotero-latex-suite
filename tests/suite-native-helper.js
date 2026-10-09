@@ -150,6 +150,14 @@ C \arrow[r,"k"'] & D
     inject(`cv.dispatch(cv.state.tr.setSelection(cv.state.selection.constructor.create(cv.state.doc,3)));`);
     check(!w.focusMath._innerView.dom.querySelector('.ls-tex-concealed'),type+' caret reveals command');
     check(w.focusMath._innerView.state.doc.textContent==='\\alpha + x',type+' conceal preserves document');
+    const formatted=String.raw`\boldsymbol{P}^{\mathrm{blk}} + \frac{\alpha}{x} + z`;
+    inject(`cv.dispatch(cv.state.tr.insertText(${JSON.stringify(formatted)},0,cv.state.doc.content.size));`);
+    await waitFor(()=>w.focusMath._innerView.dom.querySelector('.ls-conceal-bold'),type+' formatted conceal');
+    check(w.focusMath._innerView.dom.querySelector('.ls-conceal-bold').getAttribute('data-symbol')==='P',type+' bold source concealed');
+    check(w.focusMath._innerView.dom.querySelector('.ls-conceal-sup').getAttribute('data-symbol')==='blk',type+' formatted superscript concealed');
+    inject(`cv.dispatch(cv.state.tr.setSelection(cv.state.selection.constructor.create(cv.state.doc,0,cv.state.doc.content.size)));`);
+    check(!w.focusMath._innerView.dom.querySelector('.ls-tex-concealed'),type+' select all reveals formatted source');
+    check(doc.getSelection().toString()===formatted,type+' native selection contains original source only');
   }
   // Pseudocode uses the same closed/live/export surface, without altering source.
   const algorithm=String.raw`\begin{algorithm}\caption{Sum}\begin{algorithmic}\REQUIRE A sequence of values to sum\ENSURE The sum of the values\INPUT $n$\OUTPUT $s$\STATE $s \gets 0$\FOR{$i=1$ to $n$}\STATE $s \gets s+i$\COMMENT{Accumulate values}\ENDFOR\RETURN $s$\end{algorithmic}\end{algorithm}`;

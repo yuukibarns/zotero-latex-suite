@@ -12,6 +12,32 @@ assert.deepEqual(concealRanges(String.raw`\verb|\alpha| + \beta`).map(r=>r.symbo
 assert.deepEqual(concealRanges(String.raw`\begin{algorithm}\caption{\alpha}\STATE prose \beta $\gamma\gets x$\end{algorithm}`).map(r=>r.symbol),['γ','←']);
 assert.deepEqual(concealRanges(String.raw`\begin{tikzcd}\alpha\end{tikzcd}`),[]);
 const concealed=concealRanges(String.raw`x+\alpha+y`);
+for(const [source,expected] of [
+ [String.raw`\boldsymbol{P}^{\mathrm{blk}}`,['P','blk']],
+ [String.raw`\mathbf{AB}+\mathrm{foo}+\underline{x}`,['AB','foo','x']],
+ [String.raw`\mathbb{R}\mathcal{F}\mathfrak{g}`,['ℝ','𝓕','𝔤']],
+ [String.raw`\hat{\beta}+\vec{x}`,['β\u0302','x\u20d7']],
+ [String.raw`\frac{1}{2}+\dfrac{a}{b}`,['½','(',')/(',')']],
+ [String.raw`x_{ij}+y^2+\sin x+\not\in A`,['ij','2','sin','∉']],
+ [String.raw`\left\langle x\right\rangle`,['⟨','⟩']],
+ [String.raw`\longmapsto\nsubseteq\varnothing`,['⟼','⊈','∅']],
+]) assert.deepEqual(concealRanges(source).filter(r=>!r.styleOnly).map(r=>r.symbol),expected,source);
+for(const source of [String.raw`\mathbb{?}`,String.raw`\hat{ab}`,String.raw`\boldsymbol{\alpha`,String.raw`\unknown{x}`,String.raw`\frac{a}`])
+ assert.equal(concealRanges(source).length,0,'Unsupported/incomplete form stays visible: '+source);
+for(const source of [String.raw`\frac{\alpha}{\mathbf{x}}`,String.raw`\boldsymbol{x+\beta}`]) {
+ const ranges=concealRanges(source);
+ for(let p=0;p<=source.length;p++) assert.equal(concealDecorations(ranges,p,p).length,0,'Compound reveal at '+p+' in '+source);
+ const decos=concealDecorations(ranges,source.length+1,source.length+1);
+ assert(decos.length>0);
+ for(const r of ranges) assert(r.from>=0 && r.to<=source.length && r.from<r.to);
+}
+// Exercise every malformed prefix of a nested expression, including UTF-16.
+const nested=String.raw`😀+\frac{\boldsymbol{\alpha+x}}{\mathbb{R}_{i}}+\unknown{z}`;
+for(let end=0;end<=nested.length;end++) {
+ const ranges=concealRanges(nested.slice(0,end));
+ for(const r of ranges) assert(r.from>=0 && r.to<=end && r.from<r.to);
+ assert.equal(concealDecorations(ranges,0,end).length,0,'Selecting all reveals all');
+}
 for(const [from,to] of [[2,2],[4,4],[8,8],[0,9],[3,7]]) assert.equal(concealDecorations(concealed,from,to).length,0,'cursor/selection reveals entire command including boundaries');
 assert.equal(concealDecorations(concealed,0,0).length,1);
 

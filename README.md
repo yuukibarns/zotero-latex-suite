@@ -120,7 +120,11 @@ math commands as symbols (reveal at cursor)**. It displays common Greek letters,
 arrows and operators without changing stored LaTeX. Touching a command with the
 caret or selection reveals its source. Algorithm prose, comments, verbatim text,
 and TikZ-CD source are excluded; math inside algorithm `$...$` is supported.
-This first implementation does not conceal formatting groups or fold blocks.
+Conceal also covers bold/roman/underlined groups, blackboard/script/Fraktur
+alphabets, simple accents, scripts, negated symbols, and fractions. Complete
+compound forms reveal together. Multiline or unsupported arguments remain
+unflattened. Block folding and custom conceal maps are not implemented.
+Mappings are pinned from upstream with attribution in `src/conceal/UPSTREAM.md`.
 The reveal-on-selection interaction is inspired by
 [Obsidian LaTeX Suite](https://github.com/artisticat1/obsidian-latex-suite/blob/main/src/editor_extensions/conceal.ts),
 with a small ProseMirror-specific display layer rather than CodeMirror dependencies.
