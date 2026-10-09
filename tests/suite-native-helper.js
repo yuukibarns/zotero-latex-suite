@@ -142,5 +142,23 @@ C \arrow[r,"k"'] & D
     check(w.focusMath._innerView.state.selection.anchor===1&&w.focusMath._innerView.state.selection.head===2,type+' selection retained');
     check(w.focusMath._innerView.dom.contains(doc.getSelection().anchorNode),type+' DOM selection belongs to inner editor');
   }
+  // Pseudocode uses the same closed/live/export surface, without altering source.
+  const algorithm=String.raw`\begin{algorithm}\caption{Sum}\begin{algorithmic}\STATE $s \gets 0$\FOR{$i=1$ to $n$}\STATE $s \gets s+i$\ENDFOR\RETURN $s$\end{algorithmic}\end{algorithm}`;
+  inject(`v.dispatch(v.state.tr.replaceWith(0,v.state.doc.content.size,[sc.nodes.paragraph.create(null,sc.text('Algorithm')),sc.nodes.math_display.create(null,sc.text(${JSON.stringify(algorithm)})),sc.nodes.paragraph.create(null,sc.text('after'))]));v.dispatch(v.state.tr.setSelection(S.fromJSON(v.state.doc,{type:'text',anchor:1,head:1})));v.focus();window.pseudo=document.querySelector('math-display').pmViewDesc.spec;`);
+  await waitFor(()=>doc.querySelector('.math-render .ps-algorithm'),'Closed pseudocode renders');
+  check(w.pseudo._node.textContent===algorithm,'Pseudocode preserves source');
+  check(doc.querySelector('.pseudocode-diagram .katex'),'Embedded math renders');
+  inject(`v.dispatch(v.state.tr.setSelection(S.fromJSON(v.state.doc,{type:'node',anchor:pseudo._getPos()})));`);
+  await waitFor(()=>doc.querySelector('#latex-suite-math-preview .ps-algorithm'),'Shared pseudocode preview');
+  inject(`var pi=pseudo._innerView;pi.dispatch(pi.state.tr.insertText('Total',${algorithm.indexOf('Sum')},${algorithm.indexOf('Sum')+3}));pi.focus();`);
+  await waitFor(()=>doc.querySelector('#latex-suite-math-preview .ps-algorithm')?.textContent.includes('Total'),'Debounced pseudocode updates');
+  inject(`window.exportedHTML=null;document.getElementById('latex-suite-print-menu-item').click();`);
+  await waitFor(()=>!!w.exportedHTML,'Pseudocode export prepared');
+  check(w.exportedHTML.includes('ps-algorithm')&&w.exportedHTML.includes('.pseudocode-diagram'),'Export includes pseudocode and CSS');
+  Zotero.Prefs.set(pref,JSON.stringify({pseudocodeEnabled:false}),true);
+  await waitFor(()=>!w.__pseudocodeNotes,'Pseudocode module disables');
+  check(!doc.querySelector('.pseudocode-note-surface'),'Pseudocode cleanup');
+  Zotero.Prefs.set(pref,'{}',true);
+  await waitFor(()=>w.__pseudocodeNotes,'Pseudocode re-enabled');
   await IOUtils.writeUTF8(CONFIG.result,JSON.stringify({done:true,passed:true,zotero:Zotero.version,withLatex:CONFIG.withLatex,screenshot:CONFIG.screenshot}));
 }

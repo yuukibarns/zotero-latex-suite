@@ -9,7 +9,10 @@ const pseudocodeBackend = { name:'pseudocode-backend', setup(build) {
     const start = source.indexOf('    this.backend = undefined;');
     const end = source.indexOf('\n}\n', start);
     if (start < 0 || end < 0) throw new Error('Review changed pseudocode backend');
-    return {contents:source.slice(0,start) + '    this.backend = undefined;' + source.slice(end), loader:'js'};
+    const contents = source.slice(0,start) + '    this.backend = undefined;' + source.slice(end);
+    // Upstream's undeclared temporary fails in ES modules and leaks in scripts.
+    if (!contents.includes('attrVal = style[attrName];')) throw new Error('Review upstream style temporary');
+    return {contents:contents.replace('attrVal = style[attrName];','var attrVal = style[attrName];'), loader:'js'};
   });
 } };
 for (const [entry, outfile, format] of [
