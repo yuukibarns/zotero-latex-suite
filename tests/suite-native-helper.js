@@ -205,6 +205,13 @@ C \arrow[r,"k"'] & D
     check(colorOf('.ls-conceal-script-number')===frame.getComputedStyle([...root.querySelectorAll('.ls-tex-number')].at(-1)).color,type+' script digit retains number color');
     check(colorOf('.ls-conceal-script-text')===frame.getComputedStyle(root).color,type+' script variable retains plain text color');
     check(colorOf('.ls-conceal-script-operator')===frame.getComputedStyle([...root.querySelectorAll('.ls-tex-operator')].at(-1)).color,type+' script operator retains operator color');
+    const wrapperColors=String.raw`D_{\mathrm{KL}} + \mathrm{KL} + \underline{x+1\alpha} + \operatorname{Hom} + z`;
+    inject(`cv.dispatch(cv.state.tr.insertText(${JSON.stringify(wrapperColors)},0,cv.state.doc.content.size));`);
+    const roman=[...root.querySelectorAll('.ls-conceal-style.ls-conceal-roman')].find(el=>el.textContent==='KL');
+    check(roman && frame.getComputedStyle(roman).color===frame.getComputedStyle(root).color,type+' roman letters retain plain text color');
+    check(colorOf('.ls-conceal-script-text')===frame.getComputedStyle(roman).color,type+' roman subscript and standalone colors agree');
+    check(frame.getComputedStyle(root.querySelector('.ls-conceal-underline.ls-tex-number')).color!==frame.getComputedStyle(root).color,type+' underlined number retains highlighting');
+    check(colorOf('[data-symbol="α"]')===colorOf('[data-symbol="Hom"]'),type+' nested symbol and named operator retain command color');
     const delimiters=String.raw`\left( x \middle| y \right) + z`;
     inject(`cv.dispatch(cv.state.tr.insertText(${JSON.stringify(delimiters)},0,cv.state.doc.content.size));`);
     const boundaryColor=frame.getComputedStyle(root.querySelector('.ls-tex-boundary')).color;

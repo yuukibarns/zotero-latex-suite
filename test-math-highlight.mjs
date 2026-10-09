@@ -46,7 +46,7 @@ assert.equal(concealRanges(String.raw`\text{Rescale}`)[0].className,'text','Text
 assert.equal(concealRanges(String.raw`\operatorname{Rescale}`)[0].className,'roman','Operators remain distinct from prose');
 for(const [source,expected] of [
  [String.raw`\boldsymbol{P}^{\mathrm{blk}}`,['','','blk']],
- [String.raw`\mathbf{AB}+\mathrm{foo}+\underline{x}`,['','','foo','x']],
+ [String.raw`\mathbf{AB}+\mathrm{foo}+\underline{x}`,['','','','','','']],
  [String.raw`\mathbb{E}\mathbb{R}\mathcal{F}\mathfrak{g}`,['E','R','F','𝔤']],
  [String.raw`\Rightarrow\implies\Leftarrow\impliedby\Leftrightarrow\iff`,['⇒','⟹','⇐','⟸','⇔','⟺']],
  [String.raw`\frac{1}{2}+\dfrac{a}{b}`,[]],
@@ -73,13 +73,27 @@ for(const command of ['vec','hat','widehat','tilde','widetilde','bar','overline'
  const source='\\'+command+'{\\beta}';
  assert.deepEqual(concealRanges(source).map(r=>source.slice(r.from,r.to)),['\\beta'],'Accent wrapper stays visible');
 }
-for(const command of ['mathbf','bm','boldsymbol','mathit']) {
+for(const command of ['mathbf','bm','boldsymbol','mathit','mathrm','underline']) {
  const source='\\'+command+'{x+\\alpha}';
  const ranges=concealRanges(source);
  assert(ranges.some(r=>r.styleOnly));
  assert(ranges.some(r=>r.symbol==='α'),'Nested symbol conceal preserved');
  for(let p=0;p<=source.length;p++) assert.equal(concealDecorations(ranges,p,p).length,0,'Formatting reveals as a group');
  for(const d of concealDecorations(ranges,source.length+1,source.length+1)) assert(d.from<d.to,'Inline-only conceal, no widgets');
+}
+for(const command of ['mathbf','bm','boldsymbol','mathit','mathrm','underline']) {
+ for(const script of ['_','^']) {
+  const source=`x${script}{\\${command}{x+1\\alpha}}`;
+  const ranges=concealRanges(source);
+  assert.deepEqual(ranges.map(r=>r.symbol),['x','+','1','α']);
+  for(const [i,kind] of ['text','operator','number','command'].entries())
+   assert.ok(ranges[i].className.includes('ls-conceal-script-'+kind),'script retains token color: '+source);
+ }
+ const source=`\\${command}{x+1\\mathit{y}\\alpha}`;
+ const ranges=concealRanges(source);
+ assert.equal(ranges.filter(r=>r.styleOnly).length,2,'nested formatting remains independent');
+ assert.deepEqual(ranges.filter(r=>r.symbol).map(r=>r.symbol),['α'],'original plain content remains highlighted');
+ for(let p=0;p<=source.length;p++)assert.equal(concealDecorations(ranges,p,p).length,0,'nested wrapper reveals together');
 }
 const nested=String.raw`😀+\frac{\boldsymbol{\alpha+x}}{\mathbb{R}_{i}}+\unknown{z}`;
 for(let end=0;end<=nested.length;end++) {

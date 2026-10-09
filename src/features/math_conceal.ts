@@ -7,7 +7,8 @@ import { scriptItalicCorrection } from '../../build/katex-source-map.mjs';
 type Range = { from:number; to:number; symbol:string; font?:string; className?:string; revealFrom?:number; revealTo?:number; styleOnly?:boolean };
 // KaTeX's implication macros use the long arrows, unlike Rightarrow/Leftarrow.
 const symbols = { ...maps.cmd_symbols, ...maps.greek, ...maps.brackets, implies:'⟹', impliedby:'⟸', iff:'⟺' };
-const styles: Record<string,string> = { mathbf:'bold', bm:'bold', boldsymbol:'bold', mathit:'italic', mathrm:'roman', underline:'underline', operatorname:'roman', 'operatorname*':'roman', text:'text' };
+const formatting: Record<string,string> = { mathbf:'bold', bm:'bold', boldsymbol:'bold', mathit:'italic', mathrm:'roman', underline:'underline' };
+const styles: Record<string,string> = { ...formatting, operatorname:'roman', 'operatorname*':'roman', text:'text' };
 const alphabets: Record<string,Record<string,string>> = { mathfrak:maps.mathfrak };
 const alphabetFonts: Record<string,string> = { mathbb:'AMS-Regular', mathcal:'Caligraphic-Regular', mathscr:'Script-Regular' };
 /** Upstream-backed rules, with UTF-16 offsets and conservative argument parsing.
@@ -43,7 +44,8 @@ export function concealRanges(source: string): Range[] {
    const g=group(t.to), next=byStart.get(t.to);
    const end=g?.to ?? (next?.kind==='command' ? next.to : t.to+(source.codePointAt(t.to)!>0xffff?2:1));
    const body=g?.body ?? source.slice(t.to,end);
-   const formatted=/^\\(mathrm|mathbf|bm|boldsymbol|mathit)\{([^{}]+)\}$/.exec(body);
+   const wrapper=/^\\([A-Za-z]+)\{([^{}]+)\}$/.exec(body);
+   const formatted=wrapper && formatting[wrapper[1]] ? wrapper : null;
    const text=plain(formatted ? formatted[2] : body);
    if(text && end<=source.length && (g || !/\s/.test(body))) {
     const content=formatted ? formatted[2] : body;
@@ -70,7 +72,7 @@ export function concealRanges(source: string): Range[] {
    if(/[\n\r%$]/.test(g.body)) { consumed=g.to; continue; }
    if(name==='text' && /[^A-Za-z0-9 .!?()-]/.test(g.body)) { consumed=g.to; continue; }
    const text=plain(g.body);
-   if(['bold','italic'].includes(styles[name]) && g.body.length) {
+   if(formatting[name] && g.body.length) {
     // Hide only the wrapper: nested symbol/font conceal remains independent.
     result.push({from:t.from,to:g.from+1,symbol:'',revealFrom:t.from,revealTo:g.to},
      {from:g.to-1,to:g.to,symbol:'',revealFrom:t.from,revealTo:g.to},
@@ -83,11 +85,6 @@ export function concealRanges(source: string): Range[] {
     const mapped=[...g.body].map(c=>alphabets[name][c]);
     if(mapped.length && mapped.every(c=>c!==undefined)) add(g.to,mapped.join(''));
    } else if(text !== undefined && text.length) add(g.to,text,styles[name]);
-   else if(['mathrm','underline'].includes(name) && g.body.length) {
-    result.push({from:t.from,to:g.from+1,symbol:'',revealFrom:t.from,revealTo:g.to},
-     {from:g.to-1,to:g.to,symbol:'',revealFrom:t.from,revealTo:g.to},
-     {from:g.from+1,to:g.to-1,symbol:'',className:styles[name],styleOnly:true,revealFrom:t.from,revealTo:g.to});
-   }
    continue;
   }
   if(name==='left' || name==='right' || name==='middle') {
