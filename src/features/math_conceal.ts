@@ -45,7 +45,21 @@ export function concealRanges(source: string): Range[] {
    const body=g?.body ?? source.slice(t.to,end);
    const formatted=/^\\(mathrm|mathbf|bm|boldsymbol|mathit)\{([^{}]+)\}$/.exec(body);
    const text=plain(formatted ? formatted[2] : body);
-   if(text && end<=source.length && (g || !/\s/.test(body))) add(end,text,(raw==='^'?'sup':'sub')+(formatted?' ls-conceal-'+styles[formatted[1]]:''));
+   if(text && end<=source.length && (g || !/\s/.test(body))) {
+    const content=formatted ? formatted[2] : body;
+    const offset=(g ? g.from+1 : t.to)+(formatted ? body.indexOf('{')+1 : 0);
+    const parts:{from:number;to:number;symbol:string;kind:string}[]=[];
+    let at=0;
+    for(const token of latexTokens(content)) {
+     if(token.from>at) parts.push({from:at,to:token.from,symbol:content.slice(at,token.from),kind:'text'});
+     parts.push({from:token.from,to:token.to,symbol:plain(content.slice(token.from,token.to))!,kind:token.kind});
+     at=token.to;
+    }
+    if(at<content.length) parts.push({from:at,to:content.length,symbol:content.slice(at),kind:'text'});
+    parts.forEach((part,i)=>result.push({from:i===0?t.from:offset+part.from,to:i===parts.length-1?end:offset+part.to,
+     symbol:part.symbol,className:(raw==='^'?'sup':'sub')+' ls-conceal-script-'+part.kind+(formatted?' ls-conceal-'+styles[formatted[1]]:''),revealFrom:t.from,revealTo:end}));
+    consumed=end;
+   }
    continue;
   }
   if(t.kind!=='command') continue;

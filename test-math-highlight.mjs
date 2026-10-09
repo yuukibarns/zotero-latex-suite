@@ -13,6 +13,13 @@ assert.deepEqual(concealRanges(String.raw`\verb|\alpha| + \beta`).map(r=>r.symbo
 assert.deepEqual(concealRanges(String.raw`\begin{algorithm}\caption{\alpha}\STATE prose \beta $\gamma\gets x$\end{algorithm}`).map(r=>r.symbol),['γ','←']);
 assert.deepEqual(concealRanges(String.raw`\begin{tikzcd}\alpha\end{tikzcd}`),[]);
 const concealed=concealRanges(String.raw`x+\alpha+y`);
+{
+ const source=String.raw`x_{i=1+\alpha}^{2}`;
+ const ranges=concealRanges(source);
+ assert.deepEqual(ranges.map(r=>r.symbol),['i','=','1','+','α','2']);
+ assert.deepEqual(ranges.map(r=>r.className.split(' ').at(-1)),['ls-conceal-script-text','ls-conceal-script-operator','ls-conceal-script-number','ls-conceal-script-operator','ls-conceal-script-command','ls-conceal-script-number']);
+ for(let p=1;p<=source.indexOf('}')+1;p++) assert(!concealDecorations(ranges,p,p).some(d=>['i','=','1','+','α'].includes(d.type.attrs?.['data-symbol'])),'Entire script reveals together');
+}
 for(const letters of ['A','B','AB','Z']) {
  const source='\\mathscr{'+letters+'}^{3}';
  const anchor=concealDecorations(concealRanges(source),source.length+1,source.length+1).find(d=>d.type.attrs?.['data-symbol']===letters);

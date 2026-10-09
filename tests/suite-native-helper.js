@@ -198,6 +198,13 @@ C \arrow[r,"k"'] & D
     check(!hiddenText.includes('\\hat') && !hiddenText.includes('\\frac'),type+' accent and fraction syntax stays visible');
     inject(`cv.dispatch(cv.state.tr.setSelection(cv.state.selection.constructor.create(cv.state.doc,0,cv.state.doc.content.size)));`);
     check(doc.getSelection().toString()===lightweight,type+' exact source selection');
+    const colored=String.raw`x_{i=1+\alpha}^{2} + 1 + \alpha + z`;
+    inject(`cv.dispatch(cv.state.tr.insertText(${JSON.stringify(colored)},0,cv.state.doc.content.size));`);
+    const colorOf=selector=>frame.getComputedStyle(root.querySelector(selector),'::after').color;
+    check(colorOf('.ls-conceal-script-command')===colorOf('.ls-conceal-symbol:not(.ls-conceal-sub):not(.ls-conceal-sup)'),type+' script command retains command color');
+    check(colorOf('.ls-conceal-script-number')===frame.getComputedStyle([...root.querySelectorAll('.ls-tex-number')].at(-1)).color,type+' script digit retains number color');
+    check(colorOf('.ls-conceal-script-text')===frame.getComputedStyle(root).color,type+' script variable retains plain text color');
+    check(colorOf('.ls-conceal-script-operator')===frame.getComputedStyle([...root.querySelectorAll('.ls-tex-operator')].at(-1)).color,type+' script operator retains operator color');
     inject(`cv.dispatch(cv.state.tr.insertText('x^{n}',0,cv.state.doc.content.size));cv.dispatch(cv.state.tr.setSelection(cv.state.selection.constructor.create(cv.state.doc,4)));cv.focus();`);
     const tabEvent=new frame.KeyboardEvent('keydown',{key:'Tab',bubbles:true,cancelable:true});
     root.dispatchEvent(tabEvent);
