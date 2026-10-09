@@ -31,8 +31,8 @@ for(const command of ['to','longrightarrow','mapsto']) {
 assert.equal(concealRanges(String.raw`\text{Rescale}`)[0].className,'text','Text conceal keeps its semantic color');
 assert.equal(concealRanges(String.raw`\operatorname{Rescale}`)[0].className,'roman','Operators remain distinct from prose');
 for(const [source,expected] of [
- [String.raw`\boldsymbol{P}^{\mathrm{blk}}`,['P','blk']],
- [String.raw`\mathbf{AB}+\mathrm{foo}+\underline{x}`,['AB','foo','x']],
+ [String.raw`\boldsymbol{P}^{\mathrm{blk}}`,['','blk']],
+ [String.raw`\mathbf{AB}+\mathrm{foo}+\underline{x}`,['','foo','x']],
  [String.raw`\mathbb{E}\mathbb{R}\mathcal{F}\mathfrak{g}`,['E','R','F','𝔤']],
  [String.raw`\Rightarrow\implies\Leftarrow\impliedby\Leftrightarrow\iff`,['⇒','⟹','⇐','⟸','⇔','⟺']],
  [String.raw`\frac{1}{2}+\dfrac{a}{b}`,[]],
@@ -55,7 +55,7 @@ for(const command of ['frac','dfrac','tfrac','gfrac']) {
  const ranges=concealRanges(source);
  assert.deepEqual(ranges.map(r=>source.slice(r.from,r.to)),command.endsWith('frac')?['\\alpha','\\beta']:['\\alpha'],'Only arguments conceal: '+command);
 }
-for(const command of ['vec','hat','widehat','tilde','widetilde','bar','overline','dot','ddot','dddot','ddddot']) {
+for(const command of ['vec','hat','widehat','tilde','widetilde','bar','overline','dot','ddot','dddot','ddddot','mathbf','bm','boldsymbol']) {
  for(const source of ['\\'+command+'{\\beta}', 'x_{\\'+command+'{x}}', 'x^{\\'+command+'{x}}']) {
   const ranges=concealRanges(source);
   assert.equal(ranges.length,1,source);

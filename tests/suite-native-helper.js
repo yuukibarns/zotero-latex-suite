@@ -152,9 +152,9 @@ C \arrow[r,"k"'] & D
     check(w.focusMath._innerView.state.doc.textContent==='\\alpha + x',type+' conceal preserves document');
     const formatted=String.raw`\text{Rescale} \boldsymbol{P}^{\mathrm{blk}} + \frac{\alpha}{x} + \mathcal{R} + x_i + \cos^2 x + \to \longrightarrow \mapsto + \mathcal{A} \mathscr{A}^{3} \Rightarrow \implies + \mathbb{E} + z`;
     inject(`cv.dispatch(cv.state.tr.insertText(${JSON.stringify(formatted)},0,cv.state.doc.content.size));`);
-    await waitFor(()=>w.focusMath._innerView.dom.querySelector('.ls-conceal-bold'),type+' formatted conceal');
+    await waitFor(()=>w.focusMath._innerView.dom.querySelector('.ls-conceal-render'),type+' formatted conceal');
     const replacements=[...w.focusMath._innerView.dom.querySelectorAll('[data-symbol]')].map(el=>el.getAttribute('data-symbol'));
-    check(JSON.stringify(replacements)===JSON.stringify(['Rescale','P','blk','α','R','i','cos','2','→','⟶','↦','A','A','3','⇒','⟹','E']),type+' exactly one replacement per range: '+JSON.stringify(replacements));
+    check(JSON.stringify(replacements)===JSON.stringify(['Rescale','blk','α','R','i','cos','2','→','⟶','↦','A','A','3','⇒','⟹','E']),type+' exactly one replacement per range: '+JSON.stringify(replacements));
     const scriptLetter=w.focusMath._innerView.dom.querySelector('.ls-conceal-font-Script-Regular');
     const scriptStyle=frame.getComputedStyle(scriptLetter,'::after');
     const commandColor=scriptStyle.color;
@@ -211,6 +211,18 @@ C \arrow[r,"k"'] & D
     inject(`cv.dispatch(cv.state.tr.setSelection(cv.state.selection.constructor.create(cv.state.doc,0,cv.state.doc.content.size)));`);
     check(!root.querySelector('.ls-conceal-render'),type+' selection removes accent widgets');
     check(doc.getSelection().toString()===accented,type+' selected accent source is exact');
+    const boldSource=String.raw`\mathbf{x} + \bm{x} + \boldsymbol{\alpha} + x_{\bm{y}} + z`;
+    inject(`cv.dispatch(cv.state.tr.insertText(${JSON.stringify(boldSource)},0,cv.state.doc.content.size));`);
+    await waitFor(()=>root.querySelectorAll('.ls-conceal-render').length===4,type+' bold rendering');
+    const boldWidgets=[...root.querySelectorAll('.ls-conceal-render')];
+    const upright=frame.getComputedStyle(boldWidgets[0].querySelector('.mathbf'));
+    const italic=frame.getComputedStyle(boldWidgets[1].querySelector('.boldsymbol'));
+    check(upright.fontFamily.includes('KaTeX_Main') && upright.fontWeight==='700',type+' mathbf uses KaTeX upright bold');
+    check(italic.fontFamily.includes('KaTeX_Math') && italic.fontWeight==='700' && italic.fontStyle==='italic',type+' bm uses KaTeX bold italic');
+    check(boldWidgets[2].querySelector('.boldsymbol'),type+' bold Greek uses KaTeX');
+    check(Math.abs(parseFloat(frame.getComputedStyle(boldWidgets[3].querySelector('.katex')).fontSize)-size*1.25*0.8)<0.1,type+' bold script scaling');
+    inject(`cv.dispatch(cv.state.tr.setSelection(cv.state.selection.constructor.create(cv.state.doc,0,cv.state.doc.content.size)));`);
+    check(doc.getSelection().toString()===boldSource,type+' bold source remains unchanged');
   }
   // Pseudocode uses the same closed/live/export surface, without altering source.
   const algorithm=String.raw`\begin{algorithm}\caption{Sum}\begin{algorithmic}\REQUIRE A sequence of values to sum\ENSURE The sum of the values\INPUT $n$\OUTPUT $s$\STATE $s \gets 0$\FOR{$i=1$ to $n$}\STATE $s \gets s+i$\COMMENT{Accumulate values}\ENDFOR\RETURN $s$\end{algorithmic}\end{algorithm}`;

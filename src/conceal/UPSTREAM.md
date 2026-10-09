@@ -53,3 +53,6 @@ Both normal and script accent widgets include the same 1.25 font enlargement
 as other KaTeX conceal glyphs (script size is 1.25 × 0.8 of the editor size).
 Noneditable decorations reveal the original source when selected or clicked.
 Malformed/unsupported forms stay visible; fractions are not flattened.
+The same cached renderer handles mathbf, bm and boldsymbol (including script
+arguments), preserving KaTeX's upright-bold versus bold-italic font selection
+and mixed-symbol handling instead of applying the editor's font-weight.
