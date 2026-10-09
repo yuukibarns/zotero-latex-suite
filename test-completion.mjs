@@ -251,4 +251,4 @@ doc.dispatchEvent(new win.Event('selectionchange'));await tick();assert.equal(po
 win.__latexSuiteUninstall();await tick();assert.equal(popup(),null);
 assert.equal(doc.querySelector('style'),null);
 win.close();
-console.log(`Completion checks passed (${ls.DEFAULT_COMMANDS.length} KaTeX-compatible dictionary entries).`);
+console.log(`Completion checks passed (${ls.DEFAULT_COMMANDS.length} math and pseudocode dictionary entries).`);

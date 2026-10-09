@@ -148,6 +148,11 @@ C \arrow[r,"k"'] & D
   await waitFor(()=>doc.querySelector('.math-render .ps-algorithm'),'Closed pseudocode renders');
   check(w.pseudo._node.textContent===algorithm,'Pseudocode preserves source');
   check(doc.querySelector('.pseudocode-diagram .katex'),'Embedded math renders');
+  const algorithmBox=doc.querySelector('.ps-algorithm'), caption=algorithmBox.querySelector('.ps-line');
+  check(frame.getComputedStyle(caption).textIndent==='0px','Caption has no hanging indent');
+  check(frame.getComputedStyle(algorithmBox).borderTopWidth==='1px','Algorithm uses thin rules');
+  const captionRange=doc.createRange();captionRange.selectNodeContents(caption);
+  check(captionRange.getBoundingClientRect().left>=algorithmBox.getBoundingClientRect().left,'Caption stays within rules');
   inject(`v.dispatch(v.state.tr.setSelection(S.fromJSON(v.state.doc,{type:'node',anchor:pseudo._getPos()})));`);
   await waitFor(()=>doc.querySelector('#latex-suite-math-preview .ps-algorithm'),'Shared pseudocode preview');
   inject(`var pi=pseudo._innerView;pi.dispatch(pi.state.tr.insertText('Total',${algorithm.indexOf('Sum')},${algorithm.indexOf('Sum')+3}));pi.focus();`);

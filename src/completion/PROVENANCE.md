@@ -5,3 +5,7 @@ Validated against KaTeX 0.16.22 (Zotero installed editor).
 743 of 1085 entries accepted using fixtures.json.
 Regenerate: node scripts/completion-data.mjs (prints an apply_patch patch).
 Local adaptation: array/subarray templates place the final cursor stop inside the body after the column-specification placeholder.
+
+Pseudocode additions live separately in pseudocode.json so regeneration preserves
+them. They target the bundled pseudocode.js algorithm/algorithmic grammar, not
+KaTeX. Environment and control-flow templates include argument/body jump stops.
