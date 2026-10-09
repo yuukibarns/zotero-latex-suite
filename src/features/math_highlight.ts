@@ -31,8 +31,10 @@ math-inline.math-node .math-src .ProseMirror{white-space:break-spaces}
 .math-node .ls-conceal-bold{font-weight:bold}
 .math-node .ls-conceal-roman{font-style:normal}
 .math-node .ls-conceal-underline{text-decoration:underline}
-.math-node .ls-conceal-sup::after{font-size:calc(var(--ls-conceal-font-size)*0.8);vertical-align:super}
-.math-node .ls-conceal-sub::after{font-size:calc(var(--ls-conceal-font-size)*0.8);vertical-align:sub}
+/* Keyword super/sub uses the hidden parent's zero-size font metrics. Position
+ * scripts with the original editor font size, like their visible glyph size. */
+.math-node .ls-conceal-symbol.ls-conceal-sup::after{font-size:calc(var(--ls-conceal-font-size)*0.8);vertical-align:calc(var(--ls-conceal-font-size)*0.4)}
+.math-node .ls-conceal-symbol.ls-conceal-sub::after{font-size:calc(var(--ls-conceal-font-size)*0.8);vertical-align:calc(var(--ls-conceal-font-size)*-0.2)}
 `;
 	doc.head.append(style);
 	const attached = new Map<any, { original: any; provider: any; oldSize: string }>();
