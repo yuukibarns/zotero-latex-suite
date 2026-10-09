@@ -2,7 +2,7 @@
  * or replaces source DOM; native open/close, selection, undo and saving remain
  * Zotero's responsibility. Private API checks fail closed on unknown versions.
  */
-export function installRenderedMath(doc, { render, matches, rendererCSS, namespace, label = 'diagram', align = 'center' }) {
+export function installRenderedMath(doc, { render, matches, rendererCSS, namespace, label = 'diagram', align = 'center', inheritEditorFont = false }) {
   const marginInline = align === 'left' ? '0 auto' : 'auto';
   const win = doc.defaultView;
   const states = new Map();
@@ -101,6 +101,7 @@ math-display[data-${namespace}] #latex-suite-math-preview:not([data-external-ren
         surface.append(output, status);
       }
       const parent = math._innerView && previewTarget ? previewTarget : math._mathRenderElt;
+      if (inheritEditorFont) surface.style.fontSize = win.getComputedStyle(node.closest('.ProseMirror') || node).fontSize;
       if (surface.parentNode !== parent) {
         parent.replaceChildren(surface);
       }
