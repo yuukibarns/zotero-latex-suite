@@ -9,8 +9,8 @@ normalize TypeScript table types. No Obsidian or CodeMirror runtime is bundled.
 
 The rule adapter in ../features/math_conceal.ts follows conceal_fns.ts at the
 same revision: symbols, operators, alphabets, formatted text,
-scripts and negation. Fraction and accent syntax deliberately remains visible;
-their arguments still support conceal. It uses the existing tokenizer and a
+scripts and negation. Fraction syntax deliberately remains visible;
+its arguments still support conceal. It uses the existing tokenizer and a
 balanced-group index rather than upstream's Lezer parser. It intentionally
 does not hide limits/style controls, incomplete groups, or multiline forms.
 Unknown content is not flattened. Compound forms reveal together. This is
@@ -38,3 +38,12 @@ long arrows. mathcal and mathscr retain ASCII uppercase letters with explicit
 Caligraphic-Regular and Script-Regular fonts respectively. mathbb likewise uses
 ASCII uppercase letters in AMS-Regular rather than Unicode fallback glyphs; unsupported arguments
 remain visible. Font identity participates in the decoration cache key.
+
+Braced vec/hat/bar/tilde/dot/ddot/widehat/widetilde/overline accents use the
+existing bundled KaTeX renderer, not Unicode approximations. Rendering is cached
+by source (128 entries, 512 characters and 8 brace levels per expression), with
+an allowed-command check, trust disabled, and bounded macro expansion. Script
+groups containing these accents render at normal KaTeX style inside the existing
+80%/vertical-offset wrapper, without applying script style a second time.
+Noneditable decorations reveal the original source when selected or clicked.
+Malformed/unsupported forms stay visible; fractions are not flattened.

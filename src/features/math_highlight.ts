@@ -27,6 +27,10 @@ math-inline.math-node .math-src .ProseMirror{white-space:break-spaces}
 .math-node .ls-tex-parameter{color:light-dark(#8a2578,#dca1d6)}
 .math-node .ls-tex-number{color:light-dark(#745300,#dfc276)}
 .math-node .ls-tex-concealed{font-size:0}
+.math-node .ls-conceal-render{display:inline-block;font-size:var(--ls-conceal-font-size);color:var(--ls-conceal-text-color);user-select:none}
+.math-node .ls-conceal-render .katex{font-size:1em}
+.math-node .ls-conceal-render.ls-conceal-sub{font-size:calc(var(--ls-conceal-font-size)*0.8);vertical-align:calc(var(--ls-conceal-font-size)*-0.2)}
+.math-node .ls-conceal-render.ls-conceal-sup{font-size:calc(var(--ls-conceal-font-size)*0.8);vertical-align:calc(var(--ls-conceal-font-size)*0.4)}
 .math-node .ls-conceal-symbol::after{content:attr(data-symbol);font-size:var(--ls-conceal-font-size);pointer-events:none}
 .math-node .ls-conceal-font-Main-Regular::after{font-family:KaTeX_Main,serif;font-style:normal}
 .math-node .ls-conceal-font-AMS-Regular::after{font-family:KaTeX_AMS,serif;font-style:normal}

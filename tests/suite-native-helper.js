@@ -181,6 +181,27 @@ C \arrow[r,"k"'] & D
     inject(`cv.dispatch(cv.state.tr.setSelection(cv.state.selection.constructor.create(cv.state.doc,0,cv.state.doc.content.size)));`);
     check(!w.focusMath._innerView.dom.querySelector('.ls-tex-concealed'),type+' select all reveals formatted source');
     check(doc.getSelection().toString()===formatted,type+' native selection contains original source only');
+    const accented=String.raw`\vec{x} + a_{\hat{x}} + b^{\dot{\beta}} + \widehat{AB} + z`;
+    inject(`cv.dispatch(cv.state.tr.insertText(${JSON.stringify(accented)},0,cv.state.doc.content.size));`);
+    await waitFor(()=>w.focusMath._innerView.dom.querySelectorAll('.ls-conceal-render').length===4,type+' accent conceal');
+    const root=w.focusMath._innerView.dom, size=parseFloat(frame.getComputedStyle(root).fontSize);
+    for(const [kind,offset] of [['sub',-0.2],['sup',0.4]]) {
+      const el=root.querySelector('.ls-conceal-render.ls-conceal-'+kind), style=frame.getComputedStyle(el);
+      check(Math.abs(parseFloat(style.fontSize)-size*0.8)<0.1,type+' accent '+kind+' wrapper scale');
+      check(Math.abs(parseFloat(style.verticalAlign)-size*offset)<0.1,type+' accent '+kind+' offset');
+      check(Math.abs(parseFloat(frame.getComputedStyle(el.querySelector('.katex')).fontSize)-size*0.8)<0.1,type+' accent not scaled twice');
+    }
+    if(type==='math_display') {
+      const shot=doc.createElement('canvas');shot.width=frame.innerWidth;shot.height=frame.innerHeight;
+      shot.getContext('2d').drawWindow(frame,0,0,shot.width,shot.height,'white');
+      await IOUtils.write(CONFIG.screenshot+'.accents.png',Uint8Array.from(atob(shot.toDataURL('image/png').split(',')[1]),c=>c.charCodeAt(0)));
+    }
+    root.querySelector('.ls-conceal-render').dispatchEvent(new frame.MouseEvent('mousedown',{bubbles:true,cancelable:true}));
+    check(w.focusMath._innerView.state.selection.from===1,type+' clicking accent reveals original command');
+    check(root.querySelectorAll('.ls-conceal-render').length===3,type+' clicked accent is revealed');
+    inject(`cv.dispatch(cv.state.tr.setSelection(cv.state.selection.constructor.create(cv.state.doc,0,cv.state.doc.content.size)));`);
+    check(!root.querySelector('.ls-conceal-render'),type+' selection removes accent widgets');
+    check(doc.getSelection().toString()===accented,type+' selected accent source is exact');
   }
   // Pseudocode uses the same closed/live/export surface, without altering source.
   const algorithm=String.raw`\begin{algorithm}\caption{Sum}\begin{algorithmic}\REQUIRE A sequence of values to sum\ENSURE The sum of the values\INPUT $n$\OUTPUT $s$\STATE $s \gets 0$\FOR{$i=1$ to $n$}\STATE $s \gets s+i$\COMMENT{Accumulate values}\ENDFOR\RETURN $s$\end{algorithmic}\end{algorithm}`;

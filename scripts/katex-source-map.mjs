@@ -34,7 +34,7 @@ export async function buildKatexSourceMap() {
  replace('inner.unshift(leftDelim);', 'lsLocate(leftDelim, group.lsLeft); inner.unshift(leftDelim);');
  replace('inner.push(rightDelim);', 'lsLocate(rightDelim, group.lsRight); inner.push(rightDelim);');
  replace('inner[_i] = delimiter.leftRightDelim(isMiddle.delim, innerHeight, innerDepth, isMiddle.options, group.mode, []);', 'inner[_i] = delimiter.leftRightDelim(isMiddle.delim, innerHeight, innerDepth, isMiddle.options, group.mode, []); lsLocate(inner[_i], middleDelim.lsLoc);');
- // Export only the data adapter; esbuild removes the public renderer API.
+ // Share the same KaTeX implementation for source mapping and accent conceal.
  source = source.replace(/^export \{[^\n]+\};$/m, '');
  source += `
 function lsRanges(node) {
@@ -45,6 +45,9 @@ function lsLocate(node, loc) {
  node.lsLoc = loc;
  if (typeof node.text === 'string') node.lsRanges = lsRanges(node).map(g => g.loc ? g : {...g, loc});
  for (const child of node.children || []) lsLocate(child, loc);
+}
+export function concealAccentHTML(source) {
+ return renderToHTMLTree(source, {displayMode:false, throwOnError:true, trust:false, strict:'ignore', maxExpand:100, maxSize:10}).toMarkup();
 }
 export function sourceGlyphs(source, options = {}) {
  const tree = renderToHTMLTree(source, {...options, macros: {...options.macros}, throwOnError: true, trust: false, strict: 'ignore'});
