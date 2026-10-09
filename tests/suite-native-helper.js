@@ -148,6 +148,11 @@ C \arrow[r,"k"'] & D
   await waitFor(()=>doc.querySelector('.math-render .ps-algorithm'),'Closed pseudocode renders');
   check(w.pseudo._node.textContent===algorithm,'Pseudocode preserves source');
   check(doc.querySelector('.pseudocode-diagram .katex'),'Embedded math renders');
+  function checkAlgorithmLeft() {
+    const block=doc.querySelector('.pseudocode-diagram'), output=block.parentElement;
+    check(Math.abs(block.getBoundingClientRect().left-output.getBoundingClientRect().left)<1,'Algorithm is left aligned');
+  }
+  checkAlgorithmLeft();
   const algorithmBox=doc.querySelector('.ps-algorithm'), caption=algorithmBox.querySelector('.ps-line');
   check(frame.getComputedStyle(caption).textIndent==='0px','Caption has no hanging indent');
   check(frame.getComputedStyle(algorithmBox).borderTopWidth==='1px','Algorithm uses thin rules');
@@ -157,6 +162,7 @@ C \arrow[r,"k"'] & D
   await waitFor(()=>doc.querySelector('#latex-suite-math-preview .ps-algorithm'),'Shared pseudocode preview');
   inject(`var pi=pseudo._innerView;pi.dispatch(pi.state.tr.insertText('Total',${algorithm.indexOf('Sum')},${algorithm.indexOf('Sum')+3}));pi.focus();`);
   await waitFor(()=>doc.querySelector('#latex-suite-math-preview .ps-algorithm')?.textContent.includes('Total'),'Debounced pseudocode updates');
+  checkAlgorithmLeft();
   canvas.getContext('2d').drawWindow(frame,0,0,canvas.width,canvas.height,'white');
   await IOUtils.write(CONFIG.screenshot.replace('.png','-pseudocode.png'),Uint8Array.from(atob(canvas.toDataURL('image/png').split(',')[1]),c=>c.charCodeAt(0)));
   inject(`window.exportedHTML=null;document.getElementById('latex-suite-print-menu-item').click();`);

@@ -2,7 +2,8 @@
  * or replaces source DOM; native open/close, selection, undo and saving remain
  * Zotero's responsibility. Private API checks fail closed on unknown versions.
  */
-export function installRenderedMath(doc, { render, matches, rendererCSS, namespace, label = 'diagram' }) {
+export function installRenderedMath(doc, { render, matches, rendererCSS, namespace, label = 'diagram', align = 'center' }) {
+  const marginInline = align === 'left' ? '0 auto' : 'auto';
   const win = doc.defaultView;
   const states = new Map();
   let stopped = false;
@@ -12,7 +13,7 @@ export function installRenderedMath(doc, { render, matches, rendererCSS, namespa
 math-display[data-${namespace}] > .math-render { cursor:pointer; }
 .${namespace}-note-surface { display:block; width:100%; overflow:auto; text-align:center; background:transparent; color:inherit; margin:0; }
 .${namespace}-note-output { display:block; margin:0; padding:0; }
-.${namespace}-note-output > .${namespace}-diagram { display:block; margin-inline:auto; }
+.${namespace}-note-output > .${namespace}-diagram { display:block; margin-inline:${marginInline}; }
 .${namespace}-note-status { display:block; text-align:left; font:12px/1.5 system-ui,sans-serif; padding:0; margin:0; color:inherit; white-space:pre-wrap; }
 .${namespace}-note-status:empty { display:none; }
 /* Do not expose a stale clone through an optional generic equation preview. */
@@ -41,7 +42,7 @@ math-display[data-${namespace}] #latex-suite-math-preview:not([data-external-ren
         const warnings = result.diagnostics.filter(d=>d.severity !== 'error').map(d=>d.message);
         if (Array.isArray(request.warnings)) request.warnings.push(...warnings);
         const copy = result.element.cloneNode(true);
-        copy.style.display = 'block'; copy.style.marginInline = 'auto';
+        copy.style.display = 'block'; copy.style.marginInline = marginInline;
         return copy;
       } finally { result?.dispose(); host.remove(); exports.delete(controller); }
     })();
