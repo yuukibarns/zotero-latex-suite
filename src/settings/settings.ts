@@ -28,6 +28,7 @@ export interface RawSettings {
 	textDictionaryWords?: string;
 	mathPreviewEnabled: boolean;
 	mathHighlightEnabled: boolean;
+	mathConcealEnabled: boolean;
 	mathSelectionClickTimeoutMs: number;
 	inlineMathPreviewEnabled?: boolean;
 	displayMathPreviewEnabled?: boolean;
@@ -115,6 +116,7 @@ export const DEFAULT_SETTINGS: RawSettings = {
 	textDictionaryFileLocation: "",
 	mathPreviewEnabled: true,
 	mathHighlightEnabled: true,
+	mathConcealEnabled: true,
 	mathSelectionClickTimeoutMs: 1000,
 	inlineMathPreviewEnabled: true,
 	displayMathPreviewEnabled: true,

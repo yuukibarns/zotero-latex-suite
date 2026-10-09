@@ -12,10 +12,10 @@ type Context = { close: string; text: boolean };
  * Escapes are consumed before comments/braces; a stack contains text mode
  * within nested text arguments. This is highlighting, not a TeX interpreter.
  */
-export function latexTokens(source: string): LatexToken[] {
+export function latexTokens(source: string, initialText = false): LatexToken[] {
 	const tokens: LatexToken[] = [];
 	const contexts: Context[] = [];
-	let text = false;
+	let text = initialText;
 	let pending: "text" | "environment" | null = null;
 	const emit = (from: number, to: number, kind: TokenKind) => {
 		if (to > from) tokens.push(text ? { from, to, kind, literal: true } : { from, to, kind });

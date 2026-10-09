@@ -1,12 +1,13 @@
 import { Decoration, DecorationSet } from "prosemirror-view";
 import { latexTokens } from "../highlight/tokenizer";
 import { mathDelimiterIndex, MathDelimiter } from "./math_selection";
+import { concealRanges, concealDecorations } from './math_conceal';
 export { latexTokens } from "../highlight/tokenizer";
 
 /** Decorate the existing nested view, never rewrite editable HTML or source.
  * Decoration classes have no schema representation, so they aren't saved.
  */
-export function installMathHighlight(win: Window): () => void {
+export function installMathHighlight(win: Window, conceal = false, highlight = true): () => void {
 	const doc = win.document;
 	const style = doc.createElement("style");
 	style.id = "latex-suite-math-highlight";
@@ -25,15 +26,21 @@ math-inline.math-node .math-src .ProseMirror{white-space:break-spaces}
 .math-node .ls-tex-escape{color:light-dark(#0957b4,#8ab4f8)}
 .math-node .ls-tex-parameter{color:light-dark(#8a2578,#dca1d6)}
 .math-node .ls-tex-number{color:light-dark(#745300,#dfc276)}
+.math-node .ls-tex-concealed{font-size:0}
+.math-node .ls-tex-concealed::after{content:attr(data-symbol);font-size:var(--ls-conceal-font-size);pointer-events:none}
 `;
 	doc.head.append(style);
-	const attached = new Map<any, { original: any; provider: any }>();
+	const attached = new Map<any, { original: any; provider: any; oldSize: string }>();
 	let frame = 0, stopped = false;
 	function detach(view: any) {
 		const entry = attached.get(view);
 		if (!entry) return;
 		// Do not overwrite another extension's later direct-prop replacement.
 		if (!view.isDestroyed && view.props.decorations === entry.provider) view.setProps({ decorations: entry.original });
+		if (conceal) {
+			if (entry.oldSize) view.dom.style.setProperty('--ls-conceal-font-size', entry.oldSize);
+			else view.dom.style.removeProperty('--ls-conceal-font-size');
+		}
 		attached.delete(view);
 	}
 	function scan() {
@@ -44,6 +51,9 @@ math-inline.math-node .math-src .ProseMirror{white-space:break-spaces}
 		for (const view of views) {
 			if (!view?.props || typeof view.setProps !== "function" || view.isDestroyed || attached.has(view)) continue;
 			const original = view.props.decorations;
+			const oldSize = view.dom.style.getPropertyValue('--ls-conceal-font-size');
+			if (conceal) view.dom.style.setProperty('--ls-conceal-font-size', win.getComputedStyle(view.dom).fontSize);
+			let ranges: ReturnType<typeof concealRanges> = [];
 			let cachedDoc: any, cached: DecorationSet;
 			let pairIndex: Map<number, MathDelimiter>;
 			let active: MathDelimiter | undefined, displayed: DecorationSet | null = null;
@@ -51,20 +61,22 @@ math-inline.math-node .math-src .ProseMirror{white-space:break-spaces}
 				if (cachedDoc !== state.doc) {
 					cachedDoc = state.doc;
 					const source = state.doc.textContent, tokens = latexTokens(source);
+					ranges = conceal ? concealRanges(source) : [];
 					pairIndex = mathDelimiterIndex(source, tokens);
 					active = undefined;displayed = null;
-					cached = DecorationSet.create(state.doc, tokens.map(token =>
+					cached = DecorationSet.create(state.doc, (highlight ? tokens : []).map(token =>
 						Decoration.inline(token.from, token.to, { class: token.kind === "command" && /^\\(?:left|middle|right)$/.test(source.slice(token.from, token.to)) ? "ls-tex-command ls-tex-boundary" : `ls-tex-${token.kind}` })));
 				}
-				const match = state.selection.from === state.selection.to ? pairIndex.get(state.selection.from) : undefined;
+				const match = highlight && state.selection.from === state.selection.to ? pairIndex.get(state.selection.from) : undefined;
 				if (!displayed || active !== match) {
 					active = match;
 					displayed = match ? cached.add(state.doc, (match.partners || [match.range]).map(range => Decoration.inline(range.from, range.to, { class: match.partners ? "ls-tex-match" : "ls-tex-unmatched" }))) : cached;
 				}
 				const previous = original?.(state);
-				return previous ? DecorationSet.create(state.doc, [...previous.find(), ...displayed.find()]) : displayed;
+				const result = conceal && !view.composing ? displayed.add(state.doc, concealDecorations(ranges, state.selection.from, state.selection.to)) : displayed;
+				return previous ? DecorationSet.create(state.doc, [...previous.find(), ...result.find()]) : result;
 			};
-			attached.set(view, { original, provider });
+			attached.set(view, { original, provider, oldSize });
 			view.setProps({ decorations: provider });
 		}
 	}

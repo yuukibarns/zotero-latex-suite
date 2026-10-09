@@ -37,6 +37,7 @@ const FIELDS = [
 	{ group: "Completion", key: "textDictionaryFileLocation", type: "file", default: "", label: "Word dictionary file", hint: "Plain text, one word or phrase per line (Completr word-list format)." },
 	{ group: "Completion", key: "inlineMathPreviewEnabled", type: "bool", default: true, label: "Live preview for inline math" },
 	{ group: "Completion", key: "mathHighlightEnabled", type: "bool", default: true, label: "Highlight LaTeX source in note equations" },
+	{ group: "Completion", key: "mathConcealEnabled", type: "bool", default: true, label: "Conceal math commands as symbols (reveal at cursor)" },
 	{ group: "Math selection", key: "mathSelectionClickTimeoutMs", type: "number", default: 1000, min: 200, max: 5000, step: 100, label: "Repeated-click timeout (ms, 200–5000)", hint: "Maximum pause between clicks before structural selection starts over." },
 	{ group: "Completion", key: "displayMathPreviewEnabled", type: "bool", default: true, label: "Live preview for display math" },
 	{ group: "Completion", key: "mathPreviewDebounceMs", type: "number", default: 100, label: "Preview debounce (ms, 0 = immediate, maximum 2000)" },

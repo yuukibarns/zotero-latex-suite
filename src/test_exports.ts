@@ -25,6 +25,7 @@ export { installMathPreview } from "./features/math_preview";
 export { PREVIEW_CARET, previewMarkerColor, previewMarkerSource, renderPreviewMarker } from "./features/preview_marker";
 export { createMathSourceMap, mathCaretAt, installMathCaret } from "./features/math_caret";
 export { latexTokens, installMathHighlight } from "./features/math_highlight";
+export { concealRanges, concealDecorations } from './features/math_conceal';
 export { deleteMathWord } from "./features/math_delete";
 export { deleteMathNode } from "./editor/pm";
 export { installPrintDiagnostic } from "./features/print_diagnostic";
