@@ -23,8 +23,9 @@ export function tokenAt(buffer: Buffer, minimum: number) {
 	if (query.length < minimum) return null;
 	// Share the snippet engine's brace-aware text/metadata argument detection.
 	// tokenAt is also called on acceptance, so a stale popup cannot bypass this.
-	const { mode } = Context.fromBuffer(buffer);
-	if (mode.textEnv || mode.snippetlessEnv) return null;
+	const { mode, algorithmText } = Context.fromBuffer(buffer);
+	// Algorithm prose is not math; only an explicit command starts completion.
+	if (mode.snippetlessEnv || (mode.textEnv && !(algorithmText && match[0].startsWith("\\")))) return null;
 	return { from: match.index, to: buffer.to, query, text: match[0] };
 }
 export function candidates(commands: Command[], query: string): Command[] {

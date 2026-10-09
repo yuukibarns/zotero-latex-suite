@@ -24,6 +24,7 @@ export type Scope = {
 
 const MACRO = /^\\([A-Za-z@]+|.)/;
 const ENV_ARG = /^\s*\{([^}]*)\}/;
+const isAlgorithm = (scope: Scope) => scope.kind === "environment" && ["algorithm", "algorithmic"].includes(scope.name);
 
 /** The scopes enclosing `pos`, innermost first. */
 export function scanScopes(text: string, pos: number): Scope[] {
@@ -44,7 +45,7 @@ export function scanScopes(text: string, pos: number): Scope[] {
 			let activeMath = -1, inText = false;
 			for (let k = stack.length - 1; k >= 0; k--) {
 				if (stack[k].kind === "math") { activeMath = k;break; }
-				if (isMacroArgumentCount(stack[k], textArea)) { inText = true;break; }
+				if (isAlgorithm(stack[k]) || isMacroArgumentCount(stack[k], textArea)) { inText = true;break; }
 			}
 			const close = activeMath >= 0 ? stack[activeMath].name : "";
 			if (close === delimiter) {
@@ -140,6 +141,7 @@ export class Context {
 	pos: number;
 	buffer: Buffer;
 	scopes: Scope[];
+	algorithmText = false;
 
 	private constructor(buffer: Buffer, mode: Mode, scopes: Scope[]) {
 		this.buffer = buffer;
@@ -164,14 +166,18 @@ export class Context {
 
 		// The innermost macro decides whether we are really in math: an
 		// environment resets the scope, anything else is transparent.
+		let algorithmText = false;
 		for (const scope of scopes) {
 			if (scope.kind === "math") break;
+			if (isAlgorithm(scope)) { mode.textEnv = true; algorithmText = true; break; }
 			if (scope.kind === "environment") break;
 			if (isMacroArgumentCount(scope, snippetLessArea)) { mode.snippetlessEnv = true; break; }
 			if (isMacroArgumentCount(scope, textArea)) { mode.textEnv = true; break; }
 		}
 
-		return new Context(buffer, mode, scopes);
+		const context = new Context(buffer, mode, scopes);
+		context.algorithmText = algorithmText;
+		return context;
 	}
 
 	/** The enclosing equation, in buffer offsets. Latex Suite's `$…$` bounds. */

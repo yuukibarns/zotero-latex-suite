@@ -9,6 +9,19 @@ import * as ls from './build/test-exports.mjs';
 import { mathView, winFor } from './test-editor.mjs';
 
 const commands = ls.parseCommands(['\\alpha', '\\Alpha', '\\varalpha', '\\frac{#}{#}']);
+for (const environment of ['algorithm','algorithmic']) {
+ const prefix='\\begin{'+environment+'}\n\\STATE ';
+ const context = text => ls.Context.fromBuffer(ls.PMBuffer.forMath(mathView(text),'math_display'));
+ assert.equal(context(prefix+'word').mode.textEnv,true);
+ assert.equal(context(prefix+'$x').mode.textEnv,false);
+ assert.equal(context(prefix+'$x$ prose').mode.textEnv,true);
+ assert.equal(context(prefix+'\\$ prose').mode.textEnv,true);
+ assert.equal(context(prefix+'$x_{i} + y').mode.textEnv,false);
+ assert.equal(context(prefix+'\\end{'+environment+'} x').mode.textEnv,false);
+ assert.equal(ls.tokenAt(ls.PMBuffer.forMath(mathView(prefix+'STA'),'math_display'),2),null);
+ assert.equal(ls.tokenAt(ls.PMBuffer.forMath(mathView(prefix+'\\STA'),'math_display'),2)?.query,'STA');
+ assert.equal(ls.tokenAt(ls.PMBuffer.forMath(mathView(prefix+'$alp'),'math_display'),2)?.query,'alp');
+}
 for (const [source, expected] of [['hello world','hello '],['hello world  ','hello '],['\\alpha',''],['x_{foo','x_{'],['foo}','foo'],['',''],['   ',''],['αβ',''],['😀','']]) {
  const v=mathView(source);
  assert.equal(ls.deleteMathWord(ls.PMBuffer.forMath(v,'math_inline')),true);
