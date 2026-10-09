@@ -38,6 +38,10 @@ long arrows. mathcal and mathscr retain ASCII uppercase letters with explicit
 Caligraphic-Regular and Script-Regular fonts respectively. mathbb likewise uses
 ASCII uppercase letters in AMS-Regular rather than Unicode fallback glyphs; unsupported arguments
 remain visible. Font identity participates in the decoration cache key.
+Script glyphs reserve the final letter's italic correction from the bundled
+KaTeX metrics, matching its combined SymbolNode margin-right behavior. The
+margin is measured in the enlarged glyph's em, without inserting source spaces.
+This is glyph correction, not full TeX superscript/subscript layout.
 
 Braced vec/hat/bar/tilde/dot/ddot/widehat/widetilde/overline accents use the
 existing bundled KaTeX renderer, not Unicode approximations. Rendering is cached

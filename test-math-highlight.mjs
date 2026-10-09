@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {JSDOM} from 'jsdom';
+import katex from 'katex-zotero';
 import {Schema} from 'prosemirror-model';
 import {EditorState, TextSelection} from 'prosemirror-state';
 import {Decoration, DecorationSet} from 'prosemirror-view';
@@ -12,6 +13,13 @@ assert.deepEqual(concealRanges(String.raw`\verb|\alpha| + \beta`).map(r=>r.symbo
 assert.deepEqual(concealRanges(String.raw`\begin{algorithm}\caption{\alpha}\STATE prose \beta $\gamma\gets x$\end{algorithm}`).map(r=>r.symbol),['γ','←']);
 assert.deepEqual(concealRanges(String.raw`\begin{tikzcd}\alpha\end{tikzcd}`),[]);
 const concealed=concealRanges(String.raw`x+\alpha+y`);
+for(const letters of ['A','B','AB','Z']) {
+ const source='\\mathscr{'+letters+'}^{3}';
+ const anchor=concealDecorations(concealRanges(source),source.length+1,source.length+1).find(d=>d.type.attrs?.['data-symbol']===letters);
+ const rendered=new JSDOM(katex.renderToString('\\mathscr{'+letters+'}',{output:'html'}));
+ const correction=rendered.window.document.querySelector('.mathscr').style.marginRight;
+ assert.equal(anchor.type.attrs.style,'--ls-conceal-italic-correction:'+correction,'Script spacing follows KaTeX for '+letters);
+}
 for(const command of ['sum','prod','coprod','bigcup','bigcap','oint']) {
  const decorations=concealDecorations(concealRanges('\\'+command),100,100);
  assert(decorations.some(d=>d.type.attrs.class.includes('ls-conceal-font-Size1-Regular')),command+' uses compact operator font');

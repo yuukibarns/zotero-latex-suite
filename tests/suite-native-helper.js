@@ -150,11 +150,14 @@ C \arrow[r,"k"'] & D
     inject(`cv.dispatch(cv.state.tr.setSelection(cv.state.selection.constructor.create(cv.state.doc,3)));`);
     check(!w.focusMath._innerView.dom.querySelector('.ls-tex-concealed'),type+' caret reveals command');
     check(w.focusMath._innerView.state.doc.textContent==='\\alpha + x',type+' conceal preserves document');
-    const formatted=String.raw`\text{Rescale} \boldsymbol{P}^{\mathrm{blk}} + \frac{\alpha}{x} + \mathcal{R} + x_i + \cos^2 x + \to \longrightarrow \mapsto + \mathcal{A} \mathscr{A} \Rightarrow \implies + \mathbb{E} + z`;
+    const formatted=String.raw`\text{Rescale} \boldsymbol{P}^{\mathrm{blk}} + \frac{\alpha}{x} + \mathcal{R} + x_i + \cos^2 x + \to \longrightarrow \mapsto + \mathcal{A} \mathscr{A}^{3} \Rightarrow \implies + \mathbb{E} + z`;
     inject(`cv.dispatch(cv.state.tr.insertText(${JSON.stringify(formatted)},0,cv.state.doc.content.size));`);
     await waitFor(()=>w.focusMath._innerView.dom.querySelector('.ls-conceal-bold'),type+' formatted conceal');
     const replacements=[...w.focusMath._innerView.dom.querySelectorAll('[data-symbol]')].map(el=>el.getAttribute('data-symbol'));
-    check(JSON.stringify(replacements)===JSON.stringify(['Rescale','P','blk','α','R','i','cos','2','→','⟶','↦','A','A','⇒','⟹','E']),type+' exactly one replacement per range: '+JSON.stringify(replacements));
+    check(JSON.stringify(replacements)===JSON.stringify(['Rescale','P','blk','α','R','i','cos','2','→','⟶','↦','A','A','3','⇒','⟹','E']),type+' exactly one replacement per range: '+JSON.stringify(replacements));
+    const scriptLetter=w.focusMath._innerView.dom.querySelector('.ls-conceal-font-Script-Regular');
+    const scriptStyle=frame.getComputedStyle(scriptLetter,'::after');
+    check(Math.abs(parseFloat(scriptStyle.marginRight)-parseFloat(scriptStyle.fontSize)*0.22925)<0.1,type+' script A reserves KaTeX italic correction at current scale');
     for(const [font,family] of [['AMS-Regular','KaTeX_AMS'],['Caligraphic-Regular','KaTeX_Caligraphic'],['Script-Regular','KaTeX_Script']]) {
       const el=w.focusMath._innerView.dom.querySelector('.ls-conceal-font-'+font);
       check(frame.getComputedStyle(el,'::after').fontFamily.includes(family),type+' distinct alphabet '+family);

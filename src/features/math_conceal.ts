@@ -3,7 +3,7 @@ import { latexTokens } from '../highlight/tokenizer';
 import * as maps from '../conceal/maps';
 import symbolFonts from '../conceal/fonts.json';
 import { TextSelection } from 'prosemirror-state';
-import { concealAccentHTML } from '../../build/katex-source-map.mjs';
+import { concealAccentHTML, scriptItalicCorrection } from '../../build/katex-source-map.mjs';
 
 type Range = { from:number; to:number; symbol:string; html?:string; font?:string; className?:string; revealFrom?:number; revealTo?:number; styleOnly?:boolean };
 // KaTeX's implication macros use the long arrows, unlike Rightarrow/Leftarrow.
@@ -135,6 +135,9 @@ export function concealDecorations(ranges: Range[], from: number, to: number) {
   .filter(r=>r.to>r.from).flatMap(r => {
    const style=r.className?' ls-conceal-'+r.className:'';
    const font=r.font ?? (!r.className ? (symbolFonts as Record<string,string>)[r.symbol] : undefined);
+   // Like KaTeX's combined SymbolNode, reserve the final script letter's
+   // overhang. The pseudo-element's em uses the actual enlarged glyph size.
+   const italic=font==='Script-Regular' ? scriptItalicCorrection(r.symbol.slice(-1)) : 0;
    const options={inclusiveStart:false,inclusiveEnd:false,concealKey:JSON.stringify([r.styleOnly,r.className,r.symbol,font,r.html])};
    const hidden=Decoration.inline(r.from,r.to,{class:(r.styleOnly?'ls-conceal-style':'ls-tex-concealed')+style},options);
    if(r.html) return [hidden,Decoration.widget(r.from,view=> {
@@ -153,6 +156,6 @@ export function concealDecorations(ranges: Range[], from: number, to: number) {
    // Attach replacement content only to the first source code unit (ASCII
    // command/script/brace prefix), never to the splittable hidden range.
    return r.styleOnly || !r.symbol ? [hidden] : [hidden,
-    Decoration.inline(r.from,r.from+1,{class:'ls-conceal-symbol'+style+(font?' ls-conceal-font-'+font:''),'data-symbol':r.symbol},options)];
+    Decoration.inline(r.from,r.from+1,{class:'ls-conceal-symbol'+style+(font?' ls-conceal-font-'+font:''),'data-symbol':r.symbol,...(italic ? {style:'--ls-conceal-italic-correction:'+italic+'em'} : {})},options)];
   });
 }

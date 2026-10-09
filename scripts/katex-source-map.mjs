@@ -49,6 +49,9 @@ function lsLocate(node, loc) {
 export function concealAccentHTML(source) {
  return renderToHTMLTree(source, {displayMode:false, throwOnError:true, trust:false, strict:'ignore', maxExpand:100, maxSize:10}).toMarkup();
 }
+export function scriptItalicCorrection(letter) {
+ return getCharacterMetrics(letter, 'Script-Regular', 'math')?.italic || 0;
+}
 export function sourceGlyphs(source, options = {}) {
  const tree = renderToHTMLTree(source, {...options, macros: {...options.macros}, throwOnError: true, trust: false, strict: 'ignore'});
  const result = [];
