@@ -270,7 +270,7 @@ function handleKeydown(event: KeyboardEvent): boolean {
 
 	// 10./11. Tabout.
 	if (settings.taboutEnabled) {
-		if (key === settings.taboutTrigger && tabout(window, settings)) return true;
+		if (key === settings.taboutTrigger && tabout(window, settings, key === 'Tab')) return true;
 		if ([")", "}", "]"].includes(key) && shouldTaboutByCloseBracket(window, key) && tabout(window, settings)) {
 			return true;
 		}

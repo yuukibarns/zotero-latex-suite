@@ -9,6 +9,7 @@ import { intersection } from "src/utils/editor_utils";
 import { Context } from "src/utils/context";
 import { Settings } from "src/settings/settings";
 import { Token, tokenize } from "src/utils/tokenizer";
+import { simplifyScriptOnExit } from './script_cleanup';
 
 const LEFT_COMMANDS = new Set(["\\left", "\\bigl", "\\Bigl", "\\biggl", "\\Biggl"]);
 const RIGHT_COMMANDS = new Set(["\\right", "\\bigr", "\\Bigr", "\\biggr", "\\Biggr"]);
@@ -61,7 +62,7 @@ const isUnmatchedRightCommand = (tokens: Token[], index: number): boolean => {
 	return !DELIMITERS.has(tokens[index + 1].text);
 };
 
-export function tabout(win: any, settings: Settings): boolean {
+export function tabout(win: any, settings: Settings, simplifyScript = false): boolean {
 	const buffer = currentBuffer(win);
 	if (!buffer || !buffer.inMath) return false;
 	if (buffer.from !== buffer.to) return false;
@@ -79,7 +80,8 @@ export function tabout(win: any, settings: Settings): boolean {
 		// Normal navigation, and error recovery: an unmatched \right is exactly
 		// where the user needs to be to type the delimiter they forgot.
 		if (isClosingDelimiterToken(tokens, i, settings.taboutClosingSymbols) || isUnmatchedRightCommand(tokens, i)) {
-			buffer.setSelection(bounds.inner_start + tokens[i].end);
+			const destination=bounds.inner_start + tokens[i].end;
+			if (!simplifyScript || !simplifyScriptOnExit(buffer,buffer.positionAt(destination))) buffer.setSelection(destination);
 			return true;
 		}
 	}

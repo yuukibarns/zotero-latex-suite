@@ -198,6 +198,12 @@ C \arrow[r,"k"'] & D
     check(!hiddenText.includes('\\hat') && !hiddenText.includes('\\frac'),type+' accent and fraction syntax stays visible');
     inject(`cv.dispatch(cv.state.tr.setSelection(cv.state.selection.constructor.create(cv.state.doc,0,cv.state.doc.content.size)));`);
     check(doc.getSelection().toString()===lightweight,type+' exact source selection');
+    inject(`cv.dispatch(cv.state.tr.insertText('x^{n}',0,cv.state.doc.content.size));cv.dispatch(cv.state.tr.setSelection(cv.state.selection.constructor.create(cv.state.doc,4)));cv.focus();`);
+    const tabEvent=new frame.KeyboardEvent('keydown',{key:'Tab',bubbles:true,cancelable:true});
+    root.dispatchEvent(tabEvent);
+    check(tabEvent.defaultPrevented,type+' Tab handled');
+    check(w.focusMath._innerView.state.doc.textContent==='x^n',type+' Tab removes single-character script braces');
+    check(w.focusMath._innerView.state.selection.from===3,type+' Tab lands after simplified script');
   }
   // Pseudocode uses the same closed/live/export surface, without altering source.
   const algorithm=String.raw`\begin{algorithm}\caption{Sum}\begin{algorithmic}\REQUIRE A sequence of values to sum\ENSURE The sum of the values\INPUT $n$\OUTPUT $s$\STATE $s \gets 0$\FOR{$i=1$ to $n$}\STATE $s \gets s+i$\COMMENT{Accumulate values}\ENDFOR\RETURN $s$\end{algorithmic}\end{algorithm}`;

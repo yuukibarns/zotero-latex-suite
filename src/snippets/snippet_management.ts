@@ -12,6 +12,7 @@ import { Buffer, Range } from "src/editor/buffer";
 import { ResultInsert } from "./luasnip_api/node";
 import { tabstopSpecsToTabstopGroups } from "./tabstop";
 import { hideTabstopMarks, showTabstopMarks } from "./tabstop_marks";
+import { simplifyScriptOnExit } from 'src/features/script_cleanup';
 
 type ActiveSnippet = {
 	owner: object;
@@ -182,7 +183,7 @@ export function setSelectionToNextTabstop(buffer: Buffer, shiftKey: boolean): bo
 			continue;
 		}
 
-		buffer.selectRange(target);
+		if (shiftKey || target.from!==target.to || !simplifyScriptOnExit(buffer,target.from)) buffer.selectRange(target);
 		active.index = next;
 		// The last tabstop of the innermost snippet finishes it, but only it.
 		if (next === active.groups.length - 1 && direction === 1) {

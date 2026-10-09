@@ -1,10 +1,36 @@
 import assert from 'node:assert/strict';
 import {JSDOM} from 'jsdom';
+import {EditorState} from 'prosemirror-state';
+import {history,undo,redo} from 'prosemirror-history';
 import * as ls from './build/test-exports.mjs';
 import {mathView, StringBuffer, winFor} from './test-editor.mjs';
 const ts=(index,from,to=from)=>({index:[index],from,to});
 const fraction={insert:'\\frac{}{}',tabstops:[ts(0,6),ts(1,8),ts(2,9)]};
 const caret=view=>view.state.selection.to;
+for(const script of ['^{n}','_{i}','^{7}']) {
+ const view=mathView('x'+script);
+ view.state=EditorState.create({doc:view.state.doc,plugins:[history()]});
+ const b=()=>ls.PMBuffer.forMath(view,'math_inline');
+ b().setSelection(4);
+ assert(ls.simplifyScriptOnExit(b(),5));
+ assert.equal(b().text,'x'+script[0]+script[2]);
+ assert.equal(b().to,3);
+ assert(undo(view.state,view.dispatch));assert.equal(b().text,'x'+script);assert.equal(b().to,4);
+ assert(redo(view.state,view.dispatch));assert.equal(b().to,3);
+}
+for(const source of [String.raw`x^{10}`,String.raw`x_{ij}`,String.raw`x^{}`,String.raw`\text{^{n}}`,String.raw`\^{n}`,String.raw`\frac{a}{b}`,String.raw`x^{\alpha}`]) {
+ const view=mathView(source),b=ls.PMBuffer.forMath(view,'math_inline');
+ b.setSelection(source.lastIndexOf('}'));
+ assert.equal(ls.simplifyScriptOnExit(b,source.length),false,source);
+ assert.equal(b.text,source);
+}
+{
+ ls.clearTabstops();const view=mathView('');const b=()=>ls.PMBuffer.forMath(view,'math_inline');
+ ls.expandSnippet(b(),0,0,{insert:'x^{}+y',tabstops:[ts(0,3),ts(1,4),ts(2,6)]});
+ view.dispatch(view.state.tr.insertText('n'));
+ assert(ls.setSelectionToNextTabstop(b(),false));assert.equal(b().text,'x^n+y');assert.equal(b().to,3);
+ assert(ls.setSelectionToNextTabstop(b(),false));assert.equal(b().to,5,'later stops remapped');
+}
 function pm() {ls.clearTabstops();const view=mathView('');return {view,b:()=>ls.PMBuffer.forMath(view,'math_inline')};}
 // A plain automatic snippet must retain both denominator and final exit.
 {
