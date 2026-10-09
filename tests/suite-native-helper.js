@@ -162,7 +162,7 @@ C \arrow[r,"k"'] & D
     for(const glyph of ['→','⟶','↦']) {
       const arrow=[...w.focusMath._innerView.dom.querySelectorAll('[data-symbol]')].find(el=>el.getAttribute('data-symbol')===glyph);
       check(frame.getComputedStyle(arrow,'::after').fontFamily.includes('KaTeX_Main'),type+' math font for '+glyph);
-      check(Math.abs(parseFloat(frame.getComputedStyle(arrow,'::after').fontSize)-parseFloat(frame.getComputedStyle(w.focusMath._innerView.dom).fontSize)*1.2)<0.1,type+' math glyph scale for '+glyph);
+      check(Math.abs(parseFloat(frame.getComputedStyle(arrow,'::after').fontSize)-parseFloat(frame.getComputedStyle(w.focusMath._innerView.dom).fontSize)*1.25)<0.1,type+' math glyph scale for '+glyph);
     }
     await doc.fonts.ready;
     const textSymbol=w.focusMath._innerView.dom.querySelector('.ls-conceal-symbol.ls-conceal-text');
@@ -186,12 +186,12 @@ C \arrow[r,"k"'] & D
     await waitFor(()=>w.focusMath._innerView.dom.querySelectorAll('.ls-conceal-render').length===4,type+' accent conceal');
     const root=w.focusMath._innerView.dom, size=parseFloat(frame.getComputedStyle(root).fontSize);
     const normalAccent=root.querySelector('.ls-conceal-render:not(.ls-conceal-sub):not(.ls-conceal-sup)');
-    check(Math.abs(parseFloat(frame.getComputedStyle(normalAccent.querySelector('.katex')).fontSize)-size*1.2)<0.1,type+' normal accent matches enlarged KaTeX glyph scale');
+    check(Math.abs(parseFloat(frame.getComputedStyle(normalAccent.querySelector('.katex')).fontSize)-size*1.25)<0.1,type+' normal accent matches enlarged KaTeX glyph scale');
     for(const [kind,offset] of [['sub',-0.2],['sup',0.4]]) {
       const el=root.querySelector('.ls-conceal-render.ls-conceal-'+kind), style=frame.getComputedStyle(el);
-      check(Math.abs(parseFloat(style.fontSize)-size*1.2*0.8)<0.1,type+' accent '+kind+' wrapper scale');
+      check(Math.abs(parseFloat(style.fontSize)-size*1.25*0.8)<0.1,type+' accent '+kind+' wrapper scale');
       check(Math.abs(parseFloat(style.verticalAlign)-size*offset)<0.1,type+' accent '+kind+' offset');
-      check(Math.abs(parseFloat(frame.getComputedStyle(el.querySelector('.katex')).fontSize)-size*1.2*0.8)<0.1,type+' accent not scaled twice');
+      check(Math.abs(parseFloat(frame.getComputedStyle(el.querySelector('.katex')).fontSize)-size*1.25*0.8)<0.1,type+' accent not scaled twice');
     }
     if(type==='math_display') {
       const shot=doc.createElement('canvas');shot.width=frame.innerWidth;shot.height=frame.innerHeight;
