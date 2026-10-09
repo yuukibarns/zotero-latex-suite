@@ -43,7 +43,7 @@ KaTeX metrics, matching its combined SymbolNode margin-right behavior. The
 margin is measured in the enlarged glyph's em, without inserting source spaces.
 This is glyph correction, not full TeX superscript/subscript layout.
 
-Braced vec/hat/bar/tilde/dot/ddot/widehat/widetilde/overline accents use the
+Braced vec/hat/bar/tilde/dot/ddot/dddot/ddddot/widehat/widetilde/overline accents use the
 existing bundled KaTeX renderer, not Unicode approximations. Rendering is cached
 by source (128 entries, 512 characters and 8 brace levels per expression), with
 an allowed-command check, trust disabled, and bounded macro expansion. Script

@@ -55,7 +55,7 @@ for(const command of ['frac','dfrac','tfrac','gfrac']) {
  const ranges=concealRanges(source);
  assert.deepEqual(ranges.map(r=>source.slice(r.from,r.to)),command.endsWith('frac')?['\\alpha','\\beta']:['\\alpha'],'Only arguments conceal: '+command);
 }
-for(const command of ['vec','hat','widehat','tilde','widetilde','bar','overline','dot','ddot']) {
+for(const command of ['vec','hat','widehat','tilde','widetilde','bar','overline','dot','ddot','dddot','ddddot']) {
  for(const source of ['\\'+command+'{\\beta}', 'x_{\\'+command+'{x}}', 'x^{\\'+command+'{x}}']) {
   const ranges=concealRanges(source);
   assert.equal(ranges.length,1,source);

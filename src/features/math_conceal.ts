@@ -11,7 +11,7 @@ const symbols = { ...maps.cmd_symbols, ...maps.greek, ...maps.brackets, implies:
 const styles: Record<string,string> = { mathbf:'bold', boldsymbol:'bold', mathrm:'roman', underline:'underline', operatorname:'roman', 'operatorname*':'roman', text:'text' };
 const alphabets: Record<string,Record<string,string>> = { mathfrak:maps.mathfrak };
 const alphabetFonts: Record<string,string> = { mathbb:'AMS-Regular', mathcal:'Caligraphic-Regular', mathscr:'Script-Regular' };
-const accents = new Set(['vec','hat','bar','tilde','dot','ddot','widehat','widetilde','overline']);
+const accents = new Set(['vec','hat','bar','tilde','dot','ddot','dddot','ddddot','widehat','widetilde','overline']);
 const accentCache = new Map<string,string | null>();
 function accentHTML(source:string):string | null {
  if(source.length>512 || /[%$\n\r]/.test(source)) return null;
@@ -60,7 +60,7 @@ export function concealRanges(source: string): Range[] {
    const g=group(t.to), next=byStart.get(t.to);
    const end=g?.to ?? (next?.kind==='command' ? next.to : t.to+(source.codePointAt(t.to)!>0xffff?2:1));
    const body=g?.body ?? source.slice(t.to,end);
-   if(g && /\\(?:vec|hat|bar|tilde|dot|ddot|widehat|widetilde|overline)\b/.test(body)) {
+   if(g && [...body.matchAll(/\\([A-Za-z]+)/g)].some(m=>accents.has(m[1]))) {
     const html=accentHTML(body);
     if(html) { result.push({from:t.from,to:end,symbol:'',html,className:raw==='^'?'sup':'sub'}); consumed=end; continue; }
    }

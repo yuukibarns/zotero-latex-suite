@@ -186,9 +186,9 @@ C \arrow[r,"k"'] & D
     inject(`cv.dispatch(cv.state.tr.setSelection(cv.state.selection.constructor.create(cv.state.doc,0,cv.state.doc.content.size)));`);
     check(!w.focusMath._innerView.dom.querySelector('.ls-tex-concealed'),type+' select all reveals formatted source');
     check(doc.getSelection().toString()===formatted,type+' native selection contains original source only');
-    const accented=String.raw`\vec{x} + a_{\hat{x}} + b^{\dot{\beta}} + \widehat{AB} + z`;
+    const accented=String.raw`\vec{x} + a_{\dddot{x}} + b^{\ddddot{\beta}} + \widehat{AB} + \dddot{x} + \ddddot{x} + z`;
     inject(`cv.dispatch(cv.state.tr.insertText(${JSON.stringify(accented)},0,cv.state.doc.content.size));`);
-    await waitFor(()=>w.focusMath._innerView.dom.querySelectorAll('.ls-conceal-render').length===4,type+' accent conceal');
+    await waitFor(()=>w.focusMath._innerView.dom.querySelectorAll('.ls-conceal-render').length===6,type+' accent conceal');
     const root=w.focusMath._innerView.dom, size=parseFloat(frame.getComputedStyle(root).fontSize);
     const normalAccent=root.querySelector('.ls-conceal-render:not(.ls-conceal-sub):not(.ls-conceal-sup)');
     check(frame.getComputedStyle(normalAccent.querySelector('.katex')).color===commandColor,type+' accent matches concealed command color');
@@ -207,7 +207,7 @@ C \arrow[r,"k"'] & D
     }
     root.querySelector('.ls-conceal-render').dispatchEvent(new frame.MouseEvent('mousedown',{bubbles:true,cancelable:true}));
     check(w.focusMath._innerView.state.selection.from===1,type+' clicking accent reveals original command');
-    check(root.querySelectorAll('.ls-conceal-render').length===3,type+' clicked accent is revealed');
+    check(root.querySelectorAll('.ls-conceal-render').length===5,type+' clicked accent is revealed');
     inject(`cv.dispatch(cv.state.tr.setSelection(cv.state.selection.constructor.create(cv.state.doc,0,cv.state.doc.content.size)));`);
     check(!root.querySelector('.ls-conceal-render'),type+' selection removes accent widgets');
     check(doc.getSelection().toString()===accented,type+' selected accent source is exact');
