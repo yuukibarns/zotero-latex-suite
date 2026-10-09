@@ -43,16 +43,9 @@ KaTeX metrics, matching its combined SymbolNode margin-right behavior. The
 margin is measured in the enlarged glyph's em, without inserting source spaces.
 This is glyph correction, not full TeX superscript/subscript layout.
 
-Braced vec/hat/bar/tilde/dot/ddot/dddot/ddddot/widehat/widetilde/overline accents use the
-existing bundled KaTeX renderer, not Unicode approximations. Rendering is cached
-by source (128 entries, 512 characters and 8 brace levels per expression), with
-an allowed-command check, trust disabled, and bounded macro expansion. Script
-groups containing these accents render at normal KaTeX style inside the existing
-80%/vertical-offset wrapper, without applying script style a second time.
-Both normal and script accent widgets include the same 1.25 font enlargement
-as other KaTeX conceal glyphs (script size is 1.25 × 0.8 of the editor size).
-Noneditable decorations reveal the original source when selected or clicked.
-Malformed/unsupported forms stay visible; fractions are not flattened.
-The same cached renderer handles mathbf, bm and boldsymbol (including script
-arguments), preserving KaTeX's upright-bold versus bold-italic font selection
-and mixed-symbol handling instead of applying the editor's font-weight.
+Conceal is an auxiliary source-reading aid, not a renderer. Accents and
+fractions retain their command syntax; nested symbols may still conceal.
+Bold (mathbf/bm/boldsymbol), italic (mathit), and underline use CSS formatting.
+Formatting wrappers preserve nested conceal and reveal together on selection.
+No conceal-specific KaTeX HTML, render cache, widgets, or click handlers remain.
+The separate preview and its source mapping remain unchanged.

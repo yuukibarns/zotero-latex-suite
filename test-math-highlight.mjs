@@ -31,8 +31,8 @@ for(const command of ['to','longrightarrow','mapsto']) {
 assert.equal(concealRanges(String.raw`\text{Rescale}`)[0].className,'text','Text conceal keeps its semantic color');
 assert.equal(concealRanges(String.raw`\operatorname{Rescale}`)[0].className,'roman','Operators remain distinct from prose');
 for(const [source,expected] of [
- [String.raw`\boldsymbol{P}^{\mathrm{blk}}`,['','blk']],
- [String.raw`\mathbf{AB}+\mathrm{foo}+\underline{x}`,['','foo','x']],
+ [String.raw`\boldsymbol{P}^{\mathrm{blk}}`,['','','blk']],
+ [String.raw`\mathbf{AB}+\mathrm{foo}+\underline{x}`,['','','foo','x']],
  [String.raw`\mathbb{E}\mathbb{R}\mathcal{F}\mathfrak{g}`,['E','R','F','𝔤']],
  [String.raw`\Rightarrow\implies\Leftarrow\impliedby\Leftrightarrow\iff`,['⇒','⟹','⇐','⟸','⇔','⟺']],
  [String.raw`\frac{1}{2}+\dfrac{a}{b}`,[]],
@@ -55,19 +55,17 @@ for(const command of ['frac','dfrac','tfrac','gfrac']) {
  const ranges=concealRanges(source);
  assert.deepEqual(ranges.map(r=>source.slice(r.from,r.to)),command.endsWith('frac')?['\\alpha','\\beta']:['\\alpha'],'Only arguments conceal: '+command);
 }
-for(const command of ['vec','hat','widehat','tilde','widetilde','bar','overline','dot','ddot','dddot','ddddot','mathbf','bm','boldsymbol']) {
- for(const source of ['\\'+command+'{\\beta}', 'x_{\\'+command+'{x}}', 'x^{\\'+command+'{x}}']) {
-  const ranges=concealRanges(source);
-  assert.equal(ranges.length,1,source);
-  assert.match(ranges[0].html,/katex/);
-  for(let p=ranges[0].from;p<=ranges[0].to;p++) assert.equal(concealDecorations(ranges,p,p).length,0,'Reveal full accent '+source);
-  const decos=concealDecorations(ranges,source.length+1,source.length+1);
-  assert.equal(decos.length,2);
-  assert.equal(decos[1].from,decos[1].to,'Rendered accent uses a widget');
- }
+for(const command of ['vec','hat','widehat','tilde','widetilde','bar','overline','dot','ddot','dddot','ddddot']) {
+ const source='\\'+command+'{\\beta}';
+ assert.deepEqual(concealRanges(source).map(r=>source.slice(r.from,r.to)),['\\beta'],'Accent wrapper stays visible');
 }
-for(const source of [String.raw`\hat{\unknown{x}}`,String.raw`\hat{\frac{1}{2}}`,String.raw`\hat{\href{https://example.com}{x}}`,String.raw`\hat{`]) {
- assert(!concealRanges(source).some(r=>r.html),'Unsupported accent remains source');
+for(const command of ['mathbf','bm','boldsymbol','mathit']) {
+ const source='\\'+command+'{x+\\alpha}';
+ const ranges=concealRanges(source);
+ assert(ranges.some(r=>r.styleOnly));
+ assert(ranges.some(r=>r.symbol==='α'),'Nested symbol conceal preserved');
+ for(let p=0;p<=source.length;p++) assert.equal(concealDecorations(ranges,p,p).length,0,'Formatting reveals as a group');
+ for(const d of concealDecorations(ranges,source.length+1,source.length+1)) assert(d.from<d.to,'Inline-only conceal, no widgets');
 }
 const nested=String.raw`😀+\frac{\boldsymbol{\alpha+x}}{\mathbb{R}_{i}}+\unknown{z}`;
 for(let end=0;end<=nested.length;end++) {

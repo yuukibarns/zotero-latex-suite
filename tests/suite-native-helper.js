@@ -152,7 +152,7 @@ C \arrow[r,"k"'] & D
     check(w.focusMath._innerView.state.doc.textContent==='\\alpha + x',type+' conceal preserves document');
     const formatted=String.raw`\text{Rescale} \boldsymbol{P}^{\mathrm{blk}} + \frac{\alpha}{x} + \mathcal{R} + x_i + \cos^2 x + \to \longrightarrow \mapsto + \mathcal{A} \mathscr{A}^{3} \Rightarrow \implies + \mathbb{E} + z`;
     inject(`cv.dispatch(cv.state.tr.insertText(${JSON.stringify(formatted)},0,cv.state.doc.content.size));`);
-    await waitFor(()=>w.focusMath._innerView.dom.querySelector('.ls-conceal-render'),type+' formatted conceal');
+    await waitFor(()=>w.focusMath._innerView.dom.querySelector('.ls-conceal-bold'),type+' formatted conceal');
     const replacements=[...w.focusMath._innerView.dom.querySelectorAll('[data-symbol]')].map(el=>el.getAttribute('data-symbol'));
     check(JSON.stringify(replacements)===JSON.stringify(['Rescale','blk','α','R','i','cos','2','→','⟶','↦','A','A','3','⇒','⟹','E']),type+' exactly one replacement per range: '+JSON.stringify(replacements));
     const scriptLetter=w.focusMath._innerView.dom.querySelector('.ls-conceal-font-Script-Regular');
@@ -186,43 +186,18 @@ C \arrow[r,"k"'] & D
     inject(`cv.dispatch(cv.state.tr.setSelection(cv.state.selection.constructor.create(cv.state.doc,0,cv.state.doc.content.size)));`);
     check(!w.focusMath._innerView.dom.querySelector('.ls-tex-concealed'),type+' select all reveals formatted source');
     check(doc.getSelection().toString()===formatted,type+' native selection contains original source only');
-    const accented=String.raw`\vec{x} + a_{\dddot{x}} + b^{\ddddot{\beta}} + \widehat{AB} + \dddot{x} + \ddddot{x} + z`;
-    inject(`cv.dispatch(cv.state.tr.insertText(${JSON.stringify(accented)},0,cv.state.doc.content.size));`);
-    await waitFor(()=>w.focusMath._innerView.dom.querySelectorAll('.ls-conceal-render').length===6,type+' accent conceal');
-    const root=w.focusMath._innerView.dom, size=parseFloat(frame.getComputedStyle(root).fontSize);
-    const normalAccent=root.querySelector('.ls-conceal-render:not(.ls-conceal-sub):not(.ls-conceal-sup)');
-    check(frame.getComputedStyle(normalAccent.querySelector('.katex')).color===commandColor,type+' accent matches concealed command color');
-    check(Math.abs(parseFloat(frame.getComputedStyle(normalAccent.querySelector('.katex')).fontSize)-size*1.25)<0.1,type+' normal accent matches enlarged KaTeX glyph scale');
-    for(const [kind,offset] of [['sub',-0.2],['sup',0.4]]) {
-      const el=root.querySelector('.ls-conceal-render.ls-conceal-'+kind), style=frame.getComputedStyle(el);
-      check(frame.getComputedStyle(el.querySelector('.katex')).color===scriptColor,type+' accent preserves script color');
-      check(Math.abs(parseFloat(style.fontSize)-size*1.25*0.8)<0.1,type+' accent '+kind+' wrapper scale');
-      check(Math.abs(parseFloat(style.verticalAlign)-size*offset)<0.1,type+' accent '+kind+' offset');
-      check(Math.abs(parseFloat(frame.getComputedStyle(el.querySelector('.katex')).fontSize)-size*1.25*0.8)<0.1,type+' accent not scaled twice');
-    }
-    if(type==='math_display') {
-      const shot=doc.createElement('canvas');shot.width=frame.innerWidth;shot.height=frame.innerHeight;
-      shot.getContext('2d').drawWindow(frame,0,0,shot.width,shot.height,'white');
-      await IOUtils.write(CONFIG.screenshot+'.accents.png',Uint8Array.from(atob(shot.toDataURL('image/png').split(',')[1]),c=>c.charCodeAt(0)));
-    }
-    root.querySelector('.ls-conceal-render').dispatchEvent(new frame.MouseEvent('mousedown',{bubbles:true,cancelable:true}));
-    check(w.focusMath._innerView.state.selection.from===1,type+' clicking accent reveals original command');
-    check(root.querySelectorAll('.ls-conceal-render').length===5,type+' clicked accent is revealed');
+    const lightweight=String.raw`\bm{x+\alpha} + \mathit{y} + \hat{\beta} + \frac{a}{b} + z`;
+    inject(`cv.dispatch(cv.state.tr.insertText(${JSON.stringify(lightweight)},0,cv.state.doc.content.size));`);
+    const root=w.focusMath._innerView.dom;
+    await waitFor(()=>root.querySelector('.ls-conceal-bold'),type+' lightweight formatting');
+    check(frame.getComputedStyle(root.querySelector('.ls-conceal-bold')).fontWeight==='700',type+' CSS bold wrapper');
+    check(frame.getComputedStyle(root.querySelector('.ls-conceal-italic')).fontStyle==='italic',type+' CSS italic wrapper');
+    check(root.querySelector('[data-symbol="α"]'),type+' nested conceal retained');
+    check(!root.querySelector('.ls-conceal-render, .katex, [contenteditable="false"]'),type+' no render widgets in source');
+    const hiddenText=[...root.querySelectorAll('.ls-tex-concealed')].map(el=>el.textContent).join('');
+    check(!hiddenText.includes('\\hat') && !hiddenText.includes('\\frac'),type+' accent and fraction syntax stays visible');
     inject(`cv.dispatch(cv.state.tr.setSelection(cv.state.selection.constructor.create(cv.state.doc,0,cv.state.doc.content.size)));`);
-    check(!root.querySelector('.ls-conceal-render'),type+' selection removes accent widgets');
-    check(doc.getSelection().toString()===accented,type+' selected accent source is exact');
-    const boldSource=String.raw`\mathbf{x} + \bm{x} + \boldsymbol{\alpha} + x_{\bm{y}} + z`;
-    inject(`cv.dispatch(cv.state.tr.insertText(${JSON.stringify(boldSource)},0,cv.state.doc.content.size));`);
-    await waitFor(()=>root.querySelectorAll('.ls-conceal-render').length===4,type+' bold rendering');
-    const boldWidgets=[...root.querySelectorAll('.ls-conceal-render')];
-    const upright=frame.getComputedStyle(boldWidgets[0].querySelector('.mathbf'));
-    const italic=frame.getComputedStyle(boldWidgets[1].querySelector('.boldsymbol'));
-    check(upright.fontFamily.includes('KaTeX_Main') && upright.fontWeight==='700',type+' mathbf uses KaTeX upright bold');
-    check(italic.fontFamily.includes('KaTeX_Math') && italic.fontWeight==='700' && italic.fontStyle==='italic',type+' bm uses KaTeX bold italic');
-    check(boldWidgets[2].querySelector('.boldsymbol'),type+' bold Greek uses KaTeX');
-    check(Math.abs(parseFloat(frame.getComputedStyle(boldWidgets[3].querySelector('.katex')).fontSize)-size*1.25*0.8)<0.1,type+' bold script scaling');
-    inject(`cv.dispatch(cv.state.tr.setSelection(cv.state.selection.constructor.create(cv.state.doc,0,cv.state.doc.content.size)));`);
-    check(doc.getSelection().toString()===boldSource,type+' bold source remains unchanged');
+    check(doc.getSelection().toString()===lightweight,type+' exact source selection');
   }
   // Pseudocode uses the same closed/live/export surface, without altering source.
   const algorithm=String.raw`\begin{algorithm}\caption{Sum}\begin{algorithmic}\REQUIRE A sequence of values to sum\ENSURE The sum of the values\INPUT $n$\OUTPUT $s$\STATE $s \gets 0$\FOR{$i=1$ to $n$}\STATE $s \gets s+i$\COMMENT{Accumulate values}\ENDFOR\RETURN $s$\end{algorithmic}\end{algorithm}`;

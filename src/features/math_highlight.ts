@@ -29,12 +29,7 @@ math-inline.math-node .math-src .ProseMirror{white-space:break-spaces}
 .math-node .ls-tex-number{color:light-dark(#745300,#dfc276)}
 .math-node .ls-tex-concealed{font-size:0}
 .math-node{--ls-conceal-katex-scale:1.25}
-.math-node .ls-conceal-render{display:inline-block;font-size:calc(var(--ls-conceal-font-size)*var(--ls-conceal-katex-scale));color:var(--ls-conceal-command-color);user-select:none}
-.math-node .ls-conceal-render .katex{font-size:1em}
-.math-node .ls-conceal-render.ls-conceal-sub{font-size:calc(var(--ls-conceal-font-size)*var(--ls-conceal-katex-scale)*0.8);vertical-align:calc(var(--ls-conceal-font-size)*-0.2)}
-.math-node .ls-conceal-render.ls-conceal-sup{font-size:calc(var(--ls-conceal-font-size)*var(--ls-conceal-katex-scale)*0.8);vertical-align:calc(var(--ls-conceal-font-size)*0.4)}
 .math-node .ls-conceal-symbol::after{content:attr(data-symbol);font-size:var(--ls-conceal-font-size);color:var(--ls-conceal-command-color);pointer-events:none}
-.math-node .ls-conceal-render.ls-conceal-sub,.math-node .ls-conceal-render.ls-conceal-sup,
 .math-node .ls-conceal-symbol.ls-conceal-sub::after,.math-node .ls-conceal-symbol.ls-conceal-sup::after{color:var(--ls-conceal-script-color)}
 .math-node .ls-conceal-font-Main-Regular::after{font-family:KaTeX_Main,serif;font-style:normal}
 .math-node .ls-conceal-font-AMS-Regular::after{font-family:KaTeX_AMS,serif;font-style:normal}
@@ -49,6 +44,7 @@ math-inline.math-node .math-src .ProseMirror{white-space:break-spaces}
 .math-node .ls-conceal-font-AMS-Regular::after,
 .math-node .ls-conceal-font-Math-Italic::after{font-size:calc(var(--ls-conceal-font-size)*var(--ls-conceal-katex-scale))}
 .math-node .ls-conceal-bold{font-weight:bold}
+.math-node .ls-conceal-italic{font-style:italic}
 .math-node .ls-conceal-roman{font-style:normal}
 .math-node .ls-conceal-symbol.ls-conceal-text::after{color:var(--ls-conceal-text-color);font-style:normal}
 .math-node .ls-conceal-underline{text-decoration:underline}

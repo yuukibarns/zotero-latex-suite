@@ -2,32 +2,14 @@ import { Decoration } from 'prosemirror-view';
 import { latexTokens } from '../highlight/tokenizer';
 import * as maps from '../conceal/maps';
 import symbolFonts from '../conceal/fonts.json';
-import { TextSelection } from 'prosemirror-state';
-import { concealAccentHTML, scriptItalicCorrection } from '../../build/katex-source-map.mjs';
+import { scriptItalicCorrection } from '../../build/katex-source-map.mjs';
 
-type Range = { from:number; to:number; symbol:string; html?:string; font?:string; className?:string; revealFrom?:number; revealTo?:number; styleOnly?:boolean };
+type Range = { from:number; to:number; symbol:string; font?:string; className?:string; revealFrom?:number; revealTo?:number; styleOnly?:boolean };
 // KaTeX's implication macros use the long arrows, unlike Rightarrow/Leftarrow.
 const symbols = { ...maps.cmd_symbols, ...maps.greek, ...maps.brackets, implies:'⟹', impliedby:'⟸', iff:'⟺' };
-const styles: Record<string,string> = { mathrm:'roman', underline:'underline', operatorname:'roman', 'operatorname*':'roman', text:'text' };
+const styles: Record<string,string> = { mathbf:'bold', bm:'bold', boldsymbol:'bold', mathit:'italic', mathrm:'roman', underline:'underline', operatorname:'roman', 'operatorname*':'roman', text:'text' };
 const alphabets: Record<string,Record<string,string>> = { mathfrak:maps.mathfrak };
 const alphabetFonts: Record<string,string> = { mathbb:'AMS-Regular', mathcal:'Caligraphic-Regular', mathscr:'Script-Regular' };
-const accents = new Set(['vec','hat','bar','tilde','dot','ddot','dddot','ddddot','widehat','widetilde','overline']);
-const renderedCommands = new Set([...accents,'mathbf','bm','boldsymbol']);
-const accentCache = new Map<string,string | null>();
-function accentHTML(source:string):string | null {
- if(source.length>512 || /[%$\n\r]/.test(source)) return null;
- let depth=0;
- for(const c of source) { if(c==='{' && ++depth>8) return null; if(c==='}') depth--; }
- // No definitions, external resources, fractions, or other layout commands.
- if([...source.matchAll(/\\([A-Za-z]+|.)/g)].some(m=>!renderedCommands.has(m[1]) && !symbols[m[1]] && !maps.operators[m[1]] && !styles[m[1]] && !alphabetFonts[m[1]] && !alphabets[m[1]])) return null;
- if(accentCache.has(source)) return accentCache.get(source)!;
- let html:string | null=null;
- try { html=concealAccentHTML(source); } catch { /* Incomplete/unsupported input stays editable. */ }
- if(accentCache.size>=128) accentCache.delete(accentCache.keys().next().value!);
- accentCache.set(source,html);
- return html;
-}
-
 /** Upstream-backed rules, with UTF-16 offsets and conservative argument parsing.
  * Compound replacements reveal together, including their nested replacements. */
 export function concealRanges(source: string): Range[] {
@@ -61,32 +43,25 @@ export function concealRanges(source: string): Range[] {
    const g=group(t.to), next=byStart.get(t.to);
    const end=g?.to ?? (next?.kind==='command' ? next.to : t.to+(source.codePointAt(t.to)!>0xffff?2:1));
    const body=g?.body ?? source.slice(t.to,end);
-   if(g && [...body.matchAll(/\\([A-Za-z]+)/g)].some(m=>renderedCommands.has(m[1]))) {
-    const html=accentHTML(body);
-    if(html) { result.push({from:t.from,to:end,symbol:'',html,className:raw==='^'?'sup':'sub'}); consumed=end; continue; }
-   }
-   const formatted=/^\\(mathrm)\{([^{}]+)\}$/.exec(body);
+   const formatted=/^\\(mathrm|mathbf|bm|boldsymbol|mathit)\{([^{}]+)\}$/.exec(body);
    const text=plain(formatted ? formatted[2] : body);
    if(text && end<=source.length && (g || !/\s/.test(body))) add(end,text,(raw==='^'?'sup':'sub')+(formatted?' ls-conceal-'+styles[formatted[1]]:''));
    continue;
   }
   if(t.kind!=='command') continue;
-  if(renderedCommands.has(name)) {
-   const g=group(t.to);
-   if(!g && source[skipSpace(t.to)]==='{') { consumed=source.length; continue; }
-   if(g && g.body.trim()) {
-    const html=accentHTML(source.slice(t.from,g.to));
-    if(html) { result.push({from:t.from,to:g.to,symbol:'',html}); consumed=g.to; }
-   }
-   continue;
-  }
+
   if(styles[name] || alphabets[name] || alphabetFonts[name]) {
    const g=group(t.to);
    if(!g) { if(source[skipSpace(t.to)]==='{') consumed=source.length; continue; }
    if(/[\n\r%$]/.test(g.body)) { consumed=g.to; continue; }
    if(name==='text' && /[^A-Za-z0-9 .!?()-]/.test(g.body)) { consumed=g.to; continue; }
    const text=plain(g.body);
-   if(alphabetFonts[name]) {
+   if(['bold','italic'].includes(styles[name]) && g.body.length) {
+    // Hide only the wrapper: nested symbol/font conceal remains independent.
+    result.push({from:t.from,to:g.from+1,symbol:'',revealFrom:t.from,revealTo:g.to},
+     {from:g.to-1,to:g.to,symbol:'',revealFrom:t.from,revealTo:g.to},
+     {from:g.from+1,to:g.to-1,symbol:'',className:styles[name],styleOnly:true,revealFrom:t.from,revealTo:g.to});
+   } else if(alphabetFonts[name]) {
     // These KaTeX alphabets encode uppercase Latin glyphs at ASCII positions.
     // Preserve unsupported arguments instead of guessing a Unicode substitute.
     if(/^[A-Z]+$/.test(g.body)) add(g.to,g.body,undefined,alphabetFonts[name]);
@@ -140,20 +115,8 @@ export function concealDecorations(ranges: Range[], from: number, to: number) {
    // Like KaTeX's combined SymbolNode, reserve the final script letter's
    // overhang. The pseudo-element's em uses the actual enlarged glyph size.
    const italic=font==='Script-Regular' ? scriptItalicCorrection(r.symbol.slice(-1)) : 0;
-   const options={inclusiveStart:false,inclusiveEnd:false,concealKey:JSON.stringify([r.styleOnly,r.className,r.symbol,font,r.html])};
+   const options={inclusiveStart:false,inclusiveEnd:false,concealKey:JSON.stringify([r.styleOnly,r.className,r.symbol,font])};
    const hidden=Decoration.inline(r.from,r.to,{class:(r.styleOnly?'ls-conceal-style':'ls-tex-concealed')+style},options);
-   if(r.html) return [hidden,Decoration.widget(r.from,view=> {
-    const el=view.dom.ownerDocument.createElement('span');
-    el.className='ls-conceal-render'+style;
-    el.contentEditable='false'; el.setAttribute('aria-hidden','true');
-    el.innerHTML=r.html!;
-    el.addEventListener('mousedown',e=> {
-     e.preventDefault();
-     view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc,r.from+1)));
-     view.focus();
-    });
-    return el;
-   },{...options,key:options.concealKey+':'+r.from,side:-1,ignoreSelection:true})];
    // ProseMirror splits inline decorations at every overlapping highlight.
    // Attach replacement content only to the first source code unit (ASCII
    // command/script/brace prefix), never to the splittable hidden range.
