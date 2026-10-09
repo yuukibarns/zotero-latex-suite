@@ -28,4 +28,7 @@ fonts.json records glyph availability from katex-zotero 0.16.22's
 src/fontMetricsData.js for the Unicode characters in maps.ts. Prefer Main,
 then AMS, then Math Italic; lowercase Greek prefers Math Italic. Characters
 without a known glyph retain the source font. These are display-only font
+choices. Large operators absent from those fonts use verified Size1-Regular
+glyphs (compact operators, not display-size Size2), with the same 1.2 scale.
+These are display-only font
 choices, not a reproduction of KaTeX's full typesetting/font-selection logic.

@@ -12,6 +12,10 @@ assert.deepEqual(concealRanges(String.raw`\verb|\alpha| + \beta`).map(r=>r.symbo
 assert.deepEqual(concealRanges(String.raw`\begin{algorithm}\caption{\alpha}\STATE prose \beta $\gamma\gets x$\end{algorithm}`).map(r=>r.symbol),['γ','←']);
 assert.deepEqual(concealRanges(String.raw`\begin{tikzcd}\alpha\end{tikzcd}`),[]);
 const concealed=concealRanges(String.raw`x+\alpha+y`);
+for(const command of ['sum','prod','coprod','bigcup','bigcap','oint']) {
+ const decorations=concealDecorations(concealRanges('\\'+command),100,100);
+ assert(decorations.some(d=>d.type.attrs.class.includes('ls-conceal-font-Size1-Regular')),command+' uses compact operator font');
+}
 for(const command of ['to','longrightarrow','mapsto']) {
  const replacements=concealDecorations(concealRanges('\\'+command),100,100);
  assert(replacements.some(d=>d.type.attrs.class.includes('ls-conceal-font-Main-Regular')),command+' uses verified math glyph font');
