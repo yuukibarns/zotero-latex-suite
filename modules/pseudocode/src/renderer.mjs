@@ -6,7 +6,7 @@ import css from '../vendor/static/pseudocode.css';
 
 // Reuse the note/exporter's local KaTeX fonts; never fetch CDN styles.
 export const rendererCSS = css.replace(/^@import[^;]+;\s*/m, '') + `
-.pseudocode-diagram { font-size:1em; text-align:left; width:max-content; max-width:100%; color:inherit; background:transparent; }
+.pseudocode-diagram { font-size:1em; text-align:left; white-space:normal; width:max-content; max-width:100%; color:inherit; background:transparent; }
 .pseudocode-diagram .ps-algorithm { margin:0; }
 `;
 export const isPseudocode = source => /^\s*\\begin\{(?:algorithm|algorithmic)\}/.test(source);
