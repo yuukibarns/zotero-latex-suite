@@ -1,7 +1,7 @@
 {
 	"manifest_version": 2,
 	"name": "LaTeX Suite",
-  "version": "0.5.3.121",
+  "version": "0.5.3.122",
 	"description": "LaTeX editing and preview, TikZ-CD diagrams, note and PDF page export, annotation backlinks, and a compact menu for Zotero.",
 	"homepage_url": "https://github.com/yuukibarns/zotero-latex-suite",
 	"author": "Pavel Ievlev; completion fork maintained by yuukibarns",

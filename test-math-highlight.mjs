@@ -39,7 +39,7 @@ for(let end=0;end<=nested.length;end++) {
  assert.equal(concealDecorations(ranges,0,end).length,0,'Selecting all reveals all');
 }
 for(const [from,to] of [[2,2],[4,4],[8,8],[0,9],[3,7]]) assert.equal(concealDecorations(concealed,from,to).length,0,'cursor/selection reveals entire command including boundaries');
-assert.equal(concealDecorations(concealed,0,0).length,1);
+assert.equal(concealDecorations(concealed,0,0).length,2);
 
 const pieces = source => latexTokens(source).map(t => [source.slice(t.from,t.to),t.kind]);
 const matched=(source,at)=>mathDelimiterIndex(source).get(at)?.partners?.map(r=>source.slice(r.from,r.to));
@@ -201,8 +201,8 @@ assert.equal(view.props.decorations,replacement,'cleanup preserves another exten
 view.props={};view.state=state;view.dom.style.fontSize='14px';
 const stopConceal=installMathHighlight(win,true,false);await tick();
 view.state=state.apply(state.tr.setSelection(TextSelection.create(state.doc,8)));
-assert.equal(view.props.decorations(view.state).find().length,1,'conceal works independently of highlighting');
-assert.equal(view.props.decorations(view.state).find()[0].type.attrs['data-symbol'],'α');
+assert.equal(view.props.decorations(view.state).find().length,2,'conceal works independently of highlighting');
+assert.equal(view.props.decorations(view.state).find().find(d=>d.type.attrs['data-symbol']).type.attrs['data-symbol'],'α');
 view.composing=true;
 assert.equal(view.props.decorations(view.state).find().length,0,'IME composition reveals source');
 view.composing=false;

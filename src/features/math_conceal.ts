@@ -108,8 +108,14 @@ export function concealDecorations(ranges: Range[], from: number, to: number) {
   while(index<merged.length && merged[index].to<=r.from) index++;
   return index===merged.length || merged[index].from>=r.to;
  })
-  .filter(r=>r.to>r.from).map(r => Decoration.inline(r.from,r.to, {
-   class:(r.styleOnly?'ls-conceal-style':'ls-tex-concealed')+(r.className?' ls-conceal-'+r.className:''),
-   ...(r.styleOnly?{}:{'data-symbol':r.symbol}),
-  },{inclusiveStart:false,inclusiveEnd:false}));
+  .filter(r=>r.to>r.from).flatMap(r => {
+   const style=r.className?' ls-conceal-'+r.className:'';
+   const options={inclusiveStart:false,inclusiveEnd:false};
+   const hidden=Decoration.inline(r.from,r.to,{class:(r.styleOnly?'ls-conceal-style':'ls-tex-concealed')+style},options);
+   // ProseMirror splits inline decorations at every overlapping highlight.
+   // Attach replacement content only to the first source code unit (ASCII
+   // command/script/brace prefix), never to the splittable hidden range.
+   return r.styleOnly || !r.symbol ? [hidden] : [hidden,
+    Decoration.inline(r.from,r.from+1,{class:'ls-conceal-symbol'+style,'data-symbol':r.symbol},options)];
+  });
 }
