@@ -158,6 +158,7 @@ C \arrow[r,"k"'] & D
     for(const glyph of ['→','⟶','↦']) {
       const arrow=[...w.focusMath._innerView.dom.querySelectorAll('[data-symbol]')].find(el=>el.getAttribute('data-symbol')===glyph);
       check(frame.getComputedStyle(arrow,'::after').fontFamily.includes('KaTeX_Main'),type+' math font for '+glyph);
+      check(Math.abs(parseFloat(frame.getComputedStyle(arrow,'::after').fontSize)-parseFloat(frame.getComputedStyle(w.focusMath._innerView.dom).fontSize)*1.2)<0.1,type+' math glyph scale for '+glyph);
     }
     await doc.fonts.ready;
     const textSymbol=w.focusMath._innerView.dom.querySelector('.ls-conceal-symbol.ls-conceal-text');

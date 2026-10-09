@@ -31,6 +31,9 @@ math-inline.math-node .math-src .ProseMirror{white-space:break-spaces}
 .math-node .ls-conceal-font-Main-Regular::after{font-family:KaTeX_Main,serif;font-style:normal}
 .math-node .ls-conceal-font-AMS-Regular::after{font-family:KaTeX_AMS,serif;font-style:normal}
 .math-node .ls-conceal-font-Math-Italic::after{font-family:KaTeX_Math,serif;font-style:italic}
+.math-node .ls-conceal-font-Main-Regular::after,
+.math-node .ls-conceal-font-AMS-Regular::after,
+.math-node .ls-conceal-font-Math-Italic::after{font-size:calc(var(--ls-conceal-font-size)*1.2)}
 .math-node .ls-conceal-bold{font-weight:bold}
 .math-node .ls-conceal-roman{font-style:normal}
 .math-node .ls-conceal-symbol.ls-conceal-text::after{color:var(--ls-conceal-text-color);font-style:normal}
