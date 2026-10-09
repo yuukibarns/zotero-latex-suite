@@ -99,6 +99,10 @@ export function installCompletion(win: Window, commands: Command[], minimum: num
 		}
 		if (!items.length) return false;
 		if (e.key === "Tab" || (e.key === "Enter" && e.shiftKey)) { suppress(); return false; }
+		if (e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && ["n", "p"].includes(e.key.toLowerCase())) {
+			selected = (selected + (e.key.toLowerCase() === "n" ? 1 : items.length - 1)) % items.length;
+			paint(); return true;
+		}
 		if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return false;
 		if (e.key === "Escape") { dismissed = key; close(); return true; }
 		if (e.key === "Enter") return accept();

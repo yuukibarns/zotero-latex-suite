@@ -222,6 +222,27 @@ assert.equal(key('ArrowDown').defaultPrevented,true);
 assert.equal(key('ArrowUp').defaultPrevented,true);
 assert.equal(key('Enter').defaultPrevented,true);
 assert.equal(view.state.doc.textContent,'\\alpha'); assert.equal(popup(),null);
+for (const name of ['n','p']) assert.equal(key(name,{ctrlKey:true}).defaultPrevented,false,'Closed popup preserves Ctrl+'+name);
+reset('al'); await input();
+const selectedIndex=()=>[...popup().children].findIndex(el=>el.getAttribute('aria-selected')==='true');
+const count=popup().children.length;
+assert(count>1);
+assert.equal(selectedIndex(),0);
+assert.equal(key('p',{ctrlKey:true}).defaultPrevented,true);
+assert.equal(selectedIndex(),count-1,'Ctrl+P wraps backwards');
+assert.equal(key('n',{ctrlKey:true}).defaultPrevented,true);
+assert.equal(selectedIndex(),0,'Ctrl+N wraps forwards');
+assert.equal(key('n',{ctrlKey:true}).defaultPrevented,true);
+assert.equal(selectedIndex(),1);
+for(const extra of [{ctrlKey:true,shiftKey:true},{ctrlKey:true,altKey:true},{ctrlKey:true,metaKey:true},{metaKey:true}]) {
+ assert.equal(key('p',extra).defaultPrevented,false);
+ assert.equal(selectedIndex(),1);
+}
+assert.equal(view.state.doc.textContent,'al','Navigation does not change source');
+assert.equal(key('n',{ctrlKey:true,isComposing:true}).defaultPrevented,false,'IME is not intercepted');
+assert.equal(selectedIndex(),1,'IME does not move selection');
+key('Escape');
+assert.equal(popup(),null);
 function reset(s='alp') {view.dispatch(view.state.tr.insertText(s,0,view.state.doc.content.size));}
 for (const command of ['STA','\\STA']) {
  reset('\\begin{algorithmic}\n'+command);await input();
