@@ -115,6 +115,16 @@ LaTeX command completion is limited to note equations.
 
 ### LaTeX source highlighting
 
+Source symbol conceal is controlled independently under Completion → **Conceal
+math commands as symbols (reveal at cursor)**. It displays common Greek letters,
+arrows and operators without changing stored LaTeX. Touching a command with the
+caret or selection reveals its source. Algorithm prose, comments, verbatim text,
+and TikZ-CD source are excluded; math inside algorithm `$...$` is supported.
+This first implementation does not conceal formatting groups or fold blocks.
+The reveal-on-selection interaction is inspired by
+[Obsidian LaTeX Suite](https://github.com/artisticat1/obsidian-latex-suite/blob/main/src/editor_extensions/conceal.ts),
+with a small ProseMirror-specific display layer rather than CodeMirror dependencies.
+
 Note equations now color commands, braces, operators, comments and environment
 names while editing, with light/dark-aware colors. Nested text arguments such as
 `\text{target {label}}` are tracked without affecting subsequent math.

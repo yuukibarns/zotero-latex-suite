@@ -4,7 +4,16 @@ import {JSDOM} from 'jsdom';
 import {Schema} from 'prosemirror-model';
 import {EditorState, TextSelection} from 'prosemirror-state';
 import {Decoration, DecorationSet} from 'prosemirror-view';
-import {latexTokens, installMathHighlight, installMathVisibility, mathDelimiterIndex} from './build/test-exports.mjs';
+import {latexTokens, installMathHighlight, installMathVisibility, mathDelimiterIndex, concealRanges, concealDecorations} from './build/test-exports.mjs';
+
+assert.deepEqual(concealRanges(String.raw`\alpha+\lambda+\alphabeta`).map(r=>r.symbol),['α','λ']);
+assert.deepEqual(concealRanges(String.raw`\text{\alpha} + \beta % \gamma`).map(r=>r.symbol),['β']);
+assert.deepEqual(concealRanges(String.raw`\verb|\alpha| + \beta`).map(r=>r.symbol),['β']);
+assert.deepEqual(concealRanges(String.raw`\begin{algorithm}\caption{\alpha}\STATE prose \beta $\gamma\gets x$\end{algorithm}`).map(r=>r.symbol),['γ','←']);
+assert.deepEqual(concealRanges(String.raw`\begin{tikzcd}\alpha\end{tikzcd}`),[]);
+const concealed=concealRanges(String.raw`x+\alpha+y`);
+for(const [from,to] of [[2,2],[4,4],[8,8],[0,9],[3,7]]) assert.equal(concealDecorations(concealed,from,to).length,0,'cursor/selection reveals entire command including boundaries');
+assert.equal(concealDecorations(concealed,0,0).length,1);
 
 const pieces = source => latexTokens(source).map(t => [source.slice(t.from,t.to),t.kind]);
 const matched=(source,at)=>mathDelimiterIndex(source).get(at)?.partners?.map(r=>source.slice(r.from,r.to));
@@ -163,5 +172,16 @@ assert.equal(view.props.decorations(view.state).find().filter(d=>d.type.attrs.cl
 const replacement=()=>DecorationSet.empty;
 view.props.decorations=replacement;stopThird();
 assert.equal(view.props.decorations,replacement,'cleanup preserves another extension replacing the provider');
+view.props={};view.state=state;view.dom.style.fontSize='14px';
+const stopConceal=installMathHighlight(win,true,false);await tick();
+view.state=state.apply(state.tr.setSelection(TextSelection.create(state.doc,8)));
+assert.equal(view.props.decorations(view.state).find().length,1,'conceal works independently of highlighting');
+assert.equal(view.props.decorations(view.state).find()[0].type.attrs['data-symbol'],'α');
+view.composing=true;
+assert.equal(view.props.decorations(view.state).find().length,0,'IME composition reveals source');
+view.composing=false;
+assert.deepEqual(view.state.doc.toJSON(),original,'conceal does not alter source');
+stopConceal();assert.equal(view.props.decorations,undefined);
+assert.equal(view.dom.style.getPropertyValue('--ls-conceal-font-size'),'');
 win.close();
 console.log('LaTeX tokens, escaped symbols, nested text, decorations, caching and cleanup passed.');

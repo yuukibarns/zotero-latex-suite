@@ -141,6 +141,15 @@ C \arrow[r,"k"'] & D
     check(w.focusMath._innerView.hasFocus(),type+' tab-return focuses inner editor');
     check(w.focusMath._innerView.state.selection.anchor===1&&w.focusMath._innerView.state.selection.head===2,type+' selection retained');
     check(w.focusMath._innerView.dom.contains(doc.getSelection().anchorNode),type+' DOM selection belongs to inner editor');
+    inject(`var cv=focusMath._innerView;cv.dispatch(cv.state.tr.insertText(${JSON.stringify(String.raw`\alpha + x`)},0,cv.state.doc.content.size));`);
+    await waitFor(()=>w.focusMath._innerView.dom.querySelector('.ls-tex-concealed'),type+' symbol concealed');
+    const symbol=w.focusMath._innerView.dom.querySelector('.ls-tex-concealed');
+    check(symbol.textContent==='\\alpha',type+' DOM retains original command');
+    check(frame.getComputedStyle(symbol).fontSize==='0px',type+' source visually concealed');
+    check(symbol.getAttribute('data-symbol')==='α' && frame.getComputedStyle(symbol,'::after').content!=='none' && parseFloat(frame.getComputedStyle(symbol,'::after').fontSize)>0,type+' replacement symbol visible: '+frame.getComputedStyle(symbol,'::after').content);
+    inject(`cv.dispatch(cv.state.tr.setSelection(cv.state.selection.constructor.create(cv.state.doc,3)));`);
+    check(!w.focusMath._innerView.dom.querySelector('.ls-tex-concealed'),type+' caret reveals command');
+    check(w.focusMath._innerView.state.doc.textContent==='\\alpha + x',type+' conceal preserves document');
   }
   // Pseudocode uses the same closed/live/export surface, without altering source.
   const algorithm=String.raw`\begin{algorithm}\caption{Sum}\begin{algorithmic}\REQUIRE A sequence of values to sum\ENSURE The sum of the values\INPUT $n$\OUTPUT $s$\STATE $s \gets 0$\FOR{$i=1$ to $n$}\STATE $s \gets s+i$\COMMENT{Accumulate values}\ENDFOR\RETURN $s$\end{algorithmic}\end{algorithm}`;
