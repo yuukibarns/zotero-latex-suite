@@ -17,7 +17,7 @@ function attachNote(doc) {
   function cleanup() {
     doc.removeEventListener('DOMContentLoaded', inject);
     win.removeEventListener('unload', unload);
-    try { win.wrappedJSObject.__tikzcdNotes?.dispose(); } catch (error) { Zotero.debug('TikZ-CD cleanup: ' + error); }
+    try { win.wrappedJSObject[typeof noteControllerKey === 'string' ? noteControllerKey : '__tikzcdNotes']?.dispose(); } catch (error) { Zotero.debug('TikZ-CD cleanup: ' + error); }
   }
   noteDocuments.set(doc, cleanup);
   win.addEventListener('unload', unload, { once:true });

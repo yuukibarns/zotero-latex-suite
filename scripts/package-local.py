@@ -19,6 +19,7 @@ files = [
     "suite-modules.js", "modules/compact-menu/bootstrap.js",
     "modules/page-tools/bootstrap.js", "modules/page-tools/page-tools.js",
     "modules/backlinks/bootstrap.js", "modules/backlinks/LICENSE",
+    "modules/pseudocode/content/note.js", "modules/pseudocode/vendor/LICENSE",
     "modules/tikzcd/bootstrap.js", "modules/tikzcd/content/note.js", "modules/tikzcd/vendor/quiver/LICENSE",
     "bootstrap.js", "icon.svg", "prefs.xhtml", "prefs.js", "prefs.css",
     "LICENSE", "COMPLETR-LICENSE", "PROSEMIRROR-LICENSE", "HIGHLIGHTJS-LICENSE", "CODEMIRROR-LICENSE", "build/content-script.js", "build/render.js",

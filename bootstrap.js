@@ -22,6 +22,7 @@ const PREF = "extensions.zotero.latexSuite.settings";
  * These exist so the settings pane can show what a field falls back to.
  * test.js fails if the two drift apart. */
 const FIELDS = [
+	{ group: "Modules", key: "pseudocodeEnabled", type: "bool", default: true, label: "Pseudocode", hint: "Render algorithm / algorithmic blocks, including preview and PDF export." },
 	{ group: "Modules", key: "tikzcdEnabled", type: "bool", default: true, label: "TikZ-CD diagrams", hint: "Render Quiver-compatible diagrams, including live preview and PDF export. Defers to an enabled standalone TikZ-CD plugin." },
 	{ group: "Modules", key: "pdfPageToolsEnabled", type: "bool", default: true, label: "PDF Page Tools", hint: "Copy PDF pages and export page ranges. Defers to the standalone plugin when enabled." },
 	{ group: "Modules", key: "annotationBacklinksEnabled", type: "bool", default: true, label: "Annotation Backlinks", hint: "Find notes referencing selected annotations. Defers to the standalone plugin when enabled." },

@@ -3,6 +3,7 @@ var SuiteModules = {
   async install(env, rootURI, settings) {
     const { Zotero, Services, AddonManager } = env;
     const definitions = [
+      ['pseudocodeEnabled', null, 'pseudocode'],
       ['tikzcdEnabled', 'tikzcd-preview@yuukibarns', 'tikzcd'],
       ['pdfPageToolsEnabled', 'pdf-page-tools@yuukibarns', 'page-tools'],
       ['annotationBacklinksEnabled', 'annotation-backlinks@local', 'backlinks'],
@@ -19,14 +20,14 @@ var SuiteModules = {
     }
     async function reconcile() {
       for (const [key, id, path] of definitions) {
-        const addon = await AddonManager.getAddonByID(id);
+        const addon = id ? await AddonManager.getAddonByID(id) : null;
         const enabled = !stopped && settings()[key] !== false && !blocked.has(id) && !addon?.isActive;
         if (!enabled) { stop(key); continue; }
         if (running.has(key)) continue;
-        const scope = { ...env };
+        const scope = { ...env, noteControllerKey: path === 'pseudocode' ? '__pseudocodeNotes' : '__tikzcdNotes' };
         const uri = rootURI + 'modules/' + path + '/';
         try {
-          Services.scriptloader.loadSubScript(uri + 'bootstrap.js', scope);
+          Services.scriptloader.loadSubScript((path === 'pseudocode' ? rootURI + 'modules/tikzcd/' : uri) + 'bootstrap.js', scope);
           running.set(key, scope);
           await scope.startup({ id: 'latex-suite@ievlevpn.github.io', rootURI: uri });
           // An add-on enable or suite shutdown can stop the scope while its

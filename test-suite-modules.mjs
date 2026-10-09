@@ -9,7 +9,7 @@ const env={
  Zotero:{logError:e=>errors.push(e)},
  AddonManager:{getAddonByID:async id=>({isActive:active.get(id)||false}),addAddonListener:l=>listener=l,removeAddonListener:l=>{assert.equal(l,listener);listener=null;}},
  Services:{scriptloader:{loadSubScript:(uri,scope)=>{
-   const name=uri.split('/').at(-2);
+   const name=scope.noteControllerKey === '__pseudocodeNotes' ? 'pseudocode' : uri.split('/').at(-2);
    scope.startup=async()=>calls.push('start:'+name);
    scope.shutdown=()=>calls.push('stop:'+name);
    scope.onMainWindowLoad=()=>calls.push('window:'+name);
@@ -17,8 +17,8 @@ const env={
 };
 active.set('compact-menu@yuukibarns',true);
 const manager=await context.SuiteModules.install(env,'resource://suite/',()=>settings);
-assert.deepEqual(calls,['start:tikzcd','start:page-tools','start:backlinks']);
-await manager.refresh();assert.equal(calls.length,3,'No duplicate starts');
+assert.deepEqual(calls,['start:pseudocode','start:tikzcd','start:page-tools','start:backlinks']);
+await manager.refresh();assert.equal(calls.length,4,'No duplicate starts');
 settings={tikzcdEnabled:false};await manager.refresh();assert.equal(calls.at(-1),'stop:tikzcd');
 settings={};await manager.refresh();assert.equal(calls.at(-1),'start:tikzcd');
 listener.onEnabling({id:'tikzcd-preview@yuukibarns'});
@@ -35,7 +35,7 @@ let unblock;
 env.Services.scriptloader.loadSubScript=(_uri,scope)=>{
  scope.startup=()=>new Promise(r=>unblock=r);scope.shutdown=()=>calls.push('stopped-pending');
 };
-settings={tikzcdEnabled:false,pdfPageToolsEnabled:false,annotationBacklinksEnabled:false,compactMenuEnabled:false};
+settings={pseudocodeEnabled:false,tikzcdEnabled:false,pdfPageToolsEnabled:false,annotationBacklinksEnabled:false,compactMenuEnabled:false};
 const delayed=await context.SuiteModules.install(env,'resource://suite/',()=>settings);
 settings.compactMenuEnabled=true;const pending=delayed.refresh();
 while(!unblock)await new Promise(r=>setImmediate(r));

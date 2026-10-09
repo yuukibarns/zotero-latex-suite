@@ -4,6 +4,9 @@ node_modules/
 misc/
 build/
 vendor/
+!modules/pseudocode/vendor/
+!modules/pseudocode/vendor/**
+modules/pseudocode/content/
 !modules/tikzcd/vendor/
 !modules/tikzcd/vendor/**
 modules/tikzcd/content/
