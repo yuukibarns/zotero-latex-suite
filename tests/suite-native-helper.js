@@ -152,6 +152,8 @@ C \arrow[r,"k"'] & D
   await waitFor(()=>doc.querySelector('#latex-suite-math-preview .ps-algorithm'),'Shared pseudocode preview');
   inject(`var pi=pseudo._innerView;pi.dispatch(pi.state.tr.insertText('Total',${algorithm.indexOf('Sum')},${algorithm.indexOf('Sum')+3}));pi.focus();`);
   await waitFor(()=>doc.querySelector('#latex-suite-math-preview .ps-algorithm')?.textContent.includes('Total'),'Debounced pseudocode updates');
+  canvas.getContext('2d').drawWindow(frame,0,0,canvas.width,canvas.height,'white');
+  await IOUtils.write(CONFIG.screenshot.replace('.png','-pseudocode.png'),Uint8Array.from(atob(canvas.toDataURL('image/png').split(',')[1]),c=>c.charCodeAt(0)));
   inject(`window.exportedHTML=null;document.getElementById('latex-suite-print-menu-item').click();`);
   await waitFor(()=>!!w.exportedHTML,'Pseudocode export prepared');
   check(w.exportedHTML.includes('ps-algorithm')&&w.exportedHTML.includes('.pseudocode-diagram'),'Export includes pseudocode and CSS');

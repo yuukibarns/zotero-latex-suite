@@ -2,6 +2,31 @@
 
 ## Unified suite
 
+### Pseudocode
+
+Paste an algorithm into a **display equation** in a Zotero note (without a
+Markdown code fence). It uses [pseudocode.js](https://github.com/SaswatPadhi/pseudocode.js),
+as used by the [Obsidian pseudocode plugin](https://github.com/Yaotian-Liu/obsidian-pseudocode).
+Embedded formulas use local KaTeX. Closed rendering, the existing debounced
+preview, and note PDF export share the same renderer.
+
+```latex
+\begin{algorithm}
+\caption{Sum}
+\begin{algorithmic}
+\STATE $s \gets 0$
+\FOR{$i=1$ to $n$}
+\STATE $s \gets s+i$
+\ENDFOR
+\RETURN $s$
+\end{algorithmic}
+\end{algorithm}
+```
+
+The Pseudocode module switch is in LaTeX Suite settings. This is pseudocode.js's
+algorithm/algorithmic subset, not full algorithm2e or arbitrary LaTeX packages.
+Preview caret mapping and reverse selection are not supported for algorithms.
+
 One installation now includes TikZ-CD rendering, PDF Page Tools, Annotation
 Backlinks, and Compact Menu alongside LaTeX editing and note PDF export.
 Each added module can be enabled or disabled in LaTeX Suite settings.
