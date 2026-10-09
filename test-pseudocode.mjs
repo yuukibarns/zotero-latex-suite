@@ -24,6 +24,18 @@ const safe = await renderPseudocode(host,String.raw`\begin{algorithmic}\STATE <i
 assert(!safe.element.querySelector('img,a,script,iframe'));
 safe.dispose();
 assert(!rendererCSS.includes('@import'));
+for (const body of [
+ String.raw`\IF{$x$}\IF{$y$}\RETURN $y$\ENDIF\ELIF{$z$}\STATE $z$\ELSE\STATE $x$\ENDIF`,
+ String.raw`\UPON{$x$}\STATE $x$\ENDUPON`,
+ String.raw`\WHILE{$x$}\BREAK\ENDWHILE\FORALL{$x$}\CONTINUE\ENDFOR`,
+ String.raw`\REPEAT\STATE $x$\UNTIL{$x$}`,
+ String.raw`\FUNCTION{F}{$x$}\RETURN $x$\ENDFUNCTION\PROCEDURE{P}{$x$}\PRINT $x$\ENDPROCEDURE`,
+ String.raw`\STATE $x$\COMMENT{A comment}`,
+]) {
+ const result=await renderPseudocode(host,'\\begin{algorithmic}'+body+'\\end{algorithmic}');
+ assert(result.element.querySelector('.ps-code'));
+ result.dispose();
+}
 await assert.rejects(renderPseudocode(host,'x'.repeat(20001)),/too large/);
 await assert.rejects(renderPseudocode(host,String.raw`\begin{algorithmic}\IF{x}`));
 const controller = new AbortController();controller.abort();
