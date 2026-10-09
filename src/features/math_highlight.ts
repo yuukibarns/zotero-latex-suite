@@ -103,7 +103,7 @@ math-inline.math-node .math-src .ProseMirror{white-space:break-spaces}
 				const previous = original?.(state);
 				const composing = !!view.composing;
 				if (!lastResult || lastBase !== displayed || lastFrom !== state.selection.from || lastTo !== state.selection.to || lastComposing !== composing) {
-					const next = conceal && !composing ? concealDecorations(ranges, state.selection.from, state.selection.to) : [];
+					const next = conceal && !composing ? concealDecorations(ranges, state.selection.from, state.selection.to).sort((a,b)=>a.from-b.from || a.to-b.to) : [];
 					// Like upstream, retain parsed specs on selection-only updates.
 					// Also retain the set when moving inside the same reveal region.
 					if (!lastResult || lastBase !== displayed || next.length !== lastConceal.length || next.some((d,i) => d.from !== lastConceal[i].from || d.to !== lastConceal[i].to || d.spec.concealKey !== lastConceal[i].spec.concealKey))
