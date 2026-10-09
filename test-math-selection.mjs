@@ -205,9 +205,35 @@ stopMouse();assert.equal(mouse('mousedown',1).defaultPrevented,false,'cleanup re
  mouseTime+=2000;mouse('mousedown',1,2);mouse('mouseup',1,2);mouse('mousedown',2,2);mouse('mouseup',2,2);
  mouse('mousedown',3,2);mouse('mousemove',3,8);
  assert.deepEqual([view.state.selection.from,view.state.selection.to],[0,11],'structural drag extends across sibling groups');
+ const selectedState=view.state;
+ assert.ok(mouse('mousemove',3,9).defaultPrevented,'unchanged sibling selection still owns native drag');
+ assert.equal(view.state,selectedState,'movement within selected sibling does not dispatch');
  mouse('mousemove',3,2);mouse('mouseup',3,2);
  assert.deepEqual([view.state.selection.from,view.state.selection.to],[0,5],'structural drag can shrink to seed');
  stop();view.state=before;
+}
+{
+ const stop=installMathMouseSelection(win);
+ for(const inactive of ['readonly','disconnected','destroyed']) {
+  mouseTime+=2000;mouse('mousedown',1,0);
+  const before=view.state;
+  if(inactive==='readonly')view.editable=false;
+  if(inactive==='disconnected')node.remove();
+  if(inactive==='destroyed')view.isDestroyed=true;
+  assert.equal(mouse('mousemove',1,6,win.document).defaultPrevented,false,'inactive drag yields: '+inactive);
+  assert.equal(view.state,before,'inactive drag does not dispatch: '+inactive);
+  view.editable=true;view.isDestroyed=false;
+  if(!node.isConnected)win.document.body.prepend(node);
+  mouse('mousemove',1,6);
+  assert.equal(view.state,before,'cancelled gesture cannot resume: '+inactive);
+ }
+ mouseTime+=2000;mouse('mousedown',1,0);
+ const before=view.state;
+ assert.ok(mouse('mousemove',1,0).defaultPrevented);
+ assert.equal(view.state,before,'unchanged plain drag does not dispatch');
+ mouse('mousemove',1,6);
+ assert.notEqual(view.state,before,'changed plain drag dispatches');
+ stop();
 }
 let timeout=1800;
 const stopTimed=installMathMouseSelection(win,()=>{},()=>timeout);

@@ -344,12 +344,12 @@ export function installMathMouseSelection(win: Window, onSelect: () => void = ()
 	function mousemove(event: MouseEvent) {
 		if (!gesture?.down || composing || !(event.buttons & 1)) return;
 		const { view, source, anchor } = gesture;
-		if (view.isDestroyed || view.state.doc.textContent !== source) { reset();return; }
+		if (view.isDestroyed || view.editable === false || !view.dom.isConnected || view.state.doc.textContent !== source) { reset();return; }
 		const end = position(view, event);
 		if (end === null) { reset();return; }
 		const kind = view.dom.closest("math-display") ? "math_display" : "math_inline";
 		const selection=gesture.extend?.(end) ?? {anchor,head:end};
-		PMBuffer.forMath(view, kind).setSelection(selection.anchor, selection.head);
+		if (view.state.selection.anchor !== selection.anchor || view.state.selection.head !== selection.head) PMBuffer.forMath(view, kind).setSelection(selection.anchor, selection.head);
 		gesture.selected = { from: selection.anchor, to: selection.head };
 		gesture.x = event.clientX;gesture.y = event.clientY;
 		// A drag is not the start of a subsequent multi-click expansion series.
