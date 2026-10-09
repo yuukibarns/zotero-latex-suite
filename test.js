@@ -22,7 +22,7 @@ const { FIELDS } = require("./bootstrap.js");
 
 	/* --- the shipped snippets parse --- */
 	const settings = processSettings(DEFAULT_SETTINGS);
-	assert.ok(settings.snippets.length > 200, "expected the full default snippet set");
+	assert.equal(settings.snippets.length, 102, "expected the bundled CDLaTeX snippet set");
 	assert.deepStrictEqual(settings.matrixShortcutsEnvNames.includes("pmatrix"), true);
 	assert.deepStrictEqual(settings.autofractionExcludedEnvs, [
 		{ openSymbol: "^{", closeSymbol: "}" },
@@ -239,7 +239,7 @@ const { FIELDS } = require("./bootstrap.js");
 	new Function("window", "navigator", "console", bundle)(win, { userAgent: "Mac" }, console);
 	assert.deepStrictEqual(events, ["+paste", "+keydown", "+beforeinput", "+selectionchange"]);
 	assert.strictEqual(win.__latexSuiteInstalled, true);
-	assert.ok(win.__latexSuite.settings.snippets.length > 200);
+	assert.equal(win.__latexSuite.settings.snippets.length, settings.snippets.length);
 
 	const oneSnippet = JSON.stringify({ completionEnabled: false, mathPreviewEnabled: false, snippets: `export default [{trigger: "zz", replacement: "ZZ", options: "mA"}]` });
 	win.__latexSuiteReload(oneSnippet);
@@ -256,7 +256,7 @@ const { FIELDS } = require("./bootstrap.js");
 	console.error = () => {}; // the fallback logs the syntax error, as it should
 	win.__latexSuiteReload(JSON.stringify({ completionEnabled: false, mathPreviewEnabled: false, snippets: "export default not valid js {{{" }));
 	console.error = realError;
-	assert.ok(win.__latexSuite.settings.snippets.length > 200);
+	assert.equal(win.__latexSuite.settings.snippets.length, settings.snippets.length);
 
 	win.__latexSuiteUninstall();
 	assert.deepStrictEqual(events, [

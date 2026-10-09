@@ -75,8 +75,10 @@ dint Tab 2pi Tab sin @t Tab @t Tab  →  \int_{0}^{2\pi} \sin \theta \, d\theta
 The snippet format is unchanged from upstream, so if you already use
 obsidian-latex-suite you can point this at the very same file and get the same
 shortcuts in both — see [Sharing snippets with Obsidian](#sharing-snippets-with-obsidian).
-It ships with Latex Suite's [default snippets](src/default_snippets.js) — 220-odd
-of them — which you can edit, remove or replace in **Settings → LaTeX Suite**.
+It ships with the user's [CDLaTeX-style snippets](src/default_snippets.js):
+semicolon symbols, postfix/prefix modifiers, pairing, and context-aware math
+entry. You can edit or replace them in **Settings → LaTeX Suite**.
+Saved snippets and external snippet files still override the bundled defaults.
 
 ## Install
 

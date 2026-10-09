@@ -123,7 +123,7 @@ export default [
     // Math mode entry triggers
     {trigger: "mk", replacement: "$$0$", options: "tA"},
     // Inline math inside \text{...}: stays in the current equation node.
-    {trigger: "mk", replacement: (_match, api) => api?.algorithmText ? "$0$1" : "\\($0\\)$1", options: "TA"},
+    {trigger: "mk", replacement: (_match, api) => api?.algorithmText ? "$$0$$1" : "\\($0\\)$1", options: "TA"},
     {trigger: "dm", replacement: "$$ $0 $$", options: "tAw"},
     {trigger: /(?<=\S.*)dm/, replacement: "\n$$\n\t$0\n$$", options: "tAw", priority: 1},
 
