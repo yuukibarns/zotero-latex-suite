@@ -88,7 +88,10 @@ export function mathCaretAt(html: Element, map: SourceGlyph[], target: Element, 
 export function installMathCaret(win: Window): () => void {
 	const doc = win.document,
 		getMap = createMathSourceMap();
-	const diagnostic = { build: "0.5.3.98", events: [] as Record<string, unknown>[] };
+	const diagnostic = {
+		build: typeof __LATEX_SUITE_VERSION__ === "string" ? __LATEX_SUITE_VERSION__ : "dev",
+		events: [] as Record<string, unknown>[],
+	};
 	(win as any).__latexSuiteMathCaretDiagnostic = diagnostic;
 	let started = 0,
 		timer = 0,

@@ -26,6 +26,9 @@ const rawImports = {
 	},
 };
 
+// Stamped into diagnostics so test output names the build that produced it.
+const { version } = JSON.parse(await fs.readFile("manifest.json", "utf8"));
+
 const opts = {
 	entryPoints: ["src/main.ts"],
 	bundle: true,
@@ -35,6 +38,7 @@ const opts = {
 	logLevel: "info",
 	legalComments: "none",
 	plugins: [rawImports],
+	define: { __LATEX_SUITE_VERSION__: JSON.stringify(version) },
 };
 
 // The renderer on its own, for the item pane: that runs in chrome, where the
