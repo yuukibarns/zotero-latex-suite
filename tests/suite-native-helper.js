@@ -154,7 +154,7 @@ C \arrow[r,"k"'] & D
     inject(`cv.dispatch(cv.state.tr.insertText(${JSON.stringify(formatted)},0,cv.state.doc.content.size));`);
     await waitFor(()=>w.focusMath._innerView.dom.querySelector('.ls-conceal-bold'),type+' formatted conceal');
     const replacements=[...w.focusMath._innerView.dom.querySelectorAll('[data-symbol]')].map(el=>el.getAttribute('data-symbol'));
-    check(JSON.stringify(replacements)===JSON.stringify(['Rescale','blk','α','R','i','cos','2','→','⟶','↦','A','A','3','⇒','⟹','E']),type+' exactly one replacement per range: '+JSON.stringify(replacements));
+    check(JSON.stringify(replacements)===JSON.stringify(['Rescale','α','R','i','cos','2','→','⟶','↦','A','A','3','⇒','⟹','E']),type+' exactly one replacement per range: '+JSON.stringify(replacements));
     const scriptLetter=w.focusMath._innerView.dom.querySelector('.ls-conceal-font-Script-Regular');
     const scriptStyle=frame.getComputedStyle(scriptLetter,'::after');
     const commandColor=scriptStyle.color;
@@ -209,7 +209,7 @@ C \arrow[r,"k"'] & D
     inject(`cv.dispatch(cv.state.tr.insertText(${JSON.stringify(wrapperColors)},0,cv.state.doc.content.size));`);
     const roman=[...root.querySelectorAll('.ls-conceal-style.ls-conceal-roman')].find(el=>el.textContent==='KL');
     check(roman && frame.getComputedStyle(roman).color===frame.getComputedStyle(root).color,type+' roman letters retain plain text color');
-    check(colorOf('.ls-conceal-script-text')===frame.getComputedStyle(roman).color,type+' roman subscript and standalone colors agree');
+    check(!root.querySelector('.ls-conceal-sub'),type+' styled script keeps outer syntax');
     check(frame.getComputedStyle(root.querySelector('.ls-conceal-underline.ls-tex-number')).color!==frame.getComputedStyle(root).color,type+' underlined number retains highlighting');
     check(colorOf('[data-symbol="α"]')===colorOf('[data-symbol="Hom"]'),type+' nested symbol and named operator retain command color');
     const delimiters=String.raw`\left( x \middle| y \right) + z`;

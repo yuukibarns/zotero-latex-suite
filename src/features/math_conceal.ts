@@ -25,11 +25,12 @@ export function concealRanges(source: string): Range[] {
  }
  const skipSpace = (p:number) => { while(source[p] === ' ' || source[p] === '\t') p++; return p; };
  const group = (p:number) => { p=skipSpace(p); const end=closes.get(p); return end ? {from:p,to:end,body:source.slice(p+1,end-1)} : undefined; };
- function plain(body:string):string | undefined {
+ function plain(body:string, script=false):string | undefined {
   if(/[{}%$\n\r_^]/.test(body)) return;
   let ok=true;
   const text=body.replace(/\\([A-Za-z]+|.)/g,(_,name:string)=> {
-   const value=symbols[name] || (maps.operators[name] ? name : undefined);
+   const value=script && (maps.operators[name] || ['sqrt','choose'].includes(name)) ? undefined
+    : symbols[name] || (maps.operators[name] ? name : undefined);
    if(value === undefined) { ok=false; return ''; } return value;
   });
   return ok ? text : undefined;
@@ -44,12 +45,12 @@ export function concealRanges(source: string): Range[] {
    const g=group(t.to), next=byStart.get(t.to);
    const end=g?.to ?? (next?.kind==='command' ? next.to : t.to+(source.codePointAt(t.to)!>0xffff?2:1));
    const body=g?.body ?? source.slice(t.to,end);
-   const wrapper=/^\\([A-Za-z]+)\{([^{}]+)\}$/.exec(body);
-   const formatted=wrapper && formatting[wrapper[1]] ? wrapper : null;
-   const text=plain(formatted ? formatted[2] : body);
+   // Flatten only plain content and direct symbol substitutions. Nested
+   // scripts/formatting retain their own conceal rules, not an outer layout.
+   const text=plain(body,true);
    if(text && end<=source.length && (g || !/\s/.test(body))) {
-    const content=formatted ? formatted[2] : body;
-    const offset=(g ? g.from+1 : t.to)+(formatted ? body.indexOf('{')+1 : 0);
+    const content=body;
+    const offset=g ? g.from+1 : t.to;
     const parts:{from:number;to:number;symbol:string;kind:string}[]=[];
     let at=0;
     for(const token of latexTokens(content)) {
@@ -59,7 +60,7 @@ export function concealRanges(source: string): Range[] {
     }
     if(at<content.length) parts.push({from:at,to:content.length,symbol:content.slice(at),kind:'text'});
     parts.forEach((part,i)=>result.push({from:i===0?t.from:offset+part.from,to:i===parts.length-1?end:offset+part.to,
-     symbol:part.symbol,className:(raw==='^'?'sup':'sub')+' ls-conceal-script-'+part.kind+(formatted?' ls-conceal-'+styles[formatted[1]]:''),revealFrom:t.from,revealTo:end}));
+     symbol:part.symbol,className:(raw==='^'?'sup':'sub')+' ls-conceal-script-'+part.kind,revealFrom:t.from,revealTo:end}));
     consumed=end;
    }
    continue;

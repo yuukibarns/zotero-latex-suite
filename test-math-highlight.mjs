@@ -45,7 +45,7 @@ for(const command of ['to','longrightarrow','mapsto']) {
 assert.equal(concealRanges(String.raw`\text{Rescale}`)[0].className,'text','Text conceal keeps its semantic color');
 assert.equal(concealRanges(String.raw`\operatorname{Rescale}`)[0].className,'roman','Operators remain distinct from prose');
 for(const [source,expected] of [
- [String.raw`\boldsymbol{P}^{\mathrm{blk}}`,['','','blk']],
+ [String.raw`\boldsymbol{P}^{\mathrm{blk}}`,['','','','']],
  [String.raw`\mathbf{AB}+\mathrm{foo}+\underline{x}`,['','','','','','']],
  [String.raw`\mathbb{E}\mathbb{R}\mathcal{F}\mathfrak{g}`,['E','R','F','𝔤']],
  [String.raw`\Rightarrow\implies\Leftarrow\impliedby\Leftrightarrow\iff`,['⇒','⟹','⇐','⟸','⇔','⟺']],
@@ -85,15 +85,25 @@ for(const command of ['mathbf','bm','boldsymbol','mathit','mathrm','underline'])
  for(const script of ['_','^']) {
   const source=`x${script}{\\${command}{x+1\\alpha}}`;
   const ranges=concealRanges(source);
-  assert.deepEqual(ranges.map(r=>r.symbol),['x','+','1','α']);
-  for(const [i,kind] of ['text','operator','number','command'].entries())
-   assert.ok(ranges[i].className.includes('ls-conceal-script-'+kind),'script retains token color: '+source);
+  assert.deepEqual(ranges.filter(r=>r.symbol).map(r=>r.symbol),['α']);
+  assert.ok(ranges.every(r=>r.from>1 && r.to<source.length),'outer script syntax remains visible');
+  assert.ok(ranges.some(r=>r.styleOnly),'inner formatting still conceals');
  }
  const source=`\\${command}{x+1\\mathit{y}\\alpha}`;
  const ranges=concealRanges(source);
  assert.equal(ranges.filter(r=>r.styleOnly).length,2,'nested formatting remains independent');
  assert.deepEqual(ranges.filter(r=>r.symbol).map(r=>r.symbol),['α'],'original plain content remains highlighted');
  for(let p=0;p<=source.length;p++)assert.equal(concealDecorations(ranges,p,p).length,0,'nested wrapper reveals together');
+}
+for(const body of [String.raw`x_T\sim p_T(\cdot\mid x_0)`,String.raw`\hat{x}+\alpha`,String.raw`\frac{a}{b_i}`,String.raw`\sin x`,String.raw`\mathbb{R}`]) {
+ const source=`E_{${body}}`,ranges=concealRanges(source);
+ assert.ok(ranges.length,'eligible inner conceal survives: '+body);
+ assert.ok(ranges.every(r=>r.from>1 && r.to<source.length),'complex outer script stays literal: '+body);
+}
+{
+ const source=String.raw`E_{x_T+p_T+x_0}`,ranges=concealRanges(source);
+ assert.deepEqual(ranges.map(r=>r.symbol),['T','T','0']);
+ assert.equal(concealDecorations(ranges,source.indexOf('T'),source.indexOf('T')).filter(d=>d.type.attrs?.['data-symbol']).length,2,'editing inner script does not reveal siblings');
 }
 const nested=String.raw`😀+\frac{\boldsymbol{\alpha+x}}{\mathbb{R}_{i}}+\unknown{z}`;
 for(let end=0;end<=nested.length;end++) {
