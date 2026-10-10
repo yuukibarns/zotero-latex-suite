@@ -54,7 +54,7 @@ for(const [source,expected] of [
  [String.raw`\left\langle x\right\rangle`,['⟨','⟩']],
  [String.raw`\longmapsto\nsubseteq\varnothing`,['⟼','⊈','∅']],
 ]) assert.deepEqual(concealRanges(source).filter(r=>!r.styleOnly).map(r=>r.symbol),expected,source);
-for(const source of [String.raw`\mathbb{?}`,String.raw`\boldsymbol{\alpha`,String.raw`\unknown{x}`,String.raw`\frac{a}`])
+for(const source of [String.raw`\mathbb{?}`,String.raw`\unknown{x}`,String.raw`\frac{a}`])
  assert.equal(concealRanges(source).length,0,'Unsupported/incomplete form stays visible: '+source);
 for(const source of [String.raw`\boldsymbol{x+\beta}`]) {
  const ranges=concealRanges(source);
@@ -104,6 +104,25 @@ for(const body of [String.raw`x_T\sim p_T(\cdot\mid x_0)`,String.raw`\hat{x}+\al
  const source=String.raw`E_{x_T+p_T+x_0}`,ranges=concealRanges(source);
  assert.deepEqual(ranges.map(r=>r.symbol),['T','T','0']);
  assert.equal(concealDecorations(ranges,source.indexOf('T'),source.indexOf('T')).filter(d=>d.type.attrs?.['data-symbol']).length,2,'editing inner script does not reveal siblings');
+}
+for(const source of [String.raw`\boldsymbol{\alpha`,String.raw`\mathrm{\alpha % comment
+}`])assert.deepEqual(concealRanges(source).filter(r=>r.symbol).map(r=>r.symbol),['α'],'invalid wrapper preserves eligible inner conceal');
+for(const arg of ['i','{i}',String.raw`\alpha`])for(const gap of ['',' ','\t']) {
+ const source='x_'+gap+arg,ranges=concealRanges(source);
+ assert.equal(ranges.length,1,'one argument: '+source);
+ assert.equal(ranges[0].symbol,arg.includes('alpha')?'α':'i');
+ assert.equal(ranges[0].from,1);assert.equal(ranges[0].to,source.length);
+}
+for(const source of ['x_','x_\\','x_  ','x_{','x_\nq','x_% comment\nq'])
+ assert.equal(concealRanges(source).length,0,'incomplete/comment/newline stays visible: '+source);
+for(const name of ['sqrt','choose','frac','unknown','alphaUnknown'])for(const source of ['\\'+name,'x_\\'+name,'x_{\\'+name+'}'])
+ assert.equal(concealRanges(source).length,0,'same command eligibility inside and outside scripts: '+source);
+for(const source of [String.raw`x_i^2`,String.raw`x_{i+1}^{\alpha}`,String.raw`x_{a_j+\unknown{\beta}}`]) {
+ const ranges=concealRanges(source),replacements=ranges.filter(r=>!r.styleOnly);
+ for(let i=1;i<replacements.length;i++)assert.ok(replacements[i-1].to<=replacements[i].from,'replacement spans never overlap');
+ for(const r of ranges)for(const p of [r.from,r.to])
+  assert.ok(concealDecorations(ranges,p,p).every(d=>d.to<=r.from || d.from>=r.to),'caret at either boundary reveals touched replacement');
+ assert.equal(concealDecorations(ranges,0,source.length).length,0,'full selection reveals source');
 }
 const nested=String.raw`😀+\frac{\boldsymbol{\alpha+x}}{\mathbb{R}_{i}}+\unknown{z}`;
 for(let end=0;end<=nested.length;end++) {

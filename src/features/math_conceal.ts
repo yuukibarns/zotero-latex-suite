@@ -11,6 +11,12 @@ const formatting: Record<string,string> = { mathbf:'bold', bm:'bold', boldsymbol
 const styles: Record<string,string> = { ...formatting, operatorname:'roman', 'operatorname*':'roman', text:'text' };
 const alphabets: Record<string,Record<string,string>> = { mathfrak:maps.mathfrak };
 const alphabetFonts: Record<string,string> = { mathbb:'AMS-Regular', mathcal:'Caligraphic-Regular', mathscr:'Script-Regular' };
+/** Shared eligibility for complete, argument-free command replacements. */
+function commandReplacement(name:string): {symbol:string;className?:string} | undefined {
+ if(['sqrt','choose'].includes(name)) return;
+ if(symbols[name]) return {symbol:symbols[name]};
+ if(maps.operators[name]) return {symbol:name,className:'roman'};
+}
 /** Upstream-backed rules, with UTF-16 offsets and conservative argument parsing.
  * Compound replacements reveal together, including their nested replacements. */
 export function concealRanges(source: string): Range[] {
@@ -27,13 +33,14 @@ export function concealRanges(source: string): Range[] {
  const group = (p:number) => { p=skipSpace(p); const end=closes.get(p); return end ? {from:p,to:end,body:source.slice(p+1,end-1)} : undefined; };
  function plain(body:string, script=false):string | undefined {
   if(/[{}%$\n\r_^]/.test(body)) return;
-  let ok=true;
-  const text=body.replace(/\\([A-Za-z]+|.)/g,(_,name:string)=> {
-   const value=script && (maps.operators[name] || ['sqrt','choose'].includes(name)) ? undefined
-    : symbols[name] || (maps.operators[name] ? name : undefined);
-   if(value === undefined) { ok=false; return ''; } return value;
-  });
-  return ok ? text : undefined;
+  let text='',at=0;
+  for(const token of latexTokens(body)) {
+   if(token.kind!=='command' && token.kind!=='escape') continue;
+   const replacement=commandReplacement(body.slice(token.from+1,token.to));
+   if(!replacement || script && replacement.className) return;
+   text+=body.slice(at,token.from)+replacement.symbol;at=token.to;
+  }
+  return text+body.slice(at);
  }
  const result:Range[]=[];
  let consumed=0;
@@ -42,15 +49,17 @@ export function concealRanges(source: string): Range[] {
   const raw=source.slice(t.from,t.to), name=raw.slice(1);
   const add=(to:number,symbol:string,className?:string,font?:string) => {result.push({from:t.from,to,symbol,className,font});consumed=to;};
   if(t.kind==='operator' && (raw==='^' || raw==='_')) {
-   const g=group(t.to), next=byStart.get(t.to);
-   const end=g?.to ?? (next?.kind==='command' ? next.to : t.to+(source.codePointAt(t.to)!>0xffff?2:1));
-   const body=g?.body ?? source.slice(t.to,end);
+   // TeX permits whitespace before an argument. Keep comments/newlines
+   // visible rather than swallowing source lines inside a replacement.
+   const start=skipSpace(t.to), g=group(start), next=byStart.get(start);
+   const end=g?.to ?? (next?.kind==='command' || next?.kind==='escape' ? next.to : start+(source.codePointAt(start)!>0xffff?2:1));
+   const body=g?.body ?? source.slice(start,end);
    // Flatten only plain content and direct symbol substitutions. Nested
    // scripts/formatting retain their own conceal rules, not an outer layout.
    const text=plain(body,true);
    if(text && end<=source.length && (g || !/\s/.test(body))) {
     const content=body;
-    const offset=g ? g.from+1 : t.to;
+    const offset=g ? g.from+1 : start;
     const parts:{from:number;to:number;symbol:string;kind:string}[]=[];
     let at=0;
     for(const token of latexTokens(content)) {
@@ -69,8 +78,8 @@ export function concealRanges(source: string): Range[] {
 
   if(styles[name] || alphabets[name] || alphabetFonts[name]) {
    const g=group(t.to);
-   if(!g) { if(source[skipSpace(t.to)]==='{') consumed=source.length; continue; }
-   if(/[\n\r%$]/.test(g.body)) { consumed=g.to; continue; }
+   if(!g) continue;
+   if(/[\n\r%$]/.test(g.body)) continue;
    if(name==='text' && /[^A-Za-z0-9 .!?()-]/.test(g.body)) { consumed=g.to; continue; }
    const text=plain(g.body);
    if(formatting[name] && g.body.length) {
@@ -101,9 +110,8 @@ export function concealRanges(source: string): Range[] {
    if(value && next) add(next.to,value);
    continue;
   }
-  // Do not hide spacing/style controls or argument-taking commands as symbols.
-  if(symbols[name] && !['sqrt','choose'].includes(name)) add(t.to,symbols[name]);
-  else if(maps.operators[name]) add(t.to,name,'roman');
+  const replacement=commandReplacement(name);
+  if(replacement) add(t.to,replacement.symbol,replacement.className);
  }
  return result.sort((a,b)=>a.from-b.from || b.to-a.to);
 }
