@@ -283,6 +283,9 @@ expressions, invalid renders, dragging, or typing during the lookup retain
 Zotero's normal opening behavior. Probe work is bounded and never runs per keystroke.
 
 Run `npm run typecheck`, `npm run build`, and `npm test` to validate the extension.
+`npm test` runs every headless test and lists all failures; pass words to filter
+(`npm test -- preview`). Tests that need the installed Zotero bundle skip without it.
+`npm run test:app` additionally launches real Zotero/Firefox with disposable profiles.
 
 ### Existing features
 

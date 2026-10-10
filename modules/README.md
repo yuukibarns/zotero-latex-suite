@@ -32,6 +32,7 @@ switch and theme setting.
 ## Checks
 
 `npm test` includes the lifecycle/coexistence checks and imported TikZ-CD tests.
-`node tests/suite-native.mjs --sidebar` exercises the combined XPI in an isolated
+`npm run test:app` packages `dist/latex-suite.xpi` and runs the tests that launch
+real Zotero/Firefox; `node tests/suite-native.mjs --sidebar` alone exercises that XPI in an isolated
 Zotero profile, including sidebar rendering, live preview, PDF export and module
 disable/re-enable. It never touches the user's profile.

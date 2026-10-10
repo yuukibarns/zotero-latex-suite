@@ -48,9 +48,9 @@ await writeFile(
 		";\n" +
 		(await readFile("test-zotero-caret-bootstrap.js", "utf8")),
 );
-const { version } = JSON.parse(await readFile("manifest.json", "utf8"));
+// Built by `npm run test:app` (scripts/package-local.py), as in CI.
 await copyFile(
-	process.env.CARET_XPI || `../../outputs/latex-suite-completion-${version}.xpi`,
+	process.env.LATEX_SUITE_XPI || process.env.CARET_XPI || "dist/latex-suite.xpi",
 	path.join(profile, "extensions", "latex-suite@ievlevpn.github.io.xpi"),
 );
 let app,

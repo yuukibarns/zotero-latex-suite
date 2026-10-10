@@ -9,9 +9,10 @@
     "watch": "node esbuild.config.mjs --watch",
     "pretypecheck": "node scripts/generate-source-map.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "node test.js && node test-pseudocode.mjs && node test-completion.mjs && node test-paste.mjs && node test-paste-zotero.mjs && node test-preview.mjs && node test-math-focus.mjs && node test-print-menu.mjs && node test-print-settings.mjs && node test-prefs-menu.mjs && node test-image-resize.mjs && node test-note-tab.mjs && node test-annotations.mjs && node test-annotation-cache.mjs && node test-text-sources.mjs && node test-scroll-past-end.mjs && node test-tabstop-navigation.mjs && node test-math-highlight.mjs && node test-math-selection.mjs && node test-math-caret.mjs && node test-suite-modules.mjs && node modules/page-tools/test.cjs && node --test modules/tikzcd/tests/*.test.mjs && node test-quiver-upstream.mjs",
+    "test": "node scripts/run-tests.mjs",
     "quiver:check": "node scripts/quiver-upstream.mjs check",
-    "quiver:update": "node scripts/quiver-upstream.mjs update"
+    "quiver:update": "node scripts/quiver-upstream.mjs update",
+    "test:app": "npm run build && python3 scripts/package-local.py dist/latex-suite.xpi && node scripts/run-tests.mjs --app"
   },
   "devDependencies": {
     "acorn": "^8.15.0",

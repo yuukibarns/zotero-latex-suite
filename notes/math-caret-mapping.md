@@ -52,10 +52,9 @@ The latter uses a disposable profile, synthetic notes and trusted Gecko input,
 and checks the first animation frame as well as the eventual caret position:
 
 ```
-npm run build && npm run typecheck && npm test
-python scripts/package-local.py ../../outputs/latex-suite-completion-<version>.xpi
-node test-zotero-caret.mjs
+npm run typecheck && npm test
+npm run test:app zotero-caret   # builds and packages dist/latex-suite.xpi first
 ```
 
-`CARET_XPI` can select another packaged build. The standalone preview marker is
+`LATEX_SUITE_XPI` (or the older `CARET_XPI`) can select another packaged build. The standalone preview marker is
 unchanged and no longer participates in click-to-source mapping.

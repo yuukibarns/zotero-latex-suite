@@ -188,7 +188,9 @@ async function run() {
 					passed: expanded.from === 0 && expanded.to === 9,
 				});
 				await report({ stage: "preview-expand-result", result: results.at(-1) });
-				await Zotero.Promise.delay(200);
+				// Outlast the default 1000 ms click series so the drag is a fresh
+				// single press, not a third click extending the structural selection.
+				await Zotero.Promise.delay(1100);
 				inject(
 					`window.dragPoints=[];for(var letter of ['b','a']){var root=document.querySelector('#latex-suite-math-preview .katex-html'),walker=document.createTreeWalker(root,4),n;while(n=walker.nextNode()){if(n.textContent===letter){var r=document.createRange();r.selectNodeContents(n);var b=r.getBoundingClientRect(),leaf=n.parentElement.getBoundingClientRect();dragPoints.push({x:letter==='b'?b.right-1:b.left+1,y:(leaf.top+leaf.bottom)/2});break;}}}`,
 				);

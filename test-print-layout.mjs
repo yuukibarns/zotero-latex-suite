@@ -2,6 +2,7 @@ import { build } from "esbuild";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { JSDOM } from "jsdom";
 import assert from "node:assert/strict";
 import katex from "katex-zotero";
@@ -24,13 +25,18 @@ assert.equal(printTheme(dom.window, dom.window.document.body), "light");
 assert.equal(printTheme(dom.window, dom.window.document.body, "dark"), "dark");
 assert.ok(printDocument("<p>Dark</p>", "", "dark").includes('data-theme="dark"'));
 assert.ok(printDocument("<p>Light</p>", "").includes('data-theme="light"'));
+// The rest embeds fonts and CSS from the installed Zotero bundle.
+const archive = process.env.ZOTERO_ARCHIVE || "/usr/lib/zotero/app/omni.ja";
+if (!existsSync(archive)) {
+	console.log(`Skipping installed Zotero print layout tests: ${archive} not found (set ZOTERO_ARCHIVE).`);
+	process.exit(0);
+}
 const exec = promisify(execFile);
 dom.window.fetch = async url => {
-	const { stdout } = await exec(
-		"unzip",
-		["-p", "/usr/lib/zotero/app/omni.ja", url.replace("resource://zotero/", "resource/")],
-		{ encoding: "buffer", maxBuffer: 5e6 },
-	);
+	const { stdout } = await exec("unzip", ["-p", archive, url.replace("resource://zotero/", "resource/")], {
+		encoding: "buffer",
+		maxBuffer: 5e6,
+	});
 	return {
 		ok: true,
 		text: async () => stdout.toString(),

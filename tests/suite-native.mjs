@@ -38,9 +38,9 @@ try {
 			";\n" +
 			(await readFile("tests/suite-native-helper.js", "utf8")),
 	);
-	const { version } = JSON.parse(await readFile("manifest.json", "utf8"));
+	// Built by `npm run test:app` (scripts/package-local.py), as in CI.
 	await copyFile(
-		`../../outputs/latex-suite-${version}.xpi`,
+		process.env.LATEX_SUITE_XPI || "dist/latex-suite.xpi",
 		path.join(profile, "extensions", "latex-suite@ievlevpn.github.io.xpi"),
 	);
 	app = spawn(
