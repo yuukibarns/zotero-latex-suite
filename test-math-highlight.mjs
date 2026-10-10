@@ -23,8 +23,8 @@ for(const source of [String.raw`\left(`,String.raw`\right\}`,String.raw`\middle|
 {
  const source=String.raw`x_{i=1+\alpha}^{2}`;
  const ranges=concealRanges(source);
- assert.deepEqual(ranges.map(r=>r.symbol),['i','=','1','+','α','2']);
- assert.deepEqual(ranges.map(r=>r.className.split(' ').at(-1)),['ls-conceal-script-text','ls-conceal-script-operator','ls-conceal-script-number','ls-conceal-script-operator','ls-conceal-script-command','ls-conceal-script-number']);
+ assert.deepEqual(ranges.filter(r=>r.symbol).map(r=>r.symbol),['α']);
+ assert.deepEqual(ranges.filter(r=>r.styleOnly).map(r=>r.className),['sub','sup']);
  for(let p=1;p<=source.indexOf('}')+1;p++) assert(!concealDecorations(ranges,p,p).some(d=>['i','=','1','+','α'].includes(d.type.attrs?.['data-symbol'])),'Entire script reveals together');
 }
 for(const letters of ['A','B','AB','Z']) {
@@ -45,12 +45,12 @@ for(const command of ['to','longrightarrow','mapsto']) {
 assert.equal(concealRanges(String.raw`\text{Rescale}`)[0].className,'text','Text conceal keeps its semantic color');
 assert.equal(concealRanges(String.raw`\operatorname{Rescale}`)[0].className,'roman','Operators remain distinct from prose');
 for(const [source,expected] of [
- [String.raw`\boldsymbol{P}^{\mathrm{blk}}`,['','','blk']],
+ [String.raw`\boldsymbol{P}^{\mathrm{blk}}`,['','','','','','']],
  [String.raw`\mathbf{AB}+\mathrm{foo}+\underline{x}`,['','','','','','']],
  [String.raw`\mathbb{E}\mathbb{R}\mathcal{F}\mathfrak{g}`,['E','R','F','𝔤']],
  [String.raw`\Rightarrow\implies\Leftarrow\impliedby\Leftrightarrow\iff`,['⇒','⟹','⇐','⟸','⇔','⟺']],
  [String.raw`\frac{1}{2}+\dfrac{a}{b}`,[]],
- [String.raw`x_{ij}+y^2+\sin x+\not\in A`,['ij','2','sin','∉']],
+ [String.raw`x_{ij}+y^2+\sin x+\not\in A`,['','','','sin','∉']],
  [String.raw`\left\langle x\right\rangle`,['⟨','⟩']],
  [String.raw`\longmapsto\nsubseteq\varnothing`,['⟼','⊈','∅']],
 ]) assert.deepEqual(concealRanges(source).filter(r=>!r.styleOnly).map(r=>r.symbol),expected,source);
@@ -85,9 +85,8 @@ for(const command of ['mathbf','bm','boldsymbol','mathit','mathrm','underline'])
  for(const script of ['_','^']) {
   const source=`x${script}{\\${command}{x+1\\alpha}}`;
   const ranges=concealRanges(source);
-  assert.deepEqual(ranges.map(r=>r.symbol),['x','+','1','α']);
-  for(const [i,kind] of ['text','operator','number','command'].entries())
-   assert.ok(ranges[i].className.includes('ls-conceal-script-'+kind),'script retains token color: '+source);
+  assert.deepEqual(ranges.filter(r=>r.symbol).map(r=>r.symbol),['α']);
+  assert.ok(ranges.some(r=>r.styleOnly && r.className===(script==='_'?'sub':'sup')));
  }
  const source=`\\${command}{x+1\\mathit{y}\\alpha}`;
  const ranges=concealRanges(source);
@@ -95,6 +94,13 @@ for(const command of ['mathbf','bm','boldsymbol','mathit','mathrm','underline'])
  assert.deepEqual(ranges.filter(r=>r.symbol).map(r=>r.symbol),['α'],'original plain content remains highlighted');
  for(let p=0;p<=source.length;p++)assert.equal(concealDecorations(ranges,p,p).length,0,'nested wrapper reveals together');
 }
+for(const body of [String.raw`\frac{a}{b}`,String.raw`\hat{a}`,String.raw`\mathrm{\mathbf{KL}}`,String.raw`i+\alpha`,String.raw`a_{b^2}`]) {
+ const source=`x_{${body}}`,ranges=concealRanges(source);
+ assert.equal(ranges.filter(r=>r.styleOnly && r.className==='sub').length,1,'one script layer: '+source);
+ assert.equal(ranges.filter(r=>r.styleOnly && r.className==='sup').length,0,'nested script stays literal');
+ for(let p=1;p<=source.length;p++)assert.equal(concealDecorations(ranges,p,p).length,0,'whole script reveals: '+source);
+}
+for(const source of ['x_','x^{}','x_{abc','x_\\frac','x_}'])assert.equal(concealRanges(source).length,0,'incomplete script stays literal');
 const nested=String.raw`😀+\frac{\boldsymbol{\alpha+x}}{\mathbb{R}_{i}}+\unknown{z}`;
 for(let end=0;end<=nested.length;end++) {
  const ranges=concealRanges(nested.slice(0,end));

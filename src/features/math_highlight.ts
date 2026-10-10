@@ -31,9 +31,6 @@ math-inline.math-node .math-src .ProseMirror{white-space:break-spaces}
 .math-node .ls-tex-concealed{font-size:0}
 .math-node{--ls-conceal-katex-scale:1.25}
 .math-node .ls-conceal-symbol::after{content:attr(data-symbol);font-size:var(--ls-conceal-font-size);color:var(--ls-conceal-command-color);pointer-events:none}
-.math-node .ls-conceal-symbol.ls-conceal-script-text::after{color:var(--ls-conceal-text-color)}
-.math-node .ls-conceal-symbol.ls-conceal-script-number::after{color:${highlight ? 'light-dark(#745300,#dfc276)' : 'var(--ls-conceal-text-color)'}}
-.math-node .ls-conceal-symbol.ls-conceal-script-operator::after,.math-node .ls-conceal-symbol.ls-conceal-script-parameter::after{color:var(--ls-conceal-script-color)}
 .math-node .ls-conceal-font-Main-Regular::after{font-family:KaTeX_Main,serif;font-style:normal}
 .math-node .ls-conceal-font-AMS-Regular::after{font-family:KaTeX_AMS,serif;font-style:normal}
 .math-node .ls-conceal-font-Math-Italic::after{font-family:KaTeX_Math,serif;font-style:italic}
@@ -55,6 +52,8 @@ math-inline.math-node .math-src .ProseMirror{white-space:break-spaces}
  * scripts with the original editor font size, like their visible glyph size. */
 .math-node .ls-conceal-symbol.ls-conceal-sup::after{font-size:calc(var(--ls-conceal-font-size)*0.8);vertical-align:calc(var(--ls-conceal-font-size)*0.4)}
 .math-node .ls-conceal-symbol.ls-conceal-sub::after{font-size:calc(var(--ls-conceal-font-size)*0.8);vertical-align:calc(var(--ls-conceal-font-size)*-0.2)}
+.math-node .ls-conceal-style.ls-conceal-sup:not(.ls-tex-concealed){font-size:calc(var(--ls-conceal-font-size)*0.8);vertical-align:calc(var(--ls-conceal-font-size)*0.4)}
+.math-node .ls-conceal-style.ls-conceal-sub:not(.ls-tex-concealed){font-size:calc(var(--ls-conceal-font-size)*0.8);vertical-align:calc(var(--ls-conceal-font-size)*-0.2)}
 `;
 	doc.head.append(style);
 	const attached = new Map<any, { original: any; provider: any; oldSize: string; oldColor: string; composition: () => void }>();

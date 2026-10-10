@@ -154,11 +154,10 @@ C \arrow[r,"k"'] & D
     inject(`cv.dispatch(cv.state.tr.insertText(${JSON.stringify(formatted)},0,cv.state.doc.content.size));`);
     await waitFor(()=>w.focusMath._innerView.dom.querySelector('.ls-conceal-bold'),type+' formatted conceal');
     const replacements=[...w.focusMath._innerView.dom.querySelectorAll('[data-symbol]')].map(el=>el.getAttribute('data-symbol'));
-    check(JSON.stringify(replacements)===JSON.stringify(['Rescale','blk','α','R','i','cos','2','→','⟶','↦','A','A','3','⇒','⟹','E']),type+' exactly one replacement per range: '+JSON.stringify(replacements));
+    check(JSON.stringify(replacements)===JSON.stringify(['Rescale','α','R','cos','→','⟶','↦','A','A','⇒','⟹','E']),type+' exactly one replacement per range: '+JSON.stringify(replacements));
     const scriptLetter=w.focusMath._innerView.dom.querySelector('.ls-conceal-font-Script-Regular');
     const scriptStyle=frame.getComputedStyle(scriptLetter,'::after');
     const commandColor=scriptStyle.color;
-    const scriptColor=frame.getComputedStyle(w.focusMath._innerView.dom.querySelector('.ls-conceal-symbol.ls-conceal-sub'),'::after').color;
     check(Math.abs(parseFloat(scriptStyle.marginRight)-parseFloat(scriptStyle.fontSize)*0.22925)<0.1,type+' script A reserves KaTeX italic correction at current scale');
     for(const [font,family] of [['AMS-Regular','KaTeX_AMS'],['Caligraphic-Regular','KaTeX_Caligraphic'],['Script-Regular','KaTeX_Script']]) {
       const el=w.focusMath._innerView.dom.querySelector('.ls-conceal-font-'+font);
@@ -173,8 +172,8 @@ C \arrow[r,"k"'] & D
     const textSymbol=w.focusMath._innerView.dom.querySelector('.ls-conceal-symbol.ls-conceal-text');
     check(frame.getComputedStyle(textSymbol,'::after').color===frame.getComputedStyle(w.focusMath._innerView.dom).color,type+' concealed prose uses editor text color');
     for(const [kind,offset] of [['sup',0.4],['sub',-0.2]]) {
-      const script=w.focusMath._innerView.dom.querySelector('.ls-conceal-symbol.ls-conceal-'+kind);
-      const visible=frame.getComputedStyle(script,'::after');
+      const script=w.focusMath._innerView.dom.querySelector('.ls-conceal-style.ls-conceal-'+kind+':not(.ls-tex-concealed)');
+      const visible=frame.getComputedStyle(script);
       const size=parseFloat(frame.getComputedStyle(w.focusMath._innerView.dom).fontSize);
       check(Math.abs(parseFloat(visible.verticalAlign)-size*offset)<0.1,type+' '+kind+' uses nonzero editor font metrics');
     }
@@ -201,17 +200,25 @@ C \arrow[r,"k"'] & D
     const colored=String.raw`x_{i=1+\alpha}^{2} + 1 + \alpha + z`;
     inject(`cv.dispatch(cv.state.tr.insertText(${JSON.stringify(colored)},0,cv.state.doc.content.size));`);
     const colorOf=selector=>frame.getComputedStyle(root.querySelector(selector),'::after').color;
-    check(colorOf('.ls-conceal-script-command')===colorOf('.ls-conceal-symbol:not(.ls-conceal-sub):not(.ls-conceal-sup)'),type+' script command retains command color');
-    check(colorOf('.ls-conceal-script-number')===frame.getComputedStyle([...root.querySelectorAll('.ls-tex-number')].at(-1)).color,type+' script digit retains number color');
-    check(colorOf('.ls-conceal-script-text')===frame.getComputedStyle(root).color,type+' script variable retains plain text color');
-    check(colorOf('.ls-conceal-script-operator')===frame.getComputedStyle([...root.querySelectorAll('.ls-tex-operator')].at(-1)).color,type+' script operator retains operator color');
+    check(colorOf('.ls-conceal-symbol.ls-conceal-sub')===colorOf('.ls-conceal-symbol:not(.ls-conceal-sub):not(.ls-conceal-sup)'),type+' script command retains command color');
+    check(frame.getComputedStyle(root.querySelector('.ls-conceal-sub.ls-tex-number')).color===frame.getComputedStyle([...root.querySelectorAll('.ls-tex-number')].at(-1)).color,type+' script digit retains number color');
+    check(frame.getComputedStyle(root.querySelector('.ls-conceal-style.ls-conceal-sub:not([class*="ls-tex-"])')).color===frame.getComputedStyle(root).color,type+' script variable retains plain text color');
+    check(frame.getComputedStyle(root.querySelector('.ls-conceal-sub.ls-tex-operator')).color===frame.getComputedStyle([...root.querySelectorAll('.ls-tex-operator')].at(-1)).color,type+' script operator retains operator color');
     const wrapperColors=String.raw`D_{\mathrm{KL}} + \mathrm{KL} + \underline{x+1\alpha} + \operatorname{Hom} + z`;
     inject(`cv.dispatch(cv.state.tr.insertText(${JSON.stringify(wrapperColors)},0,cv.state.doc.content.size));`);
     const roman=[...root.querySelectorAll('.ls-conceal-style.ls-conceal-roman')].find(el=>el.textContent==='KL');
     check(roman && frame.getComputedStyle(roman).color===frame.getComputedStyle(root).color,type+' roman letters retain plain text color');
-    check(colorOf('.ls-conceal-script-text')===frame.getComputedStyle(roman).color,type+' roman subscript and standalone colors agree');
+    check(frame.getComputedStyle(root.querySelector('.ls-conceal-sub.ls-conceal-roman:not(.ls-tex-concealed)')).color===frame.getComputedStyle(roman).color,type+' roman subscript and standalone colors agree');
     check(frame.getComputedStyle(root.querySelector('.ls-conceal-underline.ls-tex-number')).color!==frame.getComputedStyle(root).color,type+' underlined number retains highlighting');
     check(colorOf('[data-symbol="α"]')===colorOf('[data-symbol="Hom"]'),type+' nested symbol and named operator retain command color');
+    const generalScripts=String.raw`x_{\frac{a}{b}+\hat{c}+\alpha+i_j} + z`;
+    inject(`cv.dispatch(cv.state.tr.insertText(${JSON.stringify(generalScripts)},0,cv.state.doc.content.size));`);
+    const fraction=[...root.querySelectorAll('.ls-tex-command')].find(el=>el.textContent==='\\frac');
+    check(fraction && !fraction.classList.contains('ls-tex-concealed'),type+' script fraction remains literal');
+    check(Math.abs(parseFloat(frame.getComputedStyle(fraction).fontSize)-parseFloat(frame.getComputedStyle(root).fontSize)*0.8)<0.1,type+' complex script uses common scale');
+    check(root.textContent===generalScripts,type+' general script preserves source');
+    inject(`cv.dispatch(cv.state.tr.setSelection(cv.state.selection.constructor.create(cv.state.doc,5)));`);
+    check(!root.querySelector('.ls-tex-concealed, .ls-conceal-style'),type+' editing reveals entire complex script');
     const delimiters=String.raw`\left( x \middle| y \right) + z`;
     inject(`cv.dispatch(cv.state.tr.insertText(${JSON.stringify(delimiters)},0,cv.state.doc.content.size));`);
     const boundaryColor=frame.getComputedStyle(root.querySelector('.ls-tex-boundary')).color;

@@ -35,33 +35,26 @@ export function concealRanges(source: string): Range[] {
   return ok ? text : undefined;
  }
  const result:Range[]=[];
- let consumed=0;
+ let consumed=0, scriptEnd=0;
  for(const t of tokens) {
   if(t.from < consumed || t.literal) continue;
   const raw=source.slice(t.from,t.to), name=raw.slice(1);
   const add=(to:number,symbol:string,className?:string,font?:string) => {result.push({from:t.from,to,symbol,className,font});consumed=to;};
   if(t.kind==='operator' && (raw==='^' || raw==='_')) {
-   const g=group(t.to), next=byStart.get(t.to);
-   const end=g?.to ?? (next?.kind==='command' ? next.to : t.to+(source.codePointAt(t.to)!>0xffff?2:1));
-   const body=g?.body ?? source.slice(t.to,end);
-   const wrapper=/^\\([A-Za-z]+)\{([^{}]+)\}$/.exec(body);
-   const formatted=wrapper && formatting[wrapper[1]] ? wrapper : null;
-   const text=plain(formatted ? formatted[2] : body);
-   if(text && end<=source.length && (g || !/\s/.test(body))) {
-    const content=formatted ? formatted[2] : body;
-    const offset=(g ? g.from+1 : t.to)+(formatted ? body.indexOf('{')+1 : 0);
-    const parts:{from:number;to:number;symbol:string;kind:string}[]=[];
-    let at=0;
-    for(const token of latexTokens(content)) {
-     if(token.from>at) parts.push({from:at,to:token.from,symbol:content.slice(at,token.from),kind:'text'});
-     parts.push({from:token.from,to:token.to,symbol:plain(content.slice(token.from,token.to))!,kind:token.kind});
-     at=token.to;
-    }
-    if(at<content.length) parts.push({from:at,to:content.length,symbol:content.slice(at),kind:'text'});
-    parts.forEach((part,i)=>result.push({from:i===0?t.from:offset+part.from,to:i===parts.length-1?end:offset+part.to,
-     symbol:part.symbol,className:(raw==='^'?'sup':'sub')+' ls-conceal-script-'+part.kind+(formatted?' ls-conceal-'+styles[formatted[1]]:''),revealFrom:t.from,revealTo:end}));
-    consumed=end;
-   }
+   // One formatting layer, not a replacement string. Nested scripts retain
+   // their syntax rather than accumulating smaller sizes and offsets.
+   if(t.from<scriptEnd) continue;
+   const start=skipSpace(t.to), g=group(start), next=byStart.get(start);
+   const command=next?.kind==='command';
+   const end=g?.to ?? (command ? next.to : start+(source.codePointAt(start)!>0xffff?2:1));
+   if(!g && (start>=source.length || /[{}_^%\\\s]/.test(source[start]) && !command)) continue;
+   if(command && !symbols[source.slice(start+1,end)] && !maps.operators[source.slice(start+1,end)]) continue;
+   const from=g ? g.from+1 : start, to=g ? g.to-1 : end;
+   if(from===to) continue;
+   result.push({from:t.from,to:from,symbol:'',revealFrom:t.from,revealTo:end},
+    {from,to,symbol:'',className:raw==='^'?'sup':'sub',styleOnly:true,revealFrom:t.from,revealTo:end});
+   if(g) result.push({from:to,to:end,symbol:'',revealFrom:t.from,revealTo:end});
+   scriptEnd=end;
    continue;
   }
   if(t.kind!=='command') continue;
@@ -104,7 +97,19 @@ export function concealRanges(source: string): Range[] {
   if(symbols[name] && !['sqrt','choose'].includes(name)) add(t.to,symbols[name]);
   else if(maps.operators[name]) add(t.to,name,'roman');
  }
- return result.sort((a,b)=>a.from-b.from || b.to-a.to);
+ // Carry script presentation onto symbol replacements too: inline highlight
+ // boundaries can split a formatting span into siblings rather than children.
+ const scripts=result.filter(r=>r.styleOnly && (r.className==='sup' || r.className==='sub'));
+ let script=0;
+ for(const r of result.sort((a,b)=>a.from-b.from || b.to-a.to)) {
+  while(script<scripts.length && scripts[script].to<=r.from) script++;
+  const layer=scripts[script];
+  if(layer && r!==layer && r.from>=layer.from && r.to<=layer.to && r.symbol) {
+   if(!r.className && !r.font) r.font=(symbolFonts as Record<string,string>)[r.symbol];
+   r.className=(r.className ? r.className+' ls-conceal-' : '')+layer.className;
+  }
+ }
+ return result;
 }
 
 export function concealDecorations(ranges: Range[], from: number, to: number) {
