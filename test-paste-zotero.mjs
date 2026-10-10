@@ -3,10 +3,11 @@ import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 const exec = promisify(execFile);
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { JSDOM } from 'jsdom';
 import { Context, createMathSelection, installMathPaste, installMathPreview, installMathHighlight, installImageResize, installAnnotationCompletion, PMBuffer, rememberSelectionClass, expandSnippet, setSelectionToNextTabstop, clearTabstops } from './build/test-exports.mjs';
 const archive = process.env.ZOTERO_ARCHIVE || '/usr/lib/zotero/app/omni.ja';
+if (!existsSync(archive)) { console.log(`Skipping installed Zotero editor tests: ${archive} not found (set ZOTERO_ARCHIVE).`); process.exit(0); }
 const dom = new JSDOM('<!doctype html><div id="editor-container"></div>', {runScripts:'outside-only', pretendToBeVisual:true, url:'https://example.invalid/'});
 const win = dom.window;
 win.alert = message => { console.error(message); };
@@ -139,8 +140,8 @@ try {
   math.selectNode();math._innerView.focus();await tick();
   const panel=win.document.getElementById('latex-suite-math-preview');
   assert.ok(panel?.querySelector('.katex'),`${tag} renders preview`);
-  assert.ok(panel.textContent.includes('▶'),`${tag} renders preview cursor`);
-  assert.ok(!math._mathRenderElt.textContent.includes('▶'),'native equation rendering has no marker');
+  assert.ok(panel.querySelector('.ls-preview-caret'),`${tag} renders preview cursor`);
+  assert.ok(!math._mathRenderElt.querySelector('.ls-preview-caret'),'native equation rendering has no marker');
   assert.equal(panel.parentNode,tag==='math-inline'?win.document.body:node);
   assert.equal(JSON.stringify(view.state.doc.toJSON()),beforePreview,'preview does not edit note');
   if (tag==='math-inline') {
@@ -236,7 +237,7 @@ try {
  const nativePosAtCoords=math._innerView.posAtCoords;
  math._innerView.posAtCoords=({left})=>({pos:left || math._innerView.state.selection.from});
  math._innerView.dispatch(math._innerView.state.tr.insertText('z+\\left(a+b\\right)',0,math._innerView.state.doc.content.size));await tick();
- assert.equal(math._innerView.dom.querySelector('.ls-tex-boundary')?.textContent,'\\left');
+ assert.equal(Array.from(math._innerView.dom.querySelectorAll('.ls-tex-boundary'),el=>el.textContent).join(''),'\\left\\right','conceal may split boundary spans');
  const mouseSelect=(detail,options={},type='mousedown')=>{
   const event=new win.MouseEvent(type,{detail,button:0,bubbles:true,cancelable:true,...options});
   // Exercise our document capture listener. Do not run native browser/PM
