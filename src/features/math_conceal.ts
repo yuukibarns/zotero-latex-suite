@@ -4,7 +4,7 @@ import * as maps from '../conceal/maps';
 import symbolFonts from '../conceal/fonts.json';
 import { scriptItalicCorrection } from '../../build/katex-source-map.mjs';
 
-type Range = { from:number; to:number; symbol:string; font?:string; className?:string; revealFrom?:number; revealTo?:number; styleOnly?:boolean };
+type Range = { from:number; to:number; symbol:string; font?:string; className?:string; revealFrom?:number; revealTo?:number; styleOnly?:boolean; scale?:number; offset?:number };
 // KaTeX's implication macros use the long arrows, unlike Rightarrow/Leftarrow.
 const symbols = { ...maps.cmd_symbols, ...maps.greek, ...maps.brackets, implies:'⟹', impliedby:'⟸', iff:'⟺' };
 const formatting: Record<string,string> = { mathbf:'bold', bm:'bold', boldsymbol:'bold', mathit:'italic', mathrm:'roman', underline:'underline' };
@@ -35,15 +35,12 @@ export function concealRanges(source: string): Range[] {
   return ok ? text : undefined;
  }
  const result:Range[]=[];
- let consumed=0, scriptEnd=0;
+ let consumed=0;
  for(const t of tokens) {
   if(t.from < consumed || t.literal) continue;
   const raw=source.slice(t.from,t.to), name=raw.slice(1);
   const add=(to:number,symbol:string,className?:string,font?:string) => {result.push({from:t.from,to,symbol,className,font});consumed=to;};
   if(t.kind==='operator' && (raw==='^' || raw==='_')) {
-   // One formatting layer, not a replacement string. Nested scripts retain
-   // their syntax rather than accumulating smaller sizes and offsets.
-   if(t.from<scriptEnd) continue;
    const start=skipSpace(t.to), g=group(start), next=byStart.get(start);
    const command=next?.kind==='command';
    const end=g?.to ?? (command ? next.to : start+(source.codePointAt(start)!>0xffff?2:1));
@@ -54,7 +51,6 @@ export function concealRanges(source: string): Range[] {
    result.push({from:t.from,to:from,symbol:'',revealFrom:t.from,revealTo:end},
     {from,to,symbol:'',className:raw==='^'?'sup':'sub',styleOnly:true,revealFrom:t.from,revealTo:end});
    if(g) result.push({from:to,to:end,symbol:'',revealFrom:t.from,revealTo:end});
-   scriptEnd=end;
    continue;
   }
   if(t.kind!=='command') continue;
@@ -99,17 +95,34 @@ export function concealRanges(source: string): Range[] {
  }
  // Carry script presentation onto symbol replacements too: inline highlight
  // boundaries can split a formatting span into siblings rather than children.
- const scripts=result.filter(r=>r.styleOnly && (r.className==='sup' || r.className==='sub'));
+ const scripts=new Set(result.filter(r=>r.styleOnly && (r.className==='sup' || r.className==='sub')));
+ // Flatten nested layers into disjoint spans. ProseMirror splits decorations
+ // at token boundaries, so CSS nesting cannot reliably supply script depth.
+ const events=[...scripts].flatMap(r=>[{pos:r.from,open:true,r},{pos:r.to,open:false,r}])
+  .sort((a,b)=>a.pos-b.pos || Number(a.open)-Number(b.open));
+ const active:Range[]=[], layers:Range[]=[];
+ let previous=0;
+ for(const event of events) {
+  const parent=active[active.length-1];
+  if(parent && event.pos>previous) layers.push({...parent,from:previous,to:event.pos,
+   revealFrom:active[0].revealFrom,revealTo:active[0].revealTo});
+  if(event.open) active.push({...event.r,scale:Math.max(0.6,(parent?.scale??1)*0.8),
+   offset:(parent?.offset??0)+(event.r.className==='sup'?0.4:-0.2)*(parent?.scale??1)});
+  else active.pop();
+  previous=event.pos;
+ }
+ const flattened=[...result.filter(r=>!scripts.has(r)),...layers].sort((a,b)=>a.from-b.from || b.to-a.to);
  let script=0;
- for(const r of result.sort((a,b)=>a.from-b.from || b.to-a.to)) {
-  while(script<scripts.length && scripts[script].to<=r.from) script++;
-  const layer=scripts[script];
+ for(const r of flattened) {
+  while(script<layers.length && layers[script].to<=r.from) script++;
+  const layer=layers[script];
   if(layer && r!==layer && r.from>=layer.from && r.to<=layer.to && r.symbol) {
    if(!r.className && !r.font) r.font=(symbolFonts as Record<string,string>)[r.symbol];
    r.className=(r.className ? r.className+' ls-conceal-' : '')+layer.className;
+   r.scale=layer.scale;r.offset=layer.offset;
   }
  }
- return result;
+ return flattened;
 }
 
 export function concealDecorations(ranges: Range[], from: number, to: number) {
@@ -131,12 +144,13 @@ export function concealDecorations(ranges: Range[], from: number, to: number) {
    // Like KaTeX's combined SymbolNode, reserve the final script letter's
    // overhang. The pseudo-element's em uses the actual enlarged glyph size.
    const italic=font==='Script-Regular' ? scriptItalicCorrection(r.symbol.slice(-1)) : 0;
-   const options={inclusiveStart:false,inclusiveEnd:false,concealKey:JSON.stringify([r.styleOnly,r.className,r.symbol,font])};
-   const hidden=Decoration.inline(r.from,r.to,{class:(r.styleOnly?'ls-conceal-style':'ls-tex-concealed')+style},options);
+   const scriptStyle=r.scale===undefined?'':`--ls-script-scale:${r.scale};--ls-script-offset:${r.offset};`;
+   const options={inclusiveStart:false,inclusiveEnd:false,concealKey:JSON.stringify([r.styleOnly,r.className,r.symbol,font,r.scale,r.offset])};
+   const hidden=Decoration.inline(r.from,r.to,{class:(r.styleOnly?'ls-conceal-style':'ls-tex-concealed')+style,...(scriptStyle?{style:scriptStyle}:{})},options);
    // ProseMirror splits inline decorations at every overlapping highlight.
    // Attach replacement content only to the first source code unit (ASCII
    // command/script/brace prefix), never to the splittable hidden range.
    return r.styleOnly || !r.symbol ? [hidden] : [hidden,
-    Decoration.inline(r.from,r.from+1,{class:'ls-conceal-symbol'+style+(font?' ls-conceal-font-'+font:''),'data-symbol':r.symbol,...(italic ? {style:'--ls-conceal-italic-correction:'+italic+'em'} : {})},options)];
+    Decoration.inline(r.from,r.from+1,{class:'ls-conceal-symbol'+style+(font?' ls-conceal-font-'+font:''),'data-symbol':r.symbol,...(italic || scriptStyle ? {style:scriptStyle+(italic?'--ls-conceal-italic-correction:'+italic+'em':'')} : {})},options)];
   });
 }

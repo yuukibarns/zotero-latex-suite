@@ -96,11 +96,21 @@ for(const command of ['mathbf','bm','boldsymbol','mathit','mathrm','underline'])
 }
 for(const body of [String.raw`\frac{a}{b}`,String.raw`\hat{a}`,String.raw`\mathrm{\mathbf{KL}}`,String.raw`i+\alpha`,String.raw`a_{b^2}`]) {
  const source=`x_{${body}}`,ranges=concealRanges(source);
- assert.equal(ranges.filter(r=>r.styleOnly && r.className==='sub').length,1,'one script layer: '+source);
- assert.equal(ranges.filter(r=>r.styleOnly && r.className==='sup').length,0,'nested script stays literal');
+ assert.ok(ranges.some(r=>r.styleOnly && r.className==='sub'),'script layer: '+source);
+ if(body.includes('b^2'))assert.ok(ranges.some(r=>r.styleOnly && r.className==='sup'),'nested script conceals');
  for(let p=1;p<=source.length;p++)assert.equal(concealDecorations(ranges,p,p).length,0,'whole script reveals: '+source);
 }
 for(const source of ['x_','x^{}','x_{abc','x_\\frac','x_}'])assert.equal(concealRanges(source).length,0,'incomplete script stays literal');
+{
+ const source=String.raw`\mathbb{E}_{x_T\sim p_T(\cdot\mid x_0)}`;
+ const ranges=concealRanges(source),layers=ranges.filter(r=>r.styleOnly && r.scale);
+ for(const letter of ['T','0'])assert.ok(layers.some(r=>source.slice(r.from,r.to)===letter && Math.abs(r.scale-0.64)<1e-8 && Math.abs(r.offset+0.36)<1e-8),'nested expectation script: '+letter);
+ assert.ok(ranges.some(r=>r.symbol==='∼' && r.scale===0.8),'symbols conceal in outer script');
+ for(let i=1;i<layers.length;i++)assert.ok(layers[i-1].to<=layers[i].from,'script layers do not overlap');
+ const deep=concealRanges(String.raw`x_{a^{b_{c^{d_e}}}}`).filter(r=>r.styleOnly && r.scale);
+ assert.ok(deep.every(r=>r.scale>=0.6),'minimum readable script size');
+ assert.ok(deep.some(r=>r.className==='sup' && Math.abs(r.offset-0.12)<1e-8),'mixed script offsets accumulate');
+}
 const nested=String.raw`😀+\frac{\boldsymbol{\alpha+x}}{\mathbb{R}_{i}}+\unknown{z}`;
 for(let end=0;end<=nested.length;end++) {
  const ranges=concealRanges(nested.slice(0,end));

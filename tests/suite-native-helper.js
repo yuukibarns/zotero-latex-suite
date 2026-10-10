@@ -219,6 +219,16 @@ C \arrow[r,"k"'] & D
     check(root.textContent===generalScripts,type+' general script preserves source');
     inject(`cv.dispatch(cv.state.tr.setSelection(cv.state.selection.constructor.create(cv.state.doc,5)));`);
     check(!root.querySelector('.ls-tex-concealed, .ls-conceal-style'),type+' editing reveals entire complex script');
+    const recursiveScripts=String.raw`\mathbb{E}_{x_T\sim p_T(\cdot\mid x_0)} + z`;
+    inject(`cv.dispatch(cv.state.tr.insertText(${JSON.stringify(recursiveScripts)},0,cv.state.doc.content.size));`);
+    const nestedScripts=[...root.querySelectorAll('.ls-conceal-style.ls-conceal-sub:not(.ls-tex-concealed)')].filter(el=>['T','0'].includes(el.textContent));
+    check(nestedScripts.length===3,type+' inner expectation scripts conceal');
+    for(const el of nestedScripts) {
+      const style=frame.getComputedStyle(el),size=parseFloat(frame.getComputedStyle(root).fontSize);
+      check(Math.abs(parseFloat(style.fontSize)-size*0.64)<0.1,type+' nested script scale');
+      check(Math.abs(parseFloat(style.verticalAlign)+size*0.36)<0.1,type+' nested script offset');
+    }
+    check(root.textContent===recursiveScripts,type+' recursive scripts preserve source');
     const delimiters=String.raw`\left( x \middle| y \right) + z`;
     inject(`cv.dispatch(cv.state.tr.insertText(${JSON.stringify(delimiters)},0,cv.state.doc.content.size));`);
     const boundaryColor=frame.getComputedStyle(root.querySelector('.ls-tex-boundary')).color;

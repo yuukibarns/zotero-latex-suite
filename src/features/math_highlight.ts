@@ -50,10 +50,10 @@ math-inline.math-node .math-src .ProseMirror{white-space:break-spaces}
 .math-node .ls-conceal-underline{text-decoration:underline}
 /* Keyword super/sub uses the hidden parent's zero-size font metrics. Position
  * scripts with the original editor font size, like their visible glyph size. */
-.math-node .ls-conceal-symbol.ls-conceal-sup::after{font-size:calc(var(--ls-conceal-font-size)*0.8);vertical-align:calc(var(--ls-conceal-font-size)*0.4)}
-.math-node .ls-conceal-symbol.ls-conceal-sub::after{font-size:calc(var(--ls-conceal-font-size)*0.8);vertical-align:calc(var(--ls-conceal-font-size)*-0.2)}
-.math-node .ls-conceal-style.ls-conceal-sup:not(.ls-tex-concealed){font-size:calc(var(--ls-conceal-font-size)*0.8);vertical-align:calc(var(--ls-conceal-font-size)*0.4)}
-.math-node .ls-conceal-style.ls-conceal-sub:not(.ls-tex-concealed){font-size:calc(var(--ls-conceal-font-size)*0.8);vertical-align:calc(var(--ls-conceal-font-size)*-0.2)}
+.math-node .ls-conceal-symbol.ls-conceal-sup::after,
+.math-node .ls-conceal-symbol.ls-conceal-sub::after,
+.math-node .ls-conceal-style.ls-conceal-sup:not(.ls-tex-concealed),
+.math-node .ls-conceal-style.ls-conceal-sub:not(.ls-tex-concealed){font-size:calc(var(--ls-conceal-font-size)*var(--ls-script-scale));vertical-align:calc(var(--ls-conceal-font-size)*var(--ls-script-offset))}
 `;
 	doc.head.append(style);
 	const attached = new Map<any, { original: any; provider: any; oldSize: string; oldColor: string; composition: () => void }>();
