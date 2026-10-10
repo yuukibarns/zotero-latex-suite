@@ -1,4 +1,8 @@
 // Ported from obsidian-latex-suite (src/utils/tokenizer.ts), tokenizer only.
+// Tab-out needs every non-space character as a token, e.g. the `.` in
+// `\right.` or the `x` after an unmatched `\right`. The highlight tokenizer
+// (src/highlight/tokenizer.ts) skips plain letters and punctuation by design,
+// so it is not a drop-in replacement here.
 export interface Token {
 	readonly start: number;
 	readonly end: number;

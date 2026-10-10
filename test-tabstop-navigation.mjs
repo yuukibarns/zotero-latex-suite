@@ -214,5 +214,9 @@ for (let depth = 1; depth <= 5; depth++) {
 	assert.equal(handlers.size, 0, "clear removes scroll listener");
 	dom.window.close();
 }
+// Tab-out depends on seeing every character; see src/utils/tokenizer.ts.
+const taboutText = source => ls.taboutTokens(source).map(token => token.text);
+assert.deepEqual(taboutText(String.raw`\left( a \right.`), ["\\left", "(", "a", "\\right", "."]);
+assert.deepEqual(taboutText(String.raw`\right x)`), ["\\right", "x", ")"]);
 ls.clearTabstops();
 console.log("Tabstop regression tests passed.");

@@ -52,4 +52,5 @@ export { installMathVisibility } from "./features/math_visibility";
 export { installMathFocus } from "./features/math_focus";
 export { newlineMatrixShortcut, lineBreakMatrixShortcut, exitMatrixShortcut } from "./features/matrix_shortcuts";
 export { simplifyScriptOnExit } from "./features/script_cleanup";
+export { tokenize as taboutTokens } from "./utils/tokenizer";
 export { createMathSiblingDrag } from "./features/math_selection";
