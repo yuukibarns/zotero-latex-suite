@@ -116,7 +116,15 @@ export class PMBuffer implements Buffer {
 	base: number;
 	private segments: Segment[];
 
-	private constructor(view: PMView, kind: BufferKind, text: string, base: number, segments: Segment[], from: number, to: number) {
+	private constructor(
+		view: PMView,
+		kind: BufferKind,
+		text: string,
+		base: number,
+		segments: Segment[],
+		from: number,
+		to: number,
+	) {
 		this.view = view;
 		this.kind = kind;
 		this.text = text;
@@ -241,20 +249,14 @@ export class PMBuffer implements Buffer {
 	 * positions. Inserted text is 1:1 with positions (a hard break is one of
 	 * each), so ranges inside the insertion map by simple arithmetic.
 	 */
-	applyChange(
-		from: number,
-		to: number,
-		insert: string,
-		tabstops: readonly Range[] = [],
-		selection?: Range,
-	): Range[] {
+	applyChange(from: number, to: number, insert: string, tabstops: readonly Range[] = [], selection?: Range): Range[] {
 		const pmFrom = this.pmPos(from);
 		const pmTo = this.pmPos(to);
 		const tr = this.view.state.tr;
 		tr.replaceWith(pmFrom, pmTo, this.fragment(insert, pmFrom));
 
 		const at = (offsetInInsert: number) => pmFrom + offsetInInsert;
-		const ranges = tabstops.map((ts) => ({ from: at(ts.from), to: at(ts.to) }));
+		const ranges = tabstops.map(ts => ({ from: at(ts.from), to: at(ts.to) }));
 
 		const sel = selection
 			? textSelection(tr.doc, at(selection.from), at(selection.to))
@@ -299,7 +301,9 @@ export class PMBuffer implements Buffer {
 		return this.view.dom.ownerDocument;
 	}
 
-	caretRect() { return this.view.coordsAtPos(this.view.state.selection.head); }
+	caretRect() {
+		return this.view.coordsAtPos(this.view.state.selection.head);
+	}
 
 	closeHistory() {
 		// Math edits are forwarded to the outer view, which owns undo history.
@@ -335,7 +339,7 @@ export class PMBuffer implements Buffer {
 		const original = view.dispatch.bind(view);
 		view.dispatch = (tr: any) => {
 			// -1 / 1 so text typed inside a placeholder extends it
-			if (tr.docChanged) remap((r) => ({ from: tr.mapping.map(r.from, -1), to: tr.mapping.map(r.to, 1) }));
+			if (tr.docChanged) remap(r => ({ from: tr.mapping.map(r.from, -1), to: tr.mapping.map(r.to, 1) }));
 			return original(tr);
 		};
 	}

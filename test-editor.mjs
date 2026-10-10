@@ -20,7 +20,14 @@ const schema = new Schema({
 		doc: { content: "block+" },
 		paragraph: { group: "block", content: "(text | hardBreak | math_inline)*", toDOM: () => ["p", 0] },
 		math_display: { group: "block math", content: "text*", atom: true, code: true, toDOM: () => ["pre", 0] },
-		math_inline: { group: "inline math", content: "text*", marks: "", inline: true, atom: true, toDOM: () => ["span", 0] },
+		math_inline: {
+			group: "inline math",
+			content: "text*",
+			marks: "",
+			inline: true,
+			atom: true,
+			toDOM: () => ["span", 0],
+		},
 		hardBreak: { inline: true, group: "inline", selectable: false, toDOM: () => ["br"] },
 		text: { group: "inline" },
 	},
@@ -31,7 +38,9 @@ const schema = new Schema({
 function viewOf(doc, from, to = from) {
 	const view = {
 		state: EditorState.create({ doc, schema }),
-		dispatch(tr) { view.state = view.state.apply(tr); },
+		dispatch(tr) {
+			view.state = view.state.apply(tr);
+		},
 	};
 	view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, from, to)));
 	ls.rememberSelectionClass(view);
@@ -46,39 +55,65 @@ export function mathView(text, cursor = text.length, type = "math_inline") {
 /** A window whose activeElement sits inside that equation, as Zotero's would. */
 export function winFor(view, type = "math_inline") {
 	const el = { tagName: type.replace("_", "-").toUpperCase(), pmViewDesc: { spec: { _innerView: view } } };
-	return { document: { activeElement: { closest: (sel) => (sel === ".math-node" ? el : null) } } };
+	return { document: { activeElement: { closest: sel => (sel === ".math-node" ? el : null) } } };
 }
 
-const settingsFor = (source) =>
+const settingsFor = source =>
 	ls.processSettings({ ...ls.DEFAULT_SETTINGS, snippets: source, snippetVariables: "export default {}" });
 
-const automatic = (settings) => settings.snippets.filter((s) => s.options.automatic);
-const text = (view) => view.state.doc.textContent;
-const cursor = (view) => [view.state.selection.from, view.state.selection.to];
+const automatic = settings => settings.snippets.filter(s => s.options.automatic);
+const text = view => view.state.doc.textContent;
+const cursor = view => [view.state.selection.from, view.state.selection.to];
 
 // Node deletion must be an outer-document transaction, including sole/last blocks.
-for (const kind of ['math_display','math_inline']) for (const value of ['', 'x+1']) {
-	const equation=schema.nodes[kind].create(null,value?schema.text(value):null);
-	const doc=schema.nodes.doc.create(null,kind==='math_inline'?schema.nodes.paragraph.create(null,[schema.text('a'),equation,schema.text('b')]):equation);
-	const pos=kind==='math_inline'?2:0;
-	const outer={state:EditorState.create({doc,selection:NodeSelection.create(doc,pos),plugins:[history()]}),editable:true,focus(){},hasFocus:()=>true,dispatch(tr){this.state=this.state.apply(tr);}};
-	const inner=mathView(value,value.length,kind);
-	const win={_currentEditorInstance:{_editorCore:{view:outer}},document:{activeElement:{closest:()=>({pmViewDesc:{spec:{_innerView:inner,_getPos:()=>pos}}})}}};
-	if(value) assert.equal(ls.deleteMathNode(win),false,'ordinary deletion preserves nonempty equation');
-	assert.equal(ls.deleteMathNode(win,!!value),true);
-	assert.equal(outer.state.doc.textContent,kind==='math_inline'?'ab':'');
-	assert.equal(outer.state.doc.firstChild.type.name,'paragraph');
-	assert.ok(undo(outer.state,outer.dispatch.bind(outer)));
-	assert.ok(outer.state.doc.eq(doc));
-	assert.ok(redo(outer.state,outer.dispatch.bind(outer)));
-}
-for(const backward of [true,false]) {
-	const math=schema.nodes.math_display.create(),p=schema.nodes.paragraph.create(null,schema.text('text'));
-	const doc=schema.nodes.doc.create(null,backward?[math,p]:[p,math]);
-	const outer=viewOf(doc,backward?math.nodeSize+1:5);outer.hasFocus=()=>true;outer.focus=()=>{};
-	const win={_currentEditorInstance:{_editorCore:{view:outer}},document:{activeElement:{closest:()=>null}}};
-	assert.equal(ls.deleteMathNode(win,false,backward),true);
-	assert.equal(outer.state.doc.childCount,1);assert.equal(outer.state.doc.textContent,'text');
+for (const kind of ["math_display", "math_inline"])
+	for (const value of ["", "x+1"]) {
+		const equation = schema.nodes[kind].create(null, value ? schema.text(value) : null);
+		const doc = schema.nodes.doc.create(
+			null,
+			kind === "math_inline"
+				? schema.nodes.paragraph.create(null, [schema.text("a"), equation, schema.text("b")])
+				: equation,
+		);
+		const pos = kind === "math_inline" ? 2 : 0;
+		const outer = {
+			state: EditorState.create({ doc, selection: NodeSelection.create(doc, pos), plugins: [history()] }),
+			editable: true,
+			focus() {},
+			hasFocus: () => true,
+			dispatch(tr) {
+				this.state = this.state.apply(tr);
+			},
+		};
+		const inner = mathView(value, value.length, kind);
+		const win = {
+			_currentEditorInstance: { _editorCore: { view: outer } },
+			document: {
+				activeElement: { closest: () => ({ pmViewDesc: { spec: { _innerView: inner, _getPos: () => pos } } }) },
+			},
+		};
+		if (value) assert.equal(ls.deleteMathNode(win), false, "ordinary deletion preserves nonempty equation");
+		assert.equal(ls.deleteMathNode(win, !!value), true);
+		assert.equal(outer.state.doc.textContent, kind === "math_inline" ? "ab" : "");
+		assert.equal(outer.state.doc.firstChild.type.name, "paragraph");
+		assert.ok(undo(outer.state, outer.dispatch.bind(outer)));
+		assert.ok(outer.state.doc.eq(doc));
+		assert.ok(redo(outer.state, outer.dispatch.bind(outer)));
+	}
+for (const backward of [true, false]) {
+	const math = schema.nodes.math_display.create(),
+		p = schema.nodes.paragraph.create(null, schema.text("text"));
+	const doc = schema.nodes.doc.create(null, backward ? [math, p] : [p, math]);
+	const outer = viewOf(doc, backward ? math.nodeSize + 1 : 5);
+	outer.hasFocus = () => true;
+	outer.focus = () => {};
+	const win = {
+		_currentEditorInstance: { _editorCore: { view: outer } },
+		document: { activeElement: { closest: () => null } },
+	};
+	assert.equal(ls.deleteMathNode(win, false, backward), true);
+	assert.equal(outer.state.doc.childCount, 1);
+	assert.equal(outer.state.doc.textContent, "text");
 }
 
 /* A Buffer over a plain string, standing in for an annotation comment.
@@ -92,18 +127,28 @@ export class StringBuffer {
 		this.owner = { annotation: true };
 		this.remaps = [];
 	}
-	get mathBounds() { return ls.mathBoundsAt(this.text, this.to); }
-	get kind() { return this.mathBounds ? (this.mathBounds.display ? "math_display" : "math_inline") : "text"; }
-	get inMath() { return this.mathBounds !== null; }
-	get selectedText() { return this.text.slice(this.from, this.to); }
-	get dollarMath() { return true; }
+	get mathBounds() {
+		return ls.mathBoundsAt(this.text, this.to);
+	}
+	get kind() {
+		return this.mathBounds ? (this.mathBounds.display ? "math_display" : "math_inline") : "text";
+	}
+	get inMath() {
+		return this.mathBounds !== null;
+	}
+	get selectedText() {
+		return this.text.slice(this.from, this.to);
+	}
+	get dollarMath() {
+		return true;
+	}
 	applyChange(from, to, insert, tabstops = [], selection) {
 		this.text = this.text.slice(0, from) + insert + this.text.slice(to);
 
 		// The same bias a real editor maps with: a range's start holds still and
 		// its end follows, so text typed into a placeholder extends it.
 		const delta = insert.length - (to - from);
-		const map = (range) => ({
+		const map = range => ({
 			from: range.from <= from ? range.from : range.from >= to ? range.from + delta : from,
 			to: range.to < from ? range.to : range.to >= to ? range.to + delta : from + insert.length,
 		});
@@ -112,20 +157,36 @@ export class StringBuffer {
 		const caret = selection ?? { from: insert.length, to: insert.length };
 		this.from = from + caret.from;
 		this.to = from + caret.to;
-		return tabstops.map((ts) => ({ from: from + ts.from, to: from + ts.to }));
+		return tabstops.map(ts => ({ from: from + ts.from, to: from + ts.to }));
 	}
-	replaceRange(from, to, insert) { this.applyChange(from, to, insert); }
-	selectRange(range) { this.from = range.from; this.to = range.to; }
-	positionAt(offset) { return offset; }
-	setSelection(from, to = from) { this.from = from; this.to = to; }
-	get document() { return null; }        // no DOM here, so no marks to draw
-	clientRects() { return []; }
+	replaceRange(from, to, insert) {
+		this.applyChange(from, to, insert);
+	}
+	selectRange(range) {
+		this.from = range.from;
+		this.to = range.to;
+	}
+	positionAt(offset) {
+		return offset;
+	}
+	setSelection(from, to = from) {
+		this.from = from;
+		this.to = to;
+	}
+	get document() {
+		return null;
+	} // no DOM here, so no marks to draw
+	clientRects() {
+		return [];
+	}
 	exitMath() {
 		if (!this.mathBounds) return false;
 		this.from = this.to = this.mathBounds.outer_end;
 		return true;
 	}
-	watch(remap) { this.remaps.push(remap); }
+	watch(remap) {
+		this.remaps.push(remap);
+	}
 }
 
 /** A window shaped like the note editor's: an EditorCore on the iframe window. */
@@ -133,7 +194,14 @@ function noteWin(view, activeElement = null) {
 	view.hasFocus = () => true;
 	view.dom = { closest: () => null, ownerDocument: null };
 	return {
-		_currentEditorInstance: { _editorCore: { view, insertMath: () => { throw new Error("fell back to insertMath"); } } },
+		_currentEditorInstance: {
+			_editorCore: {
+				view,
+				insertMath: () => {
+					throw new Error("fell back to insertMath");
+				},
+			},
+		},
 		document: { activeElement, getElementById: () => null },
 	};
 }
@@ -171,7 +239,11 @@ export function run() {
 		assert.deepStrictEqual(cursor(view), [8, 8], "Tab should reach the denominator");
 		assert.strictEqual(ls.setSelectionToNextTabstop(ls.PMBuffer.forMath(view, "math_inline"), false), true);
 		assert.deepStrictEqual(cursor(view), [9, 9], "Tab should reach the end");
-		assert.strictEqual(ls.setSelectionToNextTabstop(ls.PMBuffer.forMath(view, "math_inline"), false), false, "no tabstops left");
+		assert.strictEqual(
+			ls.setSelectionToNextTabstop(ls.PMBuffer.forMath(view, "math_inline"), false),
+			false,
+			"no tabstops left",
+		);
 		ls.clearTabstops();
 	}
 
@@ -194,12 +266,13 @@ export function run() {
 	/* --- placeholders are selected, and typing into one keeps the later ones valid --- */
 	{
 		const settings = settingsFor(
-			`export default [{trigger: "dint", replacement: "\\\\int_{\${0:0}}^{\${1:\\\\infty}} $2", options: "mA"}]`);
+			`export default [{trigger: "dint", replacement: "\\\\int_{\${0:0}}^{\${1:\\\\infty}} $2", options: "mA"}]`,
+		);
 		const view = mathView("din");
 		ls.runSnippets(winFor(view), { snippets: automatic(settings), key: "t" }, settings);
 		// the trailing space is trimmed in inline math (removeSnippetWhitespace)
 		assert.strictEqual(text(view), "\\int_{0}^{\\infty}");
-		assert.deepStrictEqual(cursor(view), [6, 7], "the \"0\" placeholder should be selected");
+		assert.deepStrictEqual(cursor(view), [6, 7], 'the "0" placeholder should be selected');
 
 		// Replace the placeholder with something longer; the next tabstop must follow.
 		view.dispatch(view.state.tr.insertText("2\\pi", 6, 7));
@@ -215,8 +288,10 @@ export function run() {
 		const settings = settingsFor(`export default [{trigger: "dm", replacement: "X", options: "mAw"}]`);
 		const glued = mathView("xd");
 		assert.strictEqual(
-			ls.runSnippets(winFor(glued), { snippets: automatic(settings), key: "m" }, settings), false,
-			"\"xdm\" is not on a word boundary");
+			ls.runSnippets(winFor(glued), { snippets: automatic(settings), key: "m" }, settings),
+			false,
+			'"xdm" is not on a word boundary',
+		);
 		const free = mathView("x d");
 		assert.strictEqual(ls.runSnippets(winFor(free), { snippets: automatic(settings), key: "m" }, settings), true);
 		assert.strictEqual(text(free), "x X");
@@ -225,7 +300,8 @@ export function run() {
 	/* --- visual snippets wrap the selection --- */
 	{
 		const settings = settingsFor(
-			`export default [{trigger: "U", replacement: "\\\\underbrace{ \${VISUAL} }_{ $0 }", options: "mA"}]`);
+			`export default [{trigger: "U", replacement: "\\\\underbrace{ \${VISUAL} }_{ $0 }", options: "mA"}]`,
+		);
 		const view = mathView("a+b", 0);
 		view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 0, 3)));
 		ls.runSnippets(winFor(view), { snippets: automatic(settings), key: "U" }, settings);
@@ -236,7 +312,8 @@ export function run() {
 	/* --- regex snippets replace only what they matched --- */
 	{
 		const settings = settingsFor(
-			`export default [{trigger: /([A-Za-z])(\\d)/, replacement: "[[0]]_{[[1]]}", options: "mA"}]`);
+			`export default [{trigger: /([A-Za-z])(\\d)/, replacement: "[[0]]_{[[1]]}", options: "mA"}]`,
+		);
 		const view = mathView("1 + x");
 		ls.runSnippets(winFor(view), { snippets: automatic(settings), key: "2" }, settings);
 		assert.strictEqual(text(view), "1 + x_{2}");
@@ -287,11 +364,14 @@ export function run() {
 
 	/* --- a text block: offsets and positions differ around an inline equation --- */
 	{
-		const doc = schema.nodes.doc.create(null, schema.nodes.paragraph.create(null, [
-			schema.text("ab"),
-			schema.nodes.math_inline.create(null, schema.text("x^2")),
-			schema.text("cd"),
-		]));
+		const doc = schema.nodes.doc.create(
+			null,
+			schema.nodes.paragraph.create(null, [
+				schema.text("ab"),
+				schema.nodes.math_inline.create(null, schema.text("x^2")),
+				schema.text("cd"),
+			]),
+		);
 		// cursor at the very end of the paragraph
 		const end = doc.content.size - 1;
 		const view = viewOf(doc, end);
@@ -314,12 +394,14 @@ export function run() {
 	/* --- marks are carried into a text-mode replacement --- */
 	{
 		const bold = schema.marks.strong.create();
-		const doc = schema.nodes.doc.create(null,
-			schema.nodes.paragraph.create(null, [schema.text("hi", [bold])]));
+		const doc = schema.nodes.doc.create(null, schema.nodes.paragraph.create(null, [schema.text("hi", [bold])]));
 		const view = viewOf(doc, 3);
 		const buffer = ls.PMBuffer.forTextBlock(view);
 		buffer.applyChange(2, 2, "!");
-		assert.deepStrictEqual(view.state.doc.firstChild.child(0).marks.map((m) => m.type.name), ["strong"]);
+		assert.deepStrictEqual(
+			view.state.doc.firstChild.child(0).marks.map(m => m.type.name),
+			["strong"],
+		);
 		assert.strictEqual(view.state.doc.firstChild.childCount, 1, "the inserted text should join the bold run");
 	}
 
@@ -347,7 +429,10 @@ export function run() {
 		// scopes are scanned from the start of the equation, not of the comment
 		const inText = new StringBuffer("prose $a \\text{@");
 		const ctx = ls.Context.fromBuffer(inText);
-		assert.deepStrictEqual(ctx.getEnvNames().map((x) => x.name), ["text"]);
+		assert.deepStrictEqual(
+			ctx.getEnvNames().map(x => x.name),
+			["text"],
+		);
 		assert.strictEqual(ctx.mode.textEnv, true);
 	}
 
@@ -355,15 +440,18 @@ export function run() {
 	{
 		const buffer = new StringBuffer("see $\\frac{a}{b} din", 20);
 		const settings = settingsFor(
-			`export default [{trigger: "dint", replacement: "\\\\int_{\${0:0}}^{\${1:\\\\infty}}", options: "mA"}]`);
-		const snippet = settings.snippets.filter((s) => s.options.automatic)[0];
+			`export default [{trigger: "dint", replacement: "\\\\int_{\${0:0}}^{\${1:\\\\infty}}", options: "mA"}]`,
+		);
+		const snippet = settings.snippets.filter(s => s.options.automatic)[0];
 		const ctx = ls.Context.fromBuffer(buffer);
 		assert.strictEqual(snippet.options.snippetShouldRunInMode(ctx.mode), true);
 
 		const result = snippet.process({
 			effectiveLine: buffer.text.slice(0, buffer.to) + "t",
 			range: { from: buffer.from, to: buffer.to },
-			sel: "", effectiveLineAfter: () => "", api: {},
+			sel: "",
+			effectiveLineAfter: () => "",
+			api: {},
 		});
 		ls.expandSnippet(buffer, result.triggerPos, buffer.to, result.replacement);
 		assert.strictEqual(buffer.text, "see $\\frac{a}{b} \\int_{0}^{\\infty}");
@@ -392,7 +480,7 @@ export function run() {
 		assert.strictEqual(buffer.text, "m");
 
 		const settings = settingsFor(`export default [{trigger: "m", replacement: "$$0$", options: "t"}]`);
-		const manual = settings.snippets.filter((s) => !s.options.automatic);
+		const manual = settings.snippets.filter(s => !s.options.automatic);
 		assert.strictEqual(manual.length, 1, "a snippet without A is Tab-triggered");
 		assert.strictEqual(ls.runSnippets(win, { snippets: manual }, settings), true, "m + Tab expands");
 
@@ -411,7 +499,7 @@ export function run() {
 		const win = noteWin(view);
 		// String.raw: the snippet source must contain a literal \n, not a newline
 		const settings = settingsFor(String.raw`export default [{trigger: "dm", replacement: "$$\n$0\n$$", options: "t"}]`);
-		ls.runSnippets(win, { snippets: settings.snippets.filter((s) => !s.options.automatic) }, settings);
+		ls.runSnippets(win, { snippets: settings.snippets.filter(s => !s.options.automatic) }, settings);
 		assert.strictEqual(view.state.doc.firstChild.type.name, "math_display");
 		ls.clearTabstops();
 	}
@@ -442,9 +530,12 @@ export function run() {
 	{
 		// "$" + "{" so the template literal does not try to interpolate ${1:x}
 		const settings = settingsFor(
-			String.raw`export default [{trigger: "int", replacement: "\\int $0 \\, d` + "${1:x}" + String.raw` $2", options: "mA"}]`);
+			String.raw`export default [{trigger: "int", replacement: "\\int $0 \\, d` +
+				"${1:x}" +
+				String.raw` $2", options: "mA"}]`,
+		);
 
-		const auto = settings.snippets.filter((s) => s.options.automatic);
+		const auto = settings.snippets.filter(s => s.options.automatic);
 
 		// "(in|)" — a closed pair, so \int inside it triggers auto-enlarge
 		const view = mathView("(in)", 3);
@@ -462,8 +553,11 @@ export function run() {
 	/* --- typing a trigger inside `$…$`, the way an annotation comment works --- */
 	{
 		const settings = settingsFor(
-			String.raw`export default [{trigger: "int", replacement: "\\int $0 \\, d` + "${1:x}" + String.raw` $2", options: "mA"}]`);
-		const auto = settings.snippets.filter((s) => s.options.automatic);
+			String.raw`export default [{trigger: "int", replacement: "\\int $0 \\, d` +
+				"${1:x}" +
+				String.raw` $2", options: "mA"}]`,
+		);
+		const auto = settings.snippets.filter(s => s.options.automatic);
 		const win = { document: { activeElement: null, getElementById: () => ({}) } };
 
 		let buffer = new StringBuffer("$f(x) = $", 8);

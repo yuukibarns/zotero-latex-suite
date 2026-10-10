@@ -7,7 +7,14 @@
  * blob `import()`, which keeps it synchronous and avoids relying on blob URLs
  * inside a resource:// document.
  */
-import { RegexSnippet, serializeSnippetLike, Snippet, StringSnippet, VISUAL_SNIPPET_MAGIC_SELECTION_PLACEHOLDER, VisualSnippet } from "./snippets";
+import {
+	RegexSnippet,
+	serializeSnippetLike,
+	Snippet,
+	StringSnippet,
+	VISUAL_SNIPPET_MAGIC_SELECTION_PLACEHOLDER,
+	VisualSnippet,
+} from "./snippets";
 import { Options } from "./options";
 import { sortSnippets } from "./sort";
 import { EXCLUSIONS } from "./environment";
@@ -23,9 +30,7 @@ export type SnippetVariables = Record<string, string>;
  */
 function evaluateModule(source: string, identifier: string, requireFn: (m: string) => unknown): unknown {
 	const hasDefault = /(^|[\s;}])export\s+default\s/.test(source);
-	const body = hasDefault
-		? source.replace(/(^|[\s;}])export\s+default\s/, "$1return ")
-		: `return (\n${source}\n);`;
+	const body = hasDefault ? source.replace(/(^|[\s;}])export\s+default\s/, "$1return ") : `return (\n${source}\n);`;
 	// eslint-disable-next-line no-new-func -- snippet files are user-authored code, by design
 	const fn = new Function("require", `${body}\n//# sourceURL=latex-suite:${identifier}`);
 	return fn(requireFn);
@@ -70,7 +75,11 @@ export function parseSnippetVariables(source: string | string[], identifier: str
  * upstream's own docs suggest organising a large set. They are concatenated and
  * then sorted as one list, so priority means the same thing across files.
  */
-export function parseSnippets(source: string | string[], snippetVariables: SnippetVariables, identifier: string): Snippet[] {
+export function parseSnippets(
+	source: string | string[],
+	snippetVariables: SnippetVariables,
+	identifier: string,
+): Snippet[] {
 	const parsedApi = api(snippetVariables);
 	const requireFn = (module: string) => {
 		if (module === "latex-suite" || module === "latex-snippets") return parsedApi;
@@ -87,7 +96,7 @@ export function parseSnippets(source: string | string[], snippetVariables: Snipp
 
 	let parsed: Snippet[];
 	try {
-		parsed = validateRawSnippets(rawSnippets).map((raw) => {
+		parsed = validateRawSnippets(rawSnippets).map(raw => {
 			try {
 				return parseSnippet(raw, snippetVariables);
 			} catch (err) {
@@ -120,7 +129,7 @@ type RawSnippet = {
 
 function validateRawSnippets(snippets: unknown): RawSnippet[] {
 	if (!Array.isArray(snippets)) throw new Error("Expected snippets to be an array");
-	return snippets.flat().map((raw) => {
+	return snippets.flat().map(raw => {
 		try {
 			return normalizeRawSnippet(raw);
 		} catch (err) {
@@ -212,8 +221,16 @@ function parseSnippet(raw: RawSnippet, snippetVariables: SnippetVariables): Snip
 		options.regex = true;
 
 		return new RegexSnippet({
-			trigger, replacement: replacement as any, options, priority, description,
-			excludedMacros, triggerKey, triggerAfter, excludedEnvironments, includedMacros,
+			trigger,
+			replacement: replacement as any,
+			options,
+			priority,
+			description,
+			excludedMacros,
+			triggerKey,
+			triggerAfter,
+			excludedEnvironments,
+			includedMacros,
 		});
 	}
 
@@ -231,24 +248,45 @@ function parseSnippet(raw: RawSnippet, snippetVariables: SnippetVariables): Snip
 
 	if (options.visual) {
 		const replacement =
-			typeof replacementRaw === "string" ? new ArrayNode([new VisualSnippetNode(replacementRaw)]) : (replacementRaw as ArrayNode);
+			typeof replacementRaw === "string"
+				? new ArrayNode([new VisualSnippetNode(replacementRaw)])
+				: (replacementRaw as ArrayNode);
 		return new VisualSnippet({
-			trigger, replacement: replacement as any, options, priority, description,
-			excludedEnvironments, excludedMacros, includedMacros, triggerKey,
+			trigger,
+			replacement: replacement as any,
+			options,
+			priority,
+			description,
+			excludedEnvironments,
+			excludedMacros,
+			includedMacros,
+			triggerKey,
 		});
 	}
 
 	const replacement =
-		typeof replacementRaw === "string" ? new ArrayNode([new SnippetTabstopOnlyNode(replacementRaw)]) : (replacementRaw as ArrayNode);
+		typeof replacementRaw === "string"
+			? new ArrayNode([new SnippetTabstopOnlyNode(replacementRaw)])
+			: (replacementRaw as ArrayNode);
 	return new StringSnippet({
-		trigger, replacement: replacement as any, options, priority, description,
-		excludedEnvironments, excludedMacros, includedMacros, triggerKey, triggerAfter,
+		trigger,
+		replacement: replacement as any,
+		options,
+		priority,
+		description,
+		excludedEnvironments,
+		excludedMacros,
+		includedMacros,
+		triggerKey,
+		triggerAfter,
 	});
 }
 
 function filterFlags(flags: string): string {
 	const validFlags = ["i", "m", "s", "u", "v"];
-	return Array.from(new Set(flags.split(""))).filter((f) => validFlags.includes(f)).join("");
+	return Array.from(new Set(flags.split("")))
+		.filter(f => validFlags.includes(f))
+		.join("");
 }
 
 function insertSnippetVariables(trigger: string, variables: SnippetVariables) {
@@ -268,22 +306,30 @@ const isMac = typeof navigator !== "undefined" && /Mac/.test(navigator.platform 
 
 export function parseKeyName(name: string): string {
 	if (!name) return "";
-	return name.split(/ (?!$)/).map(normalizeKeyName).join(" ");
+	return name
+		.split(/ (?!$)/)
+		.map(normalizeKeyName)
+		.join(" ");
 }
 
 function normalizeKeyName(name: string) {
 	const parts = name.split(/-(?!$)/);
 	let result = parts[parts.length - 1];
 	if (result === "Space") result = " ";
-	let alt = false, ctrl = false, shift = false, meta = false;
+	let alt = false,
+		ctrl = false,
+		shift = false,
+		meta = false;
 	for (let i = 0; i < parts.length - 1; ++i) {
 		const mod = parts[i];
 		if (/^(cmd|meta|m)$/i.test(mod)) meta = true;
 		else if (/^a(lt)?$/i.test(mod)) alt = true;
 		else if (/^(c|ctrl|control)$/i.test(mod)) ctrl = true;
 		else if (/^s(hift)?$/i.test(mod)) shift = true;
-		else if (/^mod$/i.test(mod)) { if (isMac) meta = true; else ctrl = true; }
-		else throw new Error("Unrecognized modifier name: " + mod);
+		else if (/^mod$/i.test(mod)) {
+			if (isMac) meta = true;
+			else ctrl = true;
+		} else throw new Error("Unrecognized modifier name: " + mod);
 	}
 	if (alt) result = "Alt-" + result;
 	if (ctrl) result = "Ctrl-" + result;

@@ -9,23 +9,48 @@ import { intersection } from "src/utils/editor_utils";
 import { Context } from "src/utils/context";
 import { Settings } from "src/settings/settings";
 import { Token, tokenize } from "src/utils/tokenizer";
-import { simplifyScriptOnExit } from './script_cleanup';
+import { simplifyScriptOnExit } from "./script_cleanup";
 
 const LEFT_COMMANDS = new Set(["\\left", "\\bigl", "\\Bigl", "\\biggl", "\\Biggl"]);
 const RIGHT_COMMANDS = new Set(["\\right", "\\bigr", "\\Bigr", "\\biggr", "\\Biggr"]);
 const DELIMITERS = new Set([
-	"(", ")",
-	"[", "]", "\\lbrack", "\\rbrack",
-	"\\{", "\\}", "\\lbrace", "\\rbrace",
-	"<", ">", "\\langle", "\\rangle", "\\lt", "\\gt",
-	"|", "\\vert", "\\lvert", "\\rvert",
-	"\\|", "\\Vert", "\\lVert", "\\rVert",
-	"\\lfloor", "\\rfloor",
-	"\\lceil", "\\rceil",
-	"\\ulcorner", "\\urcorner",
-	"/", "\\\\", "\\backslash",
-	"\\uparrow", "\\downarrow",
-	"\\Uparrow", "\\Downarrow",
+	"(",
+	")",
+	"[",
+	"]",
+	"\\lbrack",
+	"\\rbrack",
+	"\\{",
+	"\\}",
+	"\\lbrace",
+	"\\rbrace",
+	"<",
+	">",
+	"\\langle",
+	"\\rangle",
+	"\\lt",
+	"\\gt",
+	"|",
+	"\\vert",
+	"\\lvert",
+	"\\rvert",
+	"\\|",
+	"\\Vert",
+	"\\lVert",
+	"\\rVert",
+	"\\lfloor",
+	"\\rfloor",
+	"\\lceil",
+	"\\rceil",
+	"\\ulcorner",
+	"\\urcorner",
+	"/",
+	"\\\\",
+	"\\backslash",
+	"\\uparrow",
+	"\\downarrow",
+	"\\Uparrow",
+	"\\Downarrow",
 	".",
 ]);
 const DELIMITERS_MAP: Record<string, string> = {
@@ -75,13 +100,14 @@ export function tabout(win: any, settings: Settings, simplifyScript = false): bo
 	const tokens = tokenize(buffer.text.slice(bounds.inner_start, bounds.inner_end));
 	const relative = cursor - bounds.inner_start;
 
-	const found = tokens.findIndex((token) => token.end > relative);
+	const found = tokens.findIndex(token => token.end > relative);
 	for (let i = found === -1 ? tokens.length : found; i < tokens.length; i++) {
 		// Normal navigation, and error recovery: an unmatched \right is exactly
 		// where the user needs to be to type the delimiter they forgot.
 		if (isClosingDelimiterToken(tokens, i, settings.taboutClosingSymbols) || isUnmatchedRightCommand(tokens, i)) {
-			const destination=bounds.inner_start + tokens[i].end;
-			if (!simplifyScript || !simplifyScriptOnExit(buffer,buffer.positionAt(destination))) buffer.setSelection(destination);
+			const destination = bounds.inner_start + tokens[i].end;
+			if (!simplifyScript || !simplifyScriptOnExit(buffer, buffer.positionAt(destination)))
+				buffer.setSelection(destination);
 			return true;
 		}
 	}
@@ -96,7 +122,7 @@ export function tabout(win: any, settings: Settings, simplifyScript = false): bo
 export function taboutByEnclosedBrackets(latexString: string, closingSymbols: Set<string>): number | null {
 	const tokens = tokenize(latexString);
 	const closing = intersection(CLOSING_DELIMITERS, closingSymbols);
-	const opening = new Set(Object.keys(DELIMITERS_MAP).filter((key) => closing.has(DELIMITERS_MAP[key])));
+	const opening = new Set(Object.keys(DELIMITERS_MAP).filter(key => closing.has(DELIMITERS_MAP[key])));
 
 	const stack: string[] = [];
 	for (const token of tokens) {

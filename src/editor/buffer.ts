@@ -40,13 +40,7 @@ export interface Buffer {
 	 * offsets into `insert` — ended up. `selection` is also an offset into
 	 * `insert`, defaulting to its end.
 	 */
-	applyChange(
-		from: number,
-		to: number,
-		insert: string,
-		tabstops?: readonly Range[],
-		selection?: Range,
-	): Range[];
+	applyChange(from: number, to: number, insert: string, tabstops?: readonly Range[], selection?: Range): Range[];
 
 	/** Replace `[from, to)`, cursor after the insertion. */
 	replaceRange(from: number, to: number, insert: string): void;

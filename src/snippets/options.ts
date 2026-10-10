@@ -44,7 +44,7 @@ export class Options {
 
 	snippetShouldRunInMode(mode: Mode, ignoreSnippetLessEnv: boolean = false): boolean {
 		if (mode.snippetlessEnv && !ignoreSnippetLessEnv) {
-			return false
+			return false;
 		}
 		if (
 			(this.mode.inlineMath && mode.inlineMath) ||
@@ -61,8 +61,7 @@ export class Options {
 			return true;
 		}
 		if (
-			(this.mode.codeBlock === mode.codeBlock &&
-				mode.codeBlock !== false) ||
+			(this.mode.codeBlock === mode.codeBlock && mode.codeBlock !== false) ||
 			(this.mode.codeBlock === true && mode.codeBlock !== false)
 		) {
 			return true;
@@ -74,7 +73,6 @@ export class Options {
 		return false;
 	}
 }
-
 
 export class Mode {
 	text: boolean = false;
@@ -89,7 +87,7 @@ export class Mode {
 	/**
 	 * Whether the state is inside an equation bounded by $ or $$ delimeters.
 	 */
-	inEquation():boolean {
+	inEquation(): boolean {
 		return this.inlineMath || this.blockMath;
 	}
 
@@ -98,11 +96,11 @@ export class Mode {
 	 *
 	 * The equation may be bounded by $ or $$ delimeters, or it may be an equation inside a `math` codeblock.
 	 */
-	inMath():boolean {
+	inMath(): boolean {
 		return this.inlineMath || this.blockMath || this.codeMath;
 	}
-	
-	inDisplayMath():boolean {
+
+	inDisplayMath(): boolean {
 		return this.blockMath || this.codeMath;
 	}
 
@@ -111,7 +109,7 @@ export class Mode {
 	 *
 	 * Returns false when the state is within math, but inside a text environment, such as \text{}.
 	 */
-	strictlyInMath():boolean {
+	strictlyInMath(): boolean {
 		return this.inMath() && !this.textEnv && !this.snippetlessEnv;
 	}
 
@@ -159,19 +157,22 @@ export class Mode {
 		if (language !== undefined) {
 			mode.codeBlock = language;
 		}
-		
+
 		if (mode.textEnv && !(mode.blockMath || mode.inlineMath)) {
 			mode.blockMath = true;
 			mode.inlineMath = true;
 		}
 
-		if (!(mode.text ||
-			mode.inlineMath ||
-			mode.blockMath ||
-			mode.codeMath ||
-			mode.codeBlock !== false ||
-			mode.textEnv ||
-			mode.code)
+		if (
+			!(
+				mode.text ||
+				mode.inlineMath ||
+				mode.blockMath ||
+				mode.codeMath ||
+				mode.codeBlock !== false ||
+				mode.textEnv ||
+				mode.code
+			)
 		) {
 			// for backwards compat we need to assume that this is a catchall mode then
 			mode.invert();

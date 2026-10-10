@@ -12,7 +12,7 @@ import { Buffer, Range } from "src/editor/buffer";
 import { ResultInsert } from "./luasnip_api/node";
 import { tabstopSpecsToTabstopGroups } from "./tabstop";
 import { hideTabstopMarks, showTabstopMarks } from "./tabstop_marks";
-import { simplifyScriptOnExit } from 'src/features/script_cleanup';
+import { simplifyScriptOnExit } from "src/features/script_cleanup";
 
 type ActiveSnippet = {
 	owner: object;
@@ -49,8 +49,9 @@ function enter(snippet: ActiveSnippet) {
 /** Which pending tabstop contains this expansion, or -1 if none does? */
 function pendingTabstopIndex(owner: object, from: number, to: number): number {
 	if (!active || active.owner !== owner) return -1;
-	return active.groups.findIndex((group, index) => index >= active!.index
-		&& group.some(range => from >= range.from && to <= range.to));
+	return active.groups.findIndex(
+		(group, index) => index >= active!.index && group.some(range => from >= range.from && to <= range.to),
+	);
 }
 
 export function clearTabstops() {
@@ -80,7 +81,10 @@ function paintMarks() {
 	if (!current?.doc) return;
 	try {
 		const pending = current.groups.slice(current.index + 1).flat();
-		showTabstopMarks(current.doc, pending.flatMap((range) => current.buffer.clientRects(range)));
+		showTabstopMarks(
+			current.doc,
+			pending.flatMap(range => current.buffer.clientRects(range)),
+		);
 	} catch {
 		/* decoration only */
 	}
@@ -120,20 +124,23 @@ export function expandSnippet(buffer: Buffer, from: number, to: number, result: 
 
 	// Re-bucket the placed positions the way they were grouped.
 	let cursor = 0;
-	const placedGroups = groups.map((group) => group.map(() => placed[cursor++]));
+	const placedGroups = groups.map(group => group.map(() => placed[cursor++]));
 
 	const owner = buffer.owner;
 	if (!watchedOwners.has(owner)) {
 		watchedOwners.add(owner);
-		buffer.watch((map) => {
+		buffer.watch(map => {
 			if (active && active.owner === owner) {
-				for (const snippet of stack) if (snippet.owner === owner)
-					snippet.groups = snippet.groups.map((group, index) => group.map(range => {
-						const mapped = map(range);
-						// Future empty stops follow inserted text at their boundary,
-						// but remain carets. Only the active placeholder grows.
-						return index > snippet.index && range.from === range.to ? { from: mapped.to, to: mapped.to } : mapped;
-					}));
+				for (const snippet of stack)
+					if (snippet.owner === owner)
+						snippet.groups = snippet.groups.map((group, index) =>
+							group.map(range => {
+								const mapped = map(range);
+								// Future empty stops follow inserted text at their boundary,
+								// but remain carets. Only the active placeholder grows.
+								return index > snippet.index && range.from === range.to ? { from: mapped.to, to: mapped.to } : mapped;
+							}),
+						);
 				paintMarks();
 			}
 		});
@@ -183,7 +190,7 @@ export function setSelectionToNextTabstop(buffer: Buffer, shiftKey: boolean): bo
 			continue;
 		}
 
-		if (shiftKey || target.from!==target.to || !simplifyScriptOnExit(buffer,target.from)) buffer.selectRange(target);
+		if (shiftKey || target.from !== target.to || !simplifyScriptOnExit(buffer, target.from)) buffer.selectRange(target);
 		active.index = next;
 		// The last tabstop of the innermost snippet finishes it, but only it.
 		if (next === active.groups.length - 1 && direction === 1) {

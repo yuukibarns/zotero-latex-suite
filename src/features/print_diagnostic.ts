@@ -13,9 +13,12 @@ export function installPrintDiagnostic(win: Window, getTheme: () => "auto" | "li
 	button.title = "Open rendered note, then File → Print or Ctrl/Cmd+P";
 	let stopped = false;
 	const tab = win.document.createElement("button");
-	tab.type = "button"; tab.className = "option"; tab.tabIndex = -1;
+	tab.type = "button";
+	tab.className = "option";
+	tab.tabIndex = -1;
 	tab.id = "latex-suite-open-note-tab";
-	tab.setAttribute("role", "menuitem"); tab.textContent = "Edit in New Tab";
+	tab.setAttribute("role", "menuitem");
+	tab.textContent = "Edit in New Tab";
 	tab.addEventListener("click", async () => {
 		if (stopped || tab.disabled) return;
 		tab.disabled = true;
@@ -24,8 +27,11 @@ export function installPrintDiagnostic(win: Window, getTheme: () => "auto" | "li
 			const open = (win as any).__latexSuiteOpenNoteTab;
 			if (!open) throw new Error("Restart Zotero to enable opening note tabs.");
 			await open();
-		} catch (error) { win.alert(String(error)); }
-		finally { tab.disabled = false; }
+		} catch (error) {
+			win.alert(String(error));
+		} finally {
+			tab.disabled = false;
+		}
 	});
 	let busy = false;
 	const separator = win.document.createElement("div");
@@ -59,8 +65,15 @@ export function installPrintDiagnostic(win: Window, getTheme: () => "auto" | "li
 				const node = nodes[i];
 				const math = (node as any).pmViewDesc?.spec;
 				math?._innerView?.domObserver?.forceFlush?.();
-				const request: {node: Element; math: any; rendered: Promise<HTMLElement> | null; css: string; fontSize: string; warnings: string[]} = {node, math, rendered:null, css:"", fontSize:PRINT_FONT_SIZE, warnings:[]};
-				win.document.dispatchEvent(new (win as any).CustomEvent("latex-suite-export-math", {detail:request}));
+				const request: {
+					node: Element;
+					math: any;
+					rendered: Promise<HTMLElement> | null;
+					css: string;
+					fontSize: string;
+					warnings: string[];
+				} = { node, math, rendered: null, css: "", fontSize: PRINT_FONT_SIZE, warnings: [] };
+				win.document.dispatchEvent(new (win as any).CustomEvent("latex-suite-export-math", { detail: request }));
 				if (request.rendered) {
 					const replacement = win.document.createElement("div");
 					replacement.className = "ls-print-display";
@@ -72,7 +85,8 @@ export function installPrintDiagnostic(win: Window, getTheme: () => "auto" | "li
 				}
 				math?.renderMath?.();
 				const rendered = node.querySelector(".math-render");
-				if (!rendered || rendered.classList.contains("parse-error") || rendered.querySelector(".katex-error")) throw new Error("Correct invalid equations before printing");
+				if (!rendered || rendered.classList.contains("parse-error") || rendered.querySelector(".katex-error"))
+					throw new Error("Correct invalid equations before printing");
 				const replacement = win.document.createElement(node.tagName.toLowerCase() === "math-display" ? "div" : "span");
 				if (replacement.tagName.toLowerCase() === "div") replacement.className = "ls-print-display";
 				replacement.append(...Array.from(rendered.childNodes, child => child.cloneNode(true)));
@@ -83,26 +97,33 @@ export function installPrintDiagnostic(win: Window, getTheme: () => "auto" | "li
 				const live = images[i];
 				if (!live.complete || !live.naturalWidth) throw new Error("Wait for note images to load");
 				const canvas = win.document.createElement("canvas");
-				canvas.width = live.naturalWidth; canvas.height = live.naturalHeight;
+				canvas.width = live.naturalWidth;
+				canvas.height = live.naturalHeight;
 				canvas.getContext("2d")!.drawImage(live, 0, 0);
 				image.src = canvas.toDataURL("image/png");
 				image.removeAttribute("srcset");
 			});
-			copy.querySelectorAll("script,style,iframe,object,embed,link,meta,base,button,input,textarea,select,#latex-suite-math-preview,#latex-suite-completion").forEach(el => el.remove());
+			copy
+				.querySelectorAll(
+					"script,style,iframe,object,embed,link,meta,base,button,input,textarea,select,#latex-suite-math-preview,#latex-suite-completion",
+				)
+				.forEach(el => el.remove());
 			for (const el of [copy, ...Array.from(copy.querySelectorAll("*"))]) {
 				for (const attr of Array.from(el.attributes)) {
 					const svgID = attr.name === "id" && el.namespaceURI === "http://www.w3.org/2000/svg";
-					if (/^on/i.test(attr.name) || (!svgID && ["contenteditable", "id", "tabindex"].includes(attr.name))) el.removeAttribute(attr.name);
+					if (/^on/i.test(attr.name) || (!svgID && ["contenteditable", "id", "tabindex"].includes(attr.name)))
+						el.removeAttribute(attr.name);
 				}
 			}
 			const bridge = (win as any).__latexSuiteDiagnosePrint;
 			if (!bridge) throw new Error("Diagnostic bridge missing; restart Zotero");
-			const css = await embeddedPrintCSS(win) + [...rendererStyles].join("\n");
+			const css = (await embeddedPrintCSS(win)) + [...rendererStyles].join("\n");
 			if (stopped) return;
 			bridge(printDocument(copy.outerHTML, css, theme));
 			if (warnings.length) win.alert("PDF prepared with warnings:\n" + [...new Set(warnings)].join("\n"));
-		} catch (error) { if (!stopped) win.alert("PDF snapshot: " + String(error)); }
-		finally {
+		} catch (error) {
+			if (!stopped) win.alert("PDF snapshot: " + String(error));
+		} finally {
 			busy = false;
 			button.disabled = false;
 			button.textContent = "Print / PDF…";
@@ -111,7 +132,13 @@ export function installPrintDiagnostic(win: Window, getTheme: () => "auto" | "li
 	const observer = new (win as any).MutationObserver(attach);
 	observer.observe(win.document.body, { childList: true, subtree: true });
 	attach();
-	return () => { stopped = true; observer.disconnect(); button.remove(); separator.remove(); tab.remove(); };
+	return () => {
+		stopped = true;
+		observer.disconnect();
+		button.remove();
+		separator.remove();
+		tab.remove();
+	};
 }
 
 export async function embeddedPrintCSS(win: Window) {
@@ -155,8 +182,9 @@ export function printTheme(win: Window, source: HTMLElement, preference: unknown
 	for (let el: HTMLElement | null = source; el; el = el.parentElement) {
 		const color = win.getComputedStyle(el).backgroundColor;
 		const channels = color.match(/[\d.]+/g)?.map(Number);
-		if (!color.startsWith("rgb") || !channels || channels.length < 3 || (channels[3] !== undefined && channels[3] < 1)) continue;
-		return .2126 * channels[0] + .7152 * channels[1] + .0722 * channels[2] < 128 ? "dark" : "light";
+		if (!color.startsWith("rgb") || !channels || channels.length < 3 || (channels[3] !== undefined && channels[3] < 1))
+			continue;
+		return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2] < 128 ? "dark" : "light";
 	}
 	return win.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }

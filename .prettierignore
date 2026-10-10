@@ -1,0 +1,11 @@
+# Third-party code tracked against upstream; keep byte-identical.
+**/vendor/
+# Generated or data files.
+build/
+dist/
+package-lock.json
+*.json
+*.md
+*.xhtml
+test-fixtures/
+src/conceal/maps.ts

@@ -38,28 +38,57 @@ export function scanScopes(text: string, pos: number): Scope[] {
 
 	while (i < pos) {
 		const c = text[i];
-		if (c === "%") { while (i < pos && text[i] !== "\n" && text[i] !== "\r") i++;continue; }
-		const delimiter = c === "$" ? text[i + 1] === "$" ? "$$" : "$"
-			: c === "\\" && "()[]".includes(text[i + 1] || " ") ? text.slice(i, i + 2) : null;
+		if (c === "%") {
+			while (i < pos && text[i] !== "\n" && text[i] !== "\r") i++;
+			continue;
+		}
+		const delimiter =
+			c === "$"
+				? text[i + 1] === "$"
+					? "$$"
+					: "$"
+				: c === "\\" && "()[]".includes(text[i + 1] || " ")
+					? text.slice(i, i + 2)
+					: null;
 		if (delimiter && i + delimiter.length <= pos) {
-			let activeMath = -1, inText = false;
+			let activeMath = -1,
+				inText = false;
 			for (let k = stack.length - 1; k >= 0; k--) {
-				if (stack[k].kind === "math") { activeMath = k;break; }
-				if (isAlgorithm(stack[k]) || isMacroArgumentCount(stack[k], textArea)) { inText = true;break; }
+				if (stack[k].kind === "math") {
+					activeMath = k;
+					break;
+				}
+				if (isAlgorithm(stack[k]) || isMacroArgumentCount(stack[k], textArea)) {
+					inText = true;
+					break;
+				}
 			}
 			const close = activeMath >= 0 ? stack[activeMath].name : "";
 			if (close === delimiter) {
-				stack.splice(activeMath);i += delimiter.length;macro = null;continue;
+				stack.splice(activeMath);
+				i += delimiter.length;
+				macro = null;
+				continue;
 			}
 			if (inText && ["$", "$$", "\\(", "\\["].includes(delimiter)) {
-				stack.push({ kind: "math", name: delimiter === "\\(" ? "\\)" : delimiter === "\\[" ? "\\]" : delimiter, argIndex: 0, start: i });
-				i += delimiter.length;macro = null;continue;
+				stack.push({
+					kind: "math",
+					name: delimiter === "\\(" ? "\\)" : delimiter === "\\[" ? "\\]" : delimiter,
+					argIndex: 0,
+					start: i,
+				});
+				i += delimiter.length;
+				macro = null;
+				continue;
 			}
 		}
 
 		if (c === "\\") {
 			const m = MACRO.exec(text.slice(i));
-			if (!m) { i++; continue; }
+			if (!m) {
+				i++;
+				continue;
+			}
 			const name = m[1];
 			if (name === "begin" || name === "end") {
 				const arg = ENV_ARG.exec(text.slice(i + m[0].length));
@@ -103,8 +132,14 @@ export function scanScopes(text: string, pos: number): Scope[] {
 			// `\begin`/`\end` groups never got pushed, so the innermost
 			// non-environment scope is always the one this closes.
 			for (let k = stack.length - 1; k >= 0; k--) {
-				if (stack[k].kind === "math") { stack.splice(k, 1);continue; }
-				if (stack[k].kind !== "environment") { stack.splice(k, 1); break; }
+				if (stack[k].kind === "math") {
+					stack.splice(k, 1);
+					continue;
+				}
+				if (stack[k].kind !== "environment") {
+					stack.splice(k, 1);
+					break;
+				}
 			}
 			// A macro cannot own arguments outside the group where it appeared.
 			// Otherwise _{\text{data}} leaves a stale macro at depth 1, and
@@ -115,7 +150,10 @@ export function scanScopes(text: string, pos: number): Scope[] {
 			continue;
 		}
 
-		if (c === " " || c === "\t" || c === "\n") { i++; continue; } // a macro's argument may be spaced away
+		if (c === " " || c === "\t" || c === "\n") {
+			i++;
+			continue;
+		} // a macro's argument may be spaced away
 
 		if (macro && stack.length === macro.depth) macro = null;
 		prevChar = c;
@@ -127,7 +165,7 @@ export function scanScopes(text: string, pos: number): Scope[] {
 
 export function isMacroArgumentCount(scope: Scope, areas: readonly MacroArea[]): boolean {
 	return areas.some(
-		(area) => area.name === scope.name && (area.arguments === undefined || area.arguments.includes(scope.argIndex)),
+		area => area.name === scope.name && (area.arguments === undefined || area.arguments.includes(scope.argIndex)),
 	);
 }
 
@@ -161,18 +199,30 @@ export class Context {
 
 		if (buffer.kind === "math_inline") mode.inlineMath = true;
 		else if (buffer.kind === "math_display") mode.blockMath = true;
-		else if (buffer.kind === "code") { mode.code = true; mode.codeBlock = true; }
-		else mode.text = true;
+		else if (buffer.kind === "code") {
+			mode.code = true;
+			mode.codeBlock = true;
+		} else mode.text = true;
 
 		// The innermost macro decides whether we are really in math: an
 		// environment resets the scope, anything else is transparent.
 		let algorithmText = false;
 		for (const scope of scopes) {
 			if (scope.kind === "math") break;
-			if (isAlgorithm(scope)) { mode.textEnv = true; algorithmText = true; break; }
+			if (isAlgorithm(scope)) {
+				mode.textEnv = true;
+				algorithmText = true;
+				break;
+			}
 			if (scope.kind === "environment") break;
-			if (isMacroArgumentCount(scope, snippetLessArea)) { mode.snippetlessEnv = true; break; }
-			if (isMacroArgumentCount(scope, textArea)) { mode.textEnv = true; break; }
+			if (isMacroArgumentCount(scope, snippetLessArea)) {
+				mode.snippetlessEnv = true;
+				break;
+			}
+			if (isMacroArgumentCount(scope, textArea)) {
+				mode.textEnv = true;
+				break;
+			}
 		}
 
 		const context = new Context(buffer, mode, scopes);
@@ -191,6 +241,6 @@ export class Context {
 
 	isWithinEnvironment(env: Environment): boolean {
 		const name = envScopeName(env);
-		return this.scopes.some((s) => s.name === name);
+		return this.scopes.some(s => s.name === name);
 	}
 }

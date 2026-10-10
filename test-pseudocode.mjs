@@ -1,8 +1,8 @@
-import assert from 'node:assert/strict';
-import { JSDOM } from 'jsdom';
-import { renderPseudocode, isPseudocode, rendererCSS } from './modules/pseudocode/build/renderer.mjs';
+import assert from "node:assert/strict";
+import { JSDOM } from "jsdom";
+import { renderPseudocode, isPseudocode, rendererCSS } from "./modules/pseudocode/build/renderer.mjs";
 const doc = new JSDOM('<div id="host"></div>').window.document;
-const host = doc.getElementById('host');
+const host = doc.getElementById("host");
 const source = String.raw`\begin{algorithm}
 \caption{Sum}
 \begin{algorithmic}
@@ -13,39 +13,49 @@ const source = String.raw`\begin{algorithm}
 \RETURN $s$
 \end{algorithmic}
 \end{algorithm}`;
-assert(isPseudocode(source)); assert(!isPseudocode('x+y'));
+assert(isPseudocode(source));
+assert(!isPseudocode("x+y"));
 const a = await renderPseudocode(host, source);
-assert(a.element.querySelector('.ps-algorithm'));
-assert(a.element.querySelector('.katex'));
+assert(a.element.querySelector(".ps-algorithm"));
+assert(a.element.querySelector(".katex"));
 const b = await renderPseudocode(host, source);
-assert.equal(a.element.innerHTML,b.element.innerHTML,'Deterministic captions');
-a.dispose(); b.dispose(); assert.equal(host.children.length,0);
-const safe = await renderPseudocode(host,String.raw`\begin{algorithmic}\STATE <img src=x onerror=alert(1)> $\href{javascript:alert(1)}{x}$\end{algorithmic}`);
-assert(!safe.element.querySelector('img,a,script,iframe'));
+assert.equal(a.element.innerHTML, b.element.innerHTML, "Deterministic captions");
+a.dispose();
+b.dispose();
+assert.equal(host.children.length, 0);
+const safe = await renderPseudocode(
+	host,
+	String.raw`\begin{algorithmic}\STATE <img src=x onerror=alert(1)> $\href{javascript:alert(1)}{x}$\end{algorithmic}`,
+);
+assert(!safe.element.querySelector("img,a,script,iframe"));
 safe.dispose();
-assert(!rendererCSS.includes('@import'));
+assert(!rendererCSS.includes("@import"));
 for (const body of [
- String.raw`\IF{$x$}\IF{$y$}\RETURN $y$\ENDIF\ELIF{$z$}\STATE $z$\ELSE\STATE $x$\ENDIF`,
- String.raw`\UPON{$x$}\STATE $x$\ENDUPON`,
- String.raw`\WHILE{$x$}\BREAK\ENDWHILE\FORALL{$x$}\CONTINUE\ENDFOR`,
- String.raw`\REPEAT\STATE $x$\UNTIL{$x$}`,
- String.raw`\FUNCTION{F}{$x$}\RETURN $x$\ENDFUNCTION\PROCEDURE{P}{$x$}\PRINT $x$\ENDPROCEDURE`,
- String.raw`\STATE $x$\COMMENT{A comment}`,
+	String.raw`\IF{$x$}\IF{$y$}\RETURN $y$\ENDIF\ELIF{$z$}\STATE $z$\ELSE\STATE $x$\ENDIF`,
+	String.raw`\UPON{$x$}\STATE $x$\ENDUPON`,
+	String.raw`\WHILE{$x$}\BREAK\ENDWHILE\FORALL{$x$}\CONTINUE\ENDFOR`,
+	String.raw`\REPEAT\STATE $x$\UNTIL{$x$}`,
+	String.raw`\FUNCTION{F}{$x$}\RETURN $x$\ENDFUNCTION\PROCEDURE{P}{$x$}\PRINT $x$\ENDPROCEDURE`,
+	String.raw`\STATE $x$\COMMENT{A comment}`,
 ]) {
- const result=await renderPseudocode(host,'\\begin{algorithmic}'+body+'\\end{algorithmic}');
- assert(result.element.querySelector('.ps-code'));
- result.dispose();
+	const result = await renderPseudocode(host, "\\begin{algorithmic}" + body + "\\end{algorithmic}");
+	assert(result.element.querySelector(".ps-code"));
+	result.dispose();
 }
-await assert.rejects(renderPseudocode(host,'x'.repeat(20001)),/too large/);
-const commentTest = await renderPseudocode(host, String.raw`\begin{algorithmic}\STATE $x$\COMMENT{Compare $y$}\end{algorithmic}`);
-const comment = commentTest.element.querySelector('.ps-comment');
-assert(comment.closest('.ps-comments'), 'Comment retains right-aligned container');
-assert.equal(comment.querySelectorAll('.ps-comment-marker').length, 1);
-assert.equal(comment.querySelector('.ps-comment-marker annotation').textContent, String.raw`\triangleright`);
-assert.equal(comment.querySelectorAll('.katex').length, 2, 'Math marker and comment math both render');
-assert(comment.textContent.includes('Compare'));
+await assert.rejects(renderPseudocode(host, "x".repeat(20001)), /too large/);
+const commentTest = await renderPseudocode(
+	host,
+	String.raw`\begin{algorithmic}\STATE $x$\COMMENT{Compare $y$}\end{algorithmic}`,
+);
+const comment = commentTest.element.querySelector(".ps-comment");
+assert(comment.closest(".ps-comments"), "Comment retains right-aligned container");
+assert.equal(comment.querySelectorAll(".ps-comment-marker").length, 1);
+assert.equal(comment.querySelector(".ps-comment-marker annotation").textContent, String.raw`\triangleright`);
+assert.equal(comment.querySelectorAll(".katex").length, 2, "Math marker and comment math both render");
+assert(comment.textContent.includes("Compare"));
 commentTest.dispose();
-await assert.rejects(renderPseudocode(host,String.raw`\begin{algorithmic}\IF{x}`));
-const controller = new AbortController();controller.abort();
-await assert.rejects(renderPseudocode(host,source,{signal:controller.signal}),{name:'AbortError'});
-console.log('Pseudocode: render, math, escaping, captions, limits and abort passed.');
+await assert.rejects(renderPseudocode(host, String.raw`\begin{algorithmic}\IF{x}`));
+const controller = new AbortController();
+controller.abort();
+await assert.rejects(renderPseudocode(host, source, { signal: controller.signal }), { name: "AbortError" });
+console.log("Pseudocode: render, math, escaping, captions, limits and abort passed.");

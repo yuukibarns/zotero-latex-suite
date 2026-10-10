@@ -69,18 +69,12 @@ export class TextBuffer implements Buffer {
 		setCaret(this.element, from, to);
 	}
 
-	applyChange(
-		from: number,
-		to: number,
-		insert: string,
-		tabstops: readonly Range[] = [],
-		selection?: Range,
-	): Range[] {
+	applyChange(from: number, to: number, insert: string, tabstops: readonly Range[] = [], selection?: Range): Range[] {
 		this.select(from, to);
 		this.insert(from, to, insert);
 
 		const at = (offsetInInsert: number) => from + offsetInInsert;
-		const placed = tabstops.map((ts) => ({ from: at(ts.from), to: at(ts.to) }));
+		const placed = tabstops.map(ts => ({ from: at(ts.from), to: at(ts.to) }));
 
 		const caret = selection ?? { from: insert.length, to: insert.length };
 		this.select(at(caret.from), at(caret.to));
@@ -125,9 +119,7 @@ export class TextBuffer implements Buffer {
 		this.element.normalize();
 
 		const view = doc.defaultView as any;
-		this.element.dispatchEvent(
-			new view.InputEvent("input", { bubbles: true, inputType: "insertText", data: insert }),
-		);
+		this.element.dispatchEvent(new view.InputEvent("input", { bubbles: true, inputType: "insertText", data: insert }));
 	}
 
 	replaceRange(from: number, to: number, insert: string) {
@@ -140,8 +132,7 @@ export class TextBuffer implements Buffer {
 		this.insert(from, to, insert);
 		if (!caret) return;
 		const delta = insert.length - (to - from);
-		const shift = (offset: number) =>
-			offset <= from ? offset : offset >= to ? offset + delta : from + insert.length;
+		const shift = (offset: number) => (offset <= from ? offset : offset >= to ? offset + delta : from + insert.length);
 		this.select(shift(caret.from), shift(caret.to));
 	}
 
@@ -213,7 +204,8 @@ function watchElement(element: HTMLElement, remap: (map: (range: Range) => Range
 			suffix < before.length - prefix &&
 			suffix < after.length - prefix &&
 			before[before.length - 1 - suffix] === after[after.length - 1 - suffix]
-		) suffix++;
+		)
+			suffix++;
 
 		const oldEnd = before.length - suffix;
 		const newEnd = after.length - suffix;
@@ -226,7 +218,7 @@ function watchElement(element: HTMLElement, remap: (map: (range: Range) => Range
 			if (offset >= oldEnd) return offset + delta;
 			return bias < 0 ? prefix : newEnd;
 		};
-		remap((range) => ({ from: move(range.from, -1), to: move(range.to, 1) }));
+		remap(range => ({ from: move(range.from, -1), to: move(range.to, 1) }));
 	});
 }
 

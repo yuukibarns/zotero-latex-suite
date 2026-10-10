@@ -29,7 +29,12 @@ const { FIELDS } = require("./bootstrap.js");
 		{ openSymbol: "\\pu{", closeSymbol: "}" },
 	]);
 	assert.deepStrictEqual(settings.autoEnlargeBracketsTriggers, [
-		"\\sum", "\\int", "\\frac", "\\prod", "\\bigcup", "\\bigcap",
+		"\\sum",
+		"\\int",
+		"\\frac",
+		"\\prod",
+		"\\bigcup",
+		"\\bigcap",
 	]);
 
 	/* --- snippets are sorted by priority, then trigger length --- */
@@ -42,7 +47,10 @@ const { FIELDS } = require("./bootstrap.js");
 		{},
 		"test",
 	);
-	assert.deepStrictEqual(sorted.map((s) => s.trigger), ["zz", "abc", "a"]);
+	assert.deepStrictEqual(
+		sorted.map(s => s.trigger),
+		["zz", "abc", "a"],
+	);
 
 	/* --- option letters --- */
 	const one = parseSnippets(`export default [{trigger: "x", replacement: "y", options: "mAw"}]`, {}, "test")[0];
@@ -50,23 +58,40 @@ const { FIELDS } = require("./bootstrap.js");
 	assert.ok(one.options.mode.inlineMath && one.options.mode.blockMath && !one.options.mode.text);
 
 	/* --- tabstops and captures --- */
-	const frac = parseSnippets(`export default [{trigger: "//", replacement: "\\\\frac{$0}{$1}$2", options: "mA"}]`, {}, "test")[0];
+	const frac = parseSnippets(
+		`export default [{trigger: "//", replacement: "\\\\frac{$0}{$1}$2", options: "mA"}]`,
+		{},
+		"test",
+	)[0];
 	const fracResult = frac.process({
-		effectiveLine: "//", range: { from: 2, to: 2 }, sel: "", effectiveLineAfter: () => "", api: {},
+		effectiveLine: "//",
+		range: { from: 2, to: 2 },
+		sel: "",
+		effectiveLineAfter: () => "",
+		api: {},
 	});
 	assert.strictEqual(fracResult.replacement.insert, "\\frac{}{}");
 	assert.deepStrictEqual(
-		fracResult.replacement.tabstops.map((t) => [t.index[0], t.from, t.to]),
-		[[0, 6, 6], [1, 8, 8], [2, 9, 9]],
+		fracResult.replacement.tabstops.map(t => [t.index[0], t.from, t.to]),
+		[
+			[0, 6, 6],
+			[1, 8, 8],
+			[2, 9, 9],
+		],
 	);
 
 	/* --- placeholders --- */
 	const dint = parseSnippets(
 		`export default [{trigger: "dint", replacement: "\\\\int_{\${0:0}}^{\${1:\\\\infty}} $2", options: "mA"}]`,
-		{}, "test",
+		{},
+		"test",
 	)[0];
 	const dintResult = dint.process({
-		effectiveLine: "dint", range: { from: 4, to: 4 }, sel: "", effectiveLineAfter: () => "", api: {},
+		effectiveLine: "dint",
+		range: { from: 4, to: 4 },
+		sel: "",
+		effectiveLineAfter: () => "",
+		api: {},
 	});
 	assert.strictEqual(dintResult.replacement.insert, "\\int_{0}^{\\infty} ");
 
@@ -75,13 +100,22 @@ const { FIELDS } = require("./bootstrap.js");
 	assert.deepStrictEqual(Object.keys(variables), ["${GREEK}"]);
 	const greek = parseSnippets(
 		`export default [{trigger: "@\${GREEK}", replacement: "\\\\\\\\[[0]]", options: "rmA"}]`,
-		variables, "test",
+		variables,
+		"test",
 	)[0];
 	assert.ok(greek.trigger.source.includes("alpha"));
 
-	const sub = parseSnippets(`export default [{trigger: /([A-Za-z])(\\d)/, replacement: "[[0]]_{[[1]]}", options: "mA"}]`, {}, "test")[0];
+	const sub = parseSnippets(
+		`export default [{trigger: /([A-Za-z])(\\d)/, replacement: "[[0]]_{[[1]]}", options: "mA"}]`,
+		{},
+		"test",
+	)[0];
 	const subResult = sub.process({
-		effectiveLine: "x2", range: { from: 2, to: 2 }, sel: "", effectiveLineAfter: () => "", api: {},
+		effectiveLine: "x2",
+		range: { from: 2, to: 2 },
+		sel: "",
+		effectiveLineAfter: () => "",
+		api: {},
 	});
 	assert.strictEqual(subResult.replacement.insert, "x_{2}");
 	assert.strictEqual(subResult.triggerPos, 0);
@@ -89,11 +123,16 @@ const { FIELDS } = require("./bootstrap.js");
 	/* --- visual snippets --- */
 	const visual = parseSnippets(
 		`export default [{trigger: "U", replacement: "\\\\underbrace{ \${VISUAL} }_{ $0 }", options: "mA"}]`,
-		{}, "test",
+		{},
+		"test",
 	)[0];
 	assert.strictEqual(visual.type, "visual");
 	const visualResult = visual.process({
-		effectiveLine: "abU", range: { from: 0, to: 2 }, sel: "ab", effectiveLineAfter: () => "", api: {},
+		effectiveLine: "abU",
+		range: { from: 0, to: 2 },
+		sel: "ab",
+		effectiveLineAfter: () => "",
+		api: {},
 	});
 	assert.strictEqual(visualResult.replacement.insert, "\\underbrace{ ab }_{  }");
 	// no selection -> no expansion
@@ -104,7 +143,9 @@ const { FIELDS } = require("./bootstrap.js");
 
 	/* --- function replacements --- */
 	const fn = parseSnippets(
-		`export default [{trigger: "iden", replacement: (m) => m.toUpperCase(), options: "mA"}]`, {}, "test",
+		`export default [{trigger: "iden", replacement: (m) => m.toUpperCase(), options: "mA"}]`,
+		{},
+		"test",
 	)[0];
 	assert.strictEqual(
 		fn.process({ effectiveLine: "iden", range: { from: 4, to: 4 }, sel: "", effectiveLineAfter: () => "", api: {} })
@@ -112,7 +153,11 @@ const { FIELDS } = require("./bootstrap.js");
 		"IDEN",
 	);
 	// a non-string, non-node return means "don't expand"
-	const fnFalse = parseSnippets(`export default [{trigger: "q", replacement: () => false, options: "mA"}]`, {}, "test")[0];
+	const fnFalse = parseSnippets(
+		`export default [{trigger: "q", replacement: () => false, options: "mA"}]`,
+		{},
+		"test",
+	)[0];
 	assert.strictEqual(
 		fnFalse.process({ effectiveLine: "q", range: { from: 1, to: 1 }, sel: "", effectiveLineAfter: () => "", api: {} }),
 		null,
@@ -126,7 +171,8 @@ const { FIELDS } = require("./bootstrap.js");
 			replacement: (m) => [ls.text_node(m[1] + "+" + m[2] + "="), ls.tabstop_node(0)],
 			options: "mA",
 		}]`,
-		{}, "test",
+		{},
+		"test",
 	)[0];
 	assert.strictEqual(
 		nodes.process({ effectiveLine: "1+2", range: { from: 3, to: 3 }, sel: "", effectiveLineAfter: () => "", api: {} })
@@ -141,7 +187,10 @@ const { FIELDS } = require("./bootstrap.js");
 		{ index: [0], from: 8, to: 10 },
 	]);
 	assert.deepStrictEqual(groups, [
-		[{ from: 0, to: 2 }, { from: 8, to: 10 }],
+		[
+			{ from: 0, to: 2 },
+			{ from: 8, to: 10 },
+		],
 		[{ from: 5, to: 5 }],
 	]);
 
@@ -149,39 +198,83 @@ const { FIELDS } = require("./bootstrap.js");
 	const eq = "\\begin{pmatrix} a & \\text{b";
 	const scopes = ls.scanScopes(eq, eq.length);
 	assert.deepStrictEqual(
-		scopes.map((s) => [s.kind, s.name, s.argIndex]),
-		[["command", "text", 0], ["environment", "pmatrix", 0]],
+		scopes.map(s => [s.kind, s.name, s.argIndex]),
+		[
+			["command", "text", 0],
+			["environment", "pmatrix", 0],
+		],
 	);
 	// closing the macro's argument pops it, the environment stays
 	const closed = "\\begin{pmatrix} \\text{b} c";
 	assert.deepStrictEqual(
-		ls.scanScopes(closed, closed.length).map((s) => s.name),
+		ls.scanScopes(closed, closed.length).map(s => s.name),
 		["pmatrix"],
 	);
 	// second argument of a two-argument macro
 	const second = "\\textcolor{red}{x";
 	assert.deepStrictEqual(
-		ls.scanScopes(second, second.length).map((s) => [s.name, s.argIndex]),
+		ls.scanScopes(second, second.length).map(s => [s.name, s.argIndex]),
 		[["textcolor", 1]],
 	);
 	// a bare group after ^ is named for it, so autofraction's excluded envs match
 	const sup = "x^{a";
-	assert.deepStrictEqual(ls.scanScopes(sup, sup.length).map((s) => [s.kind, s.name]), [["group", "^"]]);
-	const contextAt = (source) => ls.Context.fromBuffer({kind:'math_inline',text:source,to:source.length,from:source.length,mathBounds:{inner_start:0,inner_end:source.length}});
-	for(const [open,close] of [['\\(','\\)'],['$','$'],['$$','$$'],['\\[','\\]']]) {
-		const before='\\text{value ';
-		assert.equal(contextAt(before).mode.textEnv,true);
-		const nested=before+open+'x_1';
-		assert.equal(contextAt(nested).mode.strictlyInMath(),true,'nested equation is math mode');
-		assert.equal(contextAt(nested+close+' afterwards').mode.textEnv,true,'closing delimiter restores text');
-		assert.equal(contextAt(nested+close+'} + y_2').mode.strictlyInMath(),true,'closing text group restores outer math');
-		assert.equal(contextAt(nested+'} + y_2').mode.strictlyInMath(),true,'unfinished nested math is contained by text group');
+	assert.deepStrictEqual(
+		ls.scanScopes(sup, sup.length).map(s => [s.kind, s.name]),
+		[["group", "^"]],
+	);
+	const contextAt = source =>
+		ls.Context.fromBuffer({
+			kind: "math_inline",
+			text: source,
+			to: source.length,
+			from: source.length,
+			mathBounds: { inner_start: 0, inner_end: source.length },
+		});
+	for (const [open, close] of [
+		["\\(", "\\)"],
+		["$", "$"],
+		["$$", "$$"],
+		["\\[", "\\]"],
+	]) {
+		const before = "\\text{value ";
+		assert.equal(contextAt(before).mode.textEnv, true);
+		const nested = before + open + "x_1";
+		assert.equal(contextAt(nested).mode.strictlyInMath(), true, "nested equation is math mode");
+		assert.equal(contextAt(nested + close + " afterwards").mode.textEnv, true, "closing delimiter restores text");
+		assert.equal(
+			contextAt(nested + close + "} + y_2").mode.strictlyInMath(),
+			true,
+			"closing text group restores outer math",
+		);
+		assert.equal(
+			contextAt(nested + "} + y_2").mode.strictlyInMath(),
+			true,
+			"unfinished nested math is contained by text group",
+		);
 	}
-	assert.equal(contextAt('\\text{a\\$b').mode.textEnv,true,'escaped dollar stays text');
-	assert.equal(contextAt('\\text{a % \\( ignored\n b').mode.textEnv,true,'comment delimiter stays text');
-	assert.equal(contextAt('\\text{a \\(x+\\text{inner').mode.textEnv,true,'text nested inside nested math remains text');
-	const nestedCompletion='\\text{value \\(alp';
-	assert.equal(ls.tokenAt({...contextAt(nestedCompletion).buffer,inMath:true,dollarMath:false,from:nestedCompletion.length,to:nestedCompletion.length,owner:{}},2)?.query,'alp','completion is enabled in nested math');
+	assert.equal(contextAt("\\text{a\\$b").mode.textEnv, true, "escaped dollar stays text");
+	assert.equal(contextAt("\\text{a % \\( ignored\n b").mode.textEnv, true, "comment delimiter stays text");
+	assert.equal(
+		contextAt("\\text{a \\(x+\\text{inner").mode.textEnv,
+		true,
+		"text nested inside nested math remains text",
+	);
+	const nestedCompletion = "\\text{value \\(alp";
+	assert.equal(
+		ls.tokenAt(
+			{
+				...contextAt(nestedCompletion).buffer,
+				inMath: true,
+				dollarMath: false,
+				from: nestedCompletion.length,
+				to: nestedCompletion.length,
+				owner: {},
+			},
+			2,
+		)?.query,
+		"alp",
+		"completion is enabled in nested math",
+	);
 
 	/* --- text-mode $…$ becomes an equation --- */
 	const mk = ls.asMathReplacement({ insert: "$$", tabstops: [{ index: [0], from: 1, to: 1 }] });
@@ -208,7 +301,8 @@ const { FIELDS } = require("./bootstrap.js");
 	);
 
 	/* --- finding `$…$` in plain text, which is how annotations store math --- */
-	const bounds = (t) => ls.scanEquations(t).map((x) => [x.display, x.outer_start, x.inner_start, x.inner_end, x.outer_end, x.closed]);
+	const bounds = t =>
+		ls.scanEquations(t).map(x => [x.display, x.outer_start, x.inner_start, x.inner_end, x.outer_end, x.closed]);
 	assert.deepStrictEqual(bounds("a $x$ b"), [[false, 2, 3, 4, 5, true]]);
 	assert.deepStrictEqual(bounds("$$x$$"), [[true, 0, 2, 3, 5, true]]);
 	assert.deepStrictEqual(bounds("a $x"), [[false, 2, 3, 4, 4, false]], "an unclosed equation runs to the end");
@@ -220,9 +314,18 @@ const { FIELDS } = require("./bootstrap.js");
 	assert.strictEqual(ls.mathBoundsAt("$$y$$", 3).display, true);
 
 	// A reference manager is full of prices, so rendering is stricter than matching.
-	assert.deepStrictEqual(ls.renderableEquations("$5 and $10 each").map((x) => x.inner_start), []);
-	assert.deepStrictEqual(ls.renderableEquations("cost $x$ here").map((x) => x.inner_start), [6]);
-	assert.deepStrictEqual(ls.renderableEquations("$$ a+b $$").map((x) => x.display), [true]);
+	assert.deepStrictEqual(
+		ls.renderableEquations("$5 and $10 each").map(x => x.inner_start),
+		[],
+	);
+	assert.deepStrictEqual(
+		ls.renderableEquations("cost $x$ here").map(x => x.inner_start),
+		[6],
+	);
+	assert.deepStrictEqual(
+		ls.renderableEquations("$$ a+b $$").map(x => x.display),
+		[true],
+	);
 
 	/* --- the built bundle installs, reloads and uninstalls cleanly --- */
 	const fs = require("fs");
@@ -231,8 +334,8 @@ const { FIELDS } = require("./bootstrap.js");
 	const win = {
 		__latexSuiteSettings: JSON.stringify({ completionEnabled: false, mathPreviewEnabled: false }),
 		document: {
-			addEventListener: (type) => events.push("+" + type),
-			removeEventListener: (type) => events.push("-" + type),
+			addEventListener: type => events.push("+" + type),
+			removeEventListener: type => events.push("-" + type),
 			activeElement: null,
 		},
 	};
@@ -241,9 +344,16 @@ const { FIELDS } = require("./bootstrap.js");
 	assert.strictEqual(win.__latexSuiteInstalled, true);
 	assert.equal(win.__latexSuite.settings.snippets.length, settings.snippets.length);
 
-	const oneSnippet = JSON.stringify({ completionEnabled: false, mathPreviewEnabled: false, snippets: `export default [{trigger: "zz", replacement: "ZZ", options: "mA"}]` });
+	const oneSnippet = JSON.stringify({
+		completionEnabled: false,
+		mathPreviewEnabled: false,
+		snippets: `export default [{trigger: "zz", replacement: "ZZ", options: "mA"}]`,
+	});
 	win.__latexSuiteReload(oneSnippet);
-	assert.deepStrictEqual(win.__latexSuite.settings.snippets.map((s) => s.trigger), ["zz"]);
+	assert.deepStrictEqual(
+		win.__latexSuite.settings.snippets.map(s => s.trigger),
+		["zz"],
+	);
 
 	// Re-attaching a window pushes the same settings again; parsing every snippet
 	// a second time for an identical payload is pure waste.
@@ -254,14 +364,26 @@ const { FIELDS } = require("./bootstrap.js");
 	// Broken snippets fall back to the defaults rather than leaving no engine.
 	const realError = console.error;
 	console.error = () => {}; // the fallback logs the syntax error, as it should
-	win.__latexSuiteReload(JSON.stringify({ completionEnabled: false, mathPreviewEnabled: false, snippets: "export default not valid js {{{" }));
+	win.__latexSuiteReload(
+		JSON.stringify({
+			completionEnabled: false,
+			mathPreviewEnabled: false,
+			snippets: "export default not valid js {{{",
+		}),
+	);
 	console.error = realError;
 	assert.equal(win.__latexSuite.settings.snippets.length, settings.snippets.length);
 
 	win.__latexSuiteUninstall();
 	assert.deepStrictEqual(events, [
-		"+paste", "+keydown", "+beforeinput", "+selectionchange",
-		"-paste", "-keydown", "-beforeinput", "-selectionchange",
+		"+paste",
+		"+keydown",
+		"+beforeinput",
+		"+selectionchange",
+		"-paste",
+		"-keydown",
+		"-beforeinput",
+		"-selectionchange",
 	]);
 	assert.strictEqual(win.__latexSuiteInstalled, undefined);
 
@@ -275,7 +397,7 @@ const { FIELDS } = require("./bootstrap.js");
 	await dom.run();
 
 	console.log("all tests passed");
-})().catch((e) => {
+})().catch(e => {
 	console.error(e);
 	process.exit(1);
 });

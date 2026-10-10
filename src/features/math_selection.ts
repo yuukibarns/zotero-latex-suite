@@ -2,11 +2,42 @@ import { Buffer, Range } from "../editor/buffer";
 import { latexTokens, LatexToken } from "../highlight/tokenizer";
 import { PMBuffer, rememberSelectionClass } from "../editor/pm";
 
-const pairs: Record<string, string> = { "{": "}", "(": ")", "[": "]", "\\{": "\\}", "\\langle": "\\rangle", "\\lvert": "\\rvert", "\\lVert": "\\rVert", "\\lfloor": "\\rfloor", "\\lceil": "\\rceil" };
+const pairs: Record<string, string> = {
+	"{": "}",
+	"(": ")",
+	"[": "]",
+	"\\{": "\\}",
+	"\\langle": "\\rangle",
+	"\\lvert": "\\rvert",
+	"\\lVert": "\\rVert",
+	"\\lfloor": "\\rfloor",
+	"\\lceil": "\\rceil",
+};
 const closers = new Set(Object.values(pairs));
 // Known two-argument forms must not create a misleading half-command region.
-const argumentCounts: Record<string, number> = { "\\frac": 2, "\\dfrac": 2, "\\tfrac": 2, "\\binom": 2, "\\dbinom": 2, "\\tbinom": 2 };
-const structural = new Set(["\\left", "\\middle", "\\right", "\\begin", "\\end", "\\verb", "\\verb*", "\\limits", "\\nolimits", "\\displaystyle", "\\textstyle", ...Object.keys(pairs), ...closers]);
+const argumentCounts: Record<string, number> = {
+	"\\frac": 2,
+	"\\dfrac": 2,
+	"\\tfrac": 2,
+	"\\binom": 2,
+	"\\dbinom": 2,
+	"\\tbinom": 2,
+};
+const structural = new Set([
+	"\\left",
+	"\\middle",
+	"\\right",
+	"\\begin",
+	"\\end",
+	"\\verb",
+	"\\verb*",
+	"\\limits",
+	"\\nolimits",
+	"\\displaystyle",
+	"\\textstyle",
+	...Object.keys(pairs),
+	...closers,
+]);
 
 /** Conservative source regions; never executes TeX or modifies the document. */
 export type MathDelimiter = { range: Range; partners?: Range[] };
@@ -15,40 +46,65 @@ export function mathStructure(source: string, tokens: LatexToken[] = latexTokens
 	const regions: Range[] = [];
 	const outerRegions: Range[] = [];
 	const delimiters: MathDelimiter[] = [];
-	const register = (from: number, to: number) => { const item: MathDelimiter = { range: { from, to } };delimiters.push(item);return item; };
-	const connect = (items: MathDelimiter[]) => { const ranges = items.map(item => item.range);for (const item of items) item.partners = ranges;outerRegions.push({ from: ranges[0].from, to: ranges[ranges.length - 1].to }); };
+	const register = (from: number, to: number) => {
+		const item: MathDelimiter = { range: { from, to } };
+		delimiters.push(item);
+		return item;
+	};
+	const connect = (items: MathDelimiter[]) => {
+		const ranges = items.map(item => item.range);
+		for (const item of items) item.partners = ranges;
+		outerRegions.push({ from: ranges[0].from, to: ranges[ranges.length - 1].to });
+	};
 	const groups = new Map<number, number>();
-	const stack: { close: string; from: number; content: number; scalable: boolean; marker?: MathDelimiter; middles?: MathDelimiter[] }[] = [];
+	const stack: {
+		close: string;
+		from: number;
+		content: number;
+		scalable: boolean;
+		marker?: MathDelimiter;
+		middles?: MathDelimiter[];
+	}[] = [];
 	let skipUntil = -1;
 	for (const t of tokens) {
-		if (t.from < skipUntil || t.kind === "comment" || t.kind === "text" || t.literal && t.kind === "command") continue;
+		if (t.from < skipUntil || t.kind === "comment" || t.kind === "text" || (t.literal && t.kind === "command"))
+			continue;
 		const value = source.slice(t.from, t.to);
 		if (["\\left", "\\middle", "\\right"].includes(value)) {
 			// Delimiters can be literal or commands. Never treat a \middle bar
 			// as the opening/closing bar of an absolute-value region.
 			const tail = source.slice(t.to).match(/^\s*(\\[a-zA-Z]+|\\[^\s]|[()[\]{}|.<>/])/);
-			if (!tail) { register(t.from, t.to);continue; }
+			if (!tail) {
+				register(t.from, t.to);
+				continue;
+			}
 			skipUntil = t.to + tail[0].length;
 			const marker = register(t.from, skipUntil);
-			if (value === "\\left") stack.push({ close: "\\right", from: t.from, content: skipUntil, scalable: true, marker, middles: [] });
+			if (value === "\\left")
+				stack.push({ close: "\\right", from: t.from, content: skipUntil, scalable: true, marker, middles: [] });
 			else if (value === "\\middle") {
 				const top = stack[stack.length - 1];
 				if (top?.scalable) top.middles!.push(marker);
-			}
-			else if (value === "\\right") {
+			} else if (value === "\\right") {
 				const top = stack[stack.length - 1];
-				if (top?.scalable) { stack.pop();regions.push({ from: top.content, to: t.from });connect([top.marker!, ...top.middles!, marker]); }
+				if (top?.scalable) {
+					stack.pop();
+					regions.push({ from: top.content, to: t.from });
+					connect([top.marker!, ...top.middles!, marker]);
+				}
 			}
 			continue;
 		}
 		const top = stack[stack.length - 1];
 		// Ignore ambiguous bare | and \|. Explicit \left/\middle/\right
 		// bars are handled above; named \lvert/\rvert remain unambiguous.
-		if (pairs[value]) stack.push({ close: pairs[value], from: t.from, content: t.to, scalable: false, marker: register(t.from, t.to) });
+		if (pairs[value])
+			stack.push({ close: pairs[value], from: t.from, content: t.to, scalable: false, marker: register(t.from, t.to) });
 		else if (closers.has(value)) {
 			const marker = register(t.from, t.to);
 			if (top?.close === value && !top.scalable) {
-				stack.pop();regions.push({ from: top.content, to: t.from });
+				stack.pop();
+				regions.push({ from: top.content, to: t.from });
 				connect([top.marker!, marker]);
 				if (value === "}") groups.set(top.from, t.to);
 			} else {
@@ -84,16 +140,19 @@ export function mathStructure(source: string, tokens: LatexToken[] = latexTokens
 			}
 			continue;
 		}
-		if (token.kind !== "command" || token.literal || structural.has(command) || !/^\\[a-zA-Z@_]/.test(command)) continue;
+		if (token.kind !== "command" || token.literal || structural.has(command) || !/^\\[a-zA-Z@_]/.test(command))
+			continue;
 		const required = argumentCounts[command];
-		let end = token.to, count = 0;
+		let end = token.to,
+			count = 0;
 		if (source[end] === "*") end++;
 		while (!required || count < required) {
 			let cursor = end;
 			while (/\s/.test(source[cursor] || "x")) cursor++;
 			const close = groups.get(cursor);
 			if (close === undefined) break;
-			end = close;count++;
+			end = close;
+			count++;
 		}
 		if (required && count !== required) continue;
 		if (count) regions.push({ from: token.from, to: end });
@@ -110,34 +169,47 @@ export function mathStructure(source: string, tokens: LatexToken[] = latexTokens
 		return from;
 	}
 	function addScripts(from: number, baseEnd: number) {
-		let end = baseEnd, cursor = skipSpace(end);
+		let end = baseEnd,
+			cursor = skipSpace(end);
 		const modifier = tokenAt.get(cursor);
-		if (modifier?.kind === "command" && !modifier.literal && ["\\limits", "\\nolimits"].includes(source.slice(cursor, modifier.to))) cursor = skipSpace(modifier.to);
+		if (
+			modifier?.kind === "command" &&
+			!modifier.literal &&
+			["\\limits", "\\nolimits"].includes(source.slice(cursor, modifier.to))
+		)
+			cursor = skipSpace(modifier.to);
 		const seen = new Set<string>();
 		for (let n = 0; n < 2; n++) {
 			const marker = source[cursor];
 			if ((marker !== "_" && marker !== "^") || seen.has(marker)) break;
-			const argument = skipSpace(cursor + 1), token = tokenAt.get(argument);
+			const argument = skipSpace(cursor + 1),
+				token = tokenAt.get(argument);
 			const groupEnd = groups.get(argument);
 			let argumentEnd: number;
 			if (groupEnd !== undefined) argumentEnd = groupEnd;
-			else if (token?.kind === "command" && !token.literal && !structural.has(source.slice(argument, token.to))) argumentEnd = token.to;
-			else if (argument < source.length && !"{}_^%\\".includes(source[argument])) argumentEnd = argument + (source.codePointAt(argument)! > 0xffff ? 2 : 1);
+			else if (token?.kind === "command" && !token.literal && !structural.has(source.slice(argument, token.to)))
+				argumentEnd = token.to;
+			else if (argument < source.length && !"{}_^%\\".includes(source[argument]))
+				argumentEnd = argument + (source.codePointAt(argument)! > 0xffff ? 2 : 1);
 			else break;
 			// In x_i^2, i is an unbraced script argument, not an i^2 base.
 			if (groupEnd === undefined) scriptArguments.add(argument);
-			seen.add(marker);end = argumentEnd;cursor = skipSpace(end);
+			seen.add(marker);
+			end = argumentEnd;
+			cursor = skipSpace(end);
 		}
 		if (end > baseEnd) regions.push({ from, to: end });
 	}
 	// Walk source atoms in order, skipping literal/comment/environment tokens.
 	// Plain TeX letters/digits are single atoms, not entire identifier words.
-	for (let from = 0; from < source.length;) {
-		const token = tokenAt.get(from), commandEnd = commandBases.get(from);
+	for (let from = 0; from < source.length; ) {
+		const token = tokenAt.get(from),
+			commandEnd = commandBases.get(from);
 		const char = String.fromCodePoint(source.codePointAt(from)!);
 		if (!scriptArguments.has(from)) {
 			if (commandEnd !== undefined) addScripts(from, commandEnd);
-			else if ((!token || token.kind === "number") && /[\p{L}\p{N}\p{S}]/u.test(char)) addScripts(from, from + char.length);
+			else if ((!token || token.kind === "number") && /[\p{L}\p{N}\p{S}]/u.test(char))
+				addScripts(from, from + char.length);
 		}
 		from = token && token.kind !== "number" ? token.to : from + char.length;
 	}
@@ -161,13 +233,22 @@ export function mathDelimiterIndex(source: string, tokens?: LatexToken[]) {
 }
 
 export function createMathSelection() {
-	let owner: object | undefined, source = "", expected: Range | undefined;
+	let owner: object | undefined,
+		source = "",
+		expected: Range | undefined;
 	let history: Range[] = [];
 	return (buffer: Buffer, shrink: boolean, includeWord = true, includeOutside = false): boolean => {
 		if (buffer.kind !== "math_inline" && buffer.kind !== "math_display") return false;
 		const current = { from: buffer.from, to: buffer.to };
-		if (owner !== buffer.owner || source !== buffer.text || expected?.from !== current.from || expected?.to !== current.to) history = [];
-		owner = buffer.owner;source = buffer.text;
+		if (
+			owner !== buffer.owner ||
+			source !== buffer.text ||
+			expected?.from !== current.from ||
+			expected?.to !== current.to
+		)
+			history = [];
+		owner = buffer.owner;
+		source = buffer.text;
 		let next: Range | undefined;
 		if (shrink) next = history.pop();
 		else {
@@ -175,23 +256,27 @@ export function createMathSelection() {
 			// First select a word or command, without splitting UTF-16 characters.
 			if (includeWord && current.from === current.to) {
 				for (const match of source.matchAll(/\\[a-zA-Z@]+|[\p{L}\p{N}]+/gu)) {
-					const from = match.index!, to = from + match[0].length;
+					const from = match.index!,
+						to = from + match[0].length;
 					if (from <= current.from && to >= current.to) candidates.push({ from, to });
 				}
 			}
-			next = candidates.filter(r => r.from <= current.from && r.to >= current.to && (r.from < current.from || r.to > current.to))
-				.sort((a, b) => (a.to - a.from) - (b.to - b.from))[0];
+			next = candidates
+				.filter(r => r.from <= current.from && r.to >= current.to && (r.from < current.from || r.to > current.to))
+				.sort((a, b) => a.to - a.from - (b.to - b.from))[0];
 			if (next) history.push(current);
 		}
 		if (!next) return false;
-		buffer.setSelection(next.from, next.to);expected = next;
+		buffer.setSelection(next.from, next.to);
+		expected = next;
 		return true;
 	};
 }
 
 export function mathWordRange(source: string, pos: number): Range {
 	for (const match of source.matchAll(/\\[a-zA-Z@_:]+\*?|[\p{L}\p{N}]+/gu)) {
-		const from = match.index!, to = from + match[0].length;
+		const from = match.index!,
+			to = from + match[0].length;
 		if (from <= pos && to >= pos) return { from, to };
 	}
 	if (pos >= source.length) return { from: pos, to: pos };
@@ -203,18 +288,22 @@ export function mathWordRange(source: string, pos: number): Range {
  * repeatedly as the selection grows. Returns contiguous source ranges. */
 export function createMathSiblingDrag(source: string, seed: Range, words = false) {
 	const regions = mathSelectionRegions(source, true);
-	const parent = words ? {from:0,to:source.length} : regions.filter(r=>r.from<=seed.from && r.to>=seed.to && (r.from<seed.from || r.to>seed.to))
-		.sort((a,b)=>(a.to-a.from)-(b.to-b.from))[0] ?? {from:0,to:source.length};
-	const siblings = regions.filter(r=>r.from>=parent.from && r.to<=parent.to && (r.from!==parent.from || r.to!==parent.to))
-		.sort((a,b)=>(b.to-b.from)-(a.to-a.from));
-	return (position:number) => {
-		const head=Math.max(parent.from,Math.min(parent.to,position));
-		if(head>=seed.from && head<=seed.to) return {anchor:seed.from,head:seed.to};
-		const probe=head>seed.to ? Math.max(parent.from,head-1) : head;
-		const item=(!words && siblings.find(r=>r.from<=probe && probe<r.to)) || mathWordRange(source,probe);
-		return head<seed.from
-			? {anchor:seed.to,head:Math.max(parent.from,Math.min(head,item.from))}
-			: {anchor:seed.from,head:Math.min(parent.to,Math.max(head,item.to))};
+	const parent = words
+		? { from: 0, to: source.length }
+		: (regions
+				.filter(r => r.from <= seed.from && r.to >= seed.to && (r.from < seed.from || r.to > seed.to))
+				.sort((a, b) => a.to - a.from - (b.to - b.from))[0] ?? { from: 0, to: source.length });
+	const siblings = regions
+		.filter(r => r.from >= parent.from && r.to <= parent.to && (r.from !== parent.from || r.to !== parent.to))
+		.sort((a, b) => b.to - b.from - (a.to - a.from));
+	return (position: number) => {
+		const head = Math.max(parent.from, Math.min(parent.to, position));
+		if (head >= seed.from && head <= seed.to) return { anchor: seed.from, head: seed.to };
+		const probe = head > seed.to ? Math.max(parent.from, head - 1) : head;
+		const item = (!words && siblings.find(r => r.from <= probe && probe < r.to)) || mathWordRange(source, probe);
+		return head < seed.from
+			? { anchor: seed.to, head: Math.max(parent.from, Math.min(head, item.from)) }
+			: { anchor: seed.from, head: Math.min(parent.to, Math.max(head, item.to)) };
 	};
 }
 
@@ -222,31 +311,39 @@ export function createMathSiblingDrag(source: string, seed: Range, words = false
  * already selected. Keep glyph-only selections and ordinary caret hits exact. */
 export function createMathDragSelection() {
 	let cached: string | undefined;
-	const closes = new Map<number, number>(), opens = new Map<number, number>();
+	const closes = new Map<number, number>(),
+		opens = new Map<number, number>();
 	return (source: string, anchor: number, head: number) => {
 		if (source !== cached) {
-			cached = source; closes.clear(); opens.clear();
+			cached = source;
+			closes.clear();
+			opens.clear();
 			const stack: number[] = [];
 			for (const token of latexTokens(source)) {
 				if (token.kind !== "brace") continue;
 				const value = source.slice(token.from, token.to);
 				if (value === "{") stack.push(token.from);
 				else if (value === "}" && stack.length) {
-					const open = stack.pop()!; closes.set(token.from, open); opens.set(open, token.from);
+					const open = stack.pop()!;
+					closes.set(token.from, open);
+					opens.set(open, token.from);
 				}
 			}
 		}
 		if (anchor === head) return { anchor, head };
-		let from = Math.min(anchor, head), to = Math.max(anchor, head);
+		let from = Math.min(anchor, head),
+			to = Math.max(anchor, head);
 		// Only consume whitespace if it leads directly to a qualifying brace.
 		for (;;) {
-			let next = to; while (next < source.length && /\s/.test(source[next])) next++;
+			let next = to;
+			while (next < source.length && /\s/.test(source[next])) next++;
 			const open = closes.get(next);
 			if (open === undefined || open < from || open >= to) break;
 			to = next + 1;
 		}
 		for (;;) {
-			let previous = from - 1; while (previous >= 0 && /\s/.test(source[previous])) previous--;
+			let previous = from - 1;
+			while (previous >= 0 && /\s/.test(source[previous])) previous--;
 			const close = opens.get(previous);
 			if (close === undefined || close >= to || close < from) break;
 			from = previous;
@@ -259,105 +356,222 @@ export function createMathDragSelection() {
  * Capture the complete mouse gesture before browser/ProseMirror selection.
  */
 export function normalizeMathClickTimeout(value: unknown): number {
-	const number = typeof value === "number" || typeof value === "string" && value.trim() !== "" ? Number(value) : NaN;
+	const number = typeof value === "number" || (typeof value === "string" && value.trim() !== "") ? Number(value) : NaN;
 	return Number.isFinite(number) ? Math.max(200, Math.min(5000, Math.floor(number))) : 1000;
 }
 
-export function installMathMouseSelection(win: Window, onSelect: () => void = () => {}, timeout: () => number = () => 1000) {
+export function installMathMouseSelection(
+	win: Window,
+	onSelect: () => void = () => {},
+	timeout: () => number = () => 1000,
+) {
 	const doc = win.document;
-	let expand = createMathSelection(), composing = false, stopped = false;
-	let series: { view: any; source: string; x: number; y: number; time: number; count: number; selected?: Range; anchor: number; down: boolean; released?: number; extend?: ReturnType<typeof createMathSiblingDrag> } | undefined;
+	let expand = createMathSelection(),
+		composing = false,
+		stopped = false;
+	let series:
+		| {
+				view: any;
+				source: string;
+				x: number;
+				y: number;
+				time: number;
+				count: number;
+				selected?: Range;
+				anchor: number;
+				down: boolean;
+				released?: number;
+				extend?: ReturnType<typeof createMathSiblingDrag>;
+		  }
+		| undefined;
 	let gesture: typeof series;
-	let lastClick: { gesture: NonNullable<typeof series>; time: number; x: number; y: number; detail: number } | undefined;
-	function reset() { expand = createMathSelection();series = undefined;gesture = undefined;lastClick = undefined; }
-	function compositionStart() { composing = true;reset(); }
-	function compositionEnd() { composing = false; }
+	let lastClick:
+		| { gesture: NonNullable<typeof series>; time: number; x: number; y: number; detail: number }
+		| undefined;
+	function reset() {
+		expand = createMathSelection();
+		series = undefined;
+		gesture = undefined;
+		lastClick = undefined;
+	}
+	function compositionStart() {
+		composing = true;
+		reset();
+	}
+	function compositionEnd() {
+		composing = false;
+	}
 	function position(view: any, event: MouseEvent) {
-		try { const hit = view.posAtCoords({ left: event.clientX, top: event.clientY });if (hit && Number.isFinite(hit.pos)) return Math.max(0, Math.min(view.state.doc.content.size, hit.pos)); }
-		catch { /* layout-less tests or a view being torn down */ }
+		try {
+			const hit = view.posAtCoords({ left: event.clientX, top: event.clientY });
+			if (hit && Number.isFinite(hit.pos)) return Math.max(0, Math.min(view.state.doc.content.size, hit.pos));
+		} catch {
+			/* layout-less tests or a view being torn down */
+		}
 		return null; // Let native caret placement handle unavailable coordinates.
 	}
 	function mousedown(event: MouseEvent) {
 		gesture = undefined;
 		lastClick = undefined;
-		if (composing || event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) { reset();return; }
+		if (
+			composing ||
+			event.defaultPrevented ||
+			event.button !== 0 ||
+			event.ctrlKey ||
+			event.altKey ||
+			event.metaKey ||
+			event.shiftKey
+		) {
+			reset();
+			return;
+		}
 		const target = event.target as Element;
 		const node = target?.closest?.(".math-node");
 		const view = (node as any)?.pmViewDesc?.spec?._innerView;
-		if (!view || view.isDestroyed || view.editable === false || !view.dom.contains(target)) { reset();return; }
+		if (!view || view.isDestroyed || view.editable === false || !view.dom.contains(target)) {
+			reset();
+			return;
+		}
 		const source = view.state.doc.textContent;
-		const continuing = series && series.view === view && series.source === source && event.timeStamp >= series.time && event.timeStamp - series.time < normalizeMathClickTimeout(timeout())
-			&& Math.abs(event.clientX - series.x) <= 5 && Math.abs(event.clientY - series.y) <= 5;
+		const continuing =
+			series &&
+			series.view === view &&
+			series.source === source &&
+			event.timeStamp >= series.time &&
+			event.timeStamp - series.time < normalizeMathClickTimeout(timeout()) &&
+			Math.abs(event.clientX - series.x) <= 5 &&
+			Math.abs(event.clientY - series.y) <= 5;
 		const count = continuing ? Math.max(series!.count + 1, event.detail || 1) : Math.max(1, event.detail);
 		const selected = continuing ? series?.selected : undefined;
 		const anchor = position(view, event);
-		if (anchor === null) { reset();return; }
+		if (anchor === null) {
+			reset();
+			return;
+		}
 		series = { view, source, x: event.clientX, y: event.clientY, time: event.timeStamp, count, anchor, down: true };
 		rememberSelectionClass(view);
 		const kind = node!.tagName.toLowerCase() === "math-display" ? "math_display" : "math_inline";
-		event.preventDefault();event.stopImmediatePropagation();
+		event.preventDefault();
+		event.stopImmediatePropagation();
 		const buffer = PMBuffer.forMath(view, kind);
 		if (count === 1) buffer.setSelection(anchor);
-		else if (count === 2) { const word = mathWordRange(source, anchor);buffer.setSelection(word.from, word.to); }
-		else {
+		else if (count === 2) {
+			const word = mathWordRange(source, anchor);
+			buffer.setSelection(word.from, word.to);
+		} else {
 			if (selected) buffer.setSelection(selected.from, selected.to);
 			expand(PMBuffer.forMath(view, kind), false, false, true);
 		}
 		series.selected = { from: view.state.selection.from, to: view.state.selection.to };
-		if(count>1) series.extend=createMathSiblingDrag(source,series.selected,count===2);
+		if (count > 1) series.extend = createMathSiblingDrag(source, series.selected, count === 2);
 		gesture = series;
-		view.focus();onSelect();
+		view.focus();
+		onSelect();
 	}
 	function finish(event: MouseEvent) {
-		if (event.defaultPrevented || event.button !== 0 || composing || event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) { reset();return; }
+		if (
+			event.defaultPrevented ||
+			event.button !== 0 ||
+			composing ||
+			event.ctrlKey ||
+			event.altKey ||
+			event.metaKey ||
+			event.shiftKey
+		) {
+			reset();
+			return;
+		}
 		let active = gesture;
 		if (event.type === "mouseup" && !active?.down) return;
 		if (event.type === "dblclick") {
 			// Native dblclick follows the second click; never reuse it for later taps.
 			const age = lastClick ? event.timeStamp - lastClick.time : -1;
-			if (!lastClick || age < 0 || age > 500 || event.detail !== lastClick.detail || Math.abs(event.clientX - lastClick.x) > 5 || Math.abs(event.clientY - lastClick.y) > 5) return;
-			active = lastClick.gesture;lastClick = undefined;
+			if (
+				!lastClick ||
+				age < 0 ||
+				age > 500 ||
+				event.detail !== lastClick.detail ||
+				Math.abs(event.clientX - lastClick.x) > 5 ||
+				Math.abs(event.clientY - lastClick.y) > 5
+			)
+				return;
+			active = lastClick.gesture;
+			lastClick = undefined;
 		} else if (event.type === "click") {
 			const age = active ? event.timeStamp - (active.released ?? active.time) : -1;
-			if (!active || age < 0 || age > 500 || Math.abs(event.clientX - active.x) > 5 || Math.abs(event.clientY - active.y) > 5) {
+			if (
+				!active ||
+				age < 0 ||
+				age > 500 ||
+				Math.abs(event.clientX - active.x) > 5 ||
+				Math.abs(event.clientY - active.y) > 5
+			) {
 				// Tap/assistive clicks may arrive without a mouse-down we handled.
 				// Use their own coordinates, never a previous gesture's selection.
-				mousedown(event);active = gesture;
+				mousedown(event);
+				active = gesture;
 			}
 		}
 		if (!active) return;
 		const { view, source, selected } = active;
-		if (view.isDestroyed || view.editable === false || !view.dom.isConnected || !view.dom.contains(event.target) || view.state.doc.textContent !== source) { reset();return; }
-		event.preventDefault();event.stopImmediatePropagation();
-		if (event.type === "mouseup") { active.down = false;active.released = event.timeStamp; }
+		if (
+			view.isDestroyed ||
+			view.editable === false ||
+			!view.dom.isConnected ||
+			!view.dom.contains(event.target) ||
+			view.state.doc.textContent !== source
+		) {
+			reset();
+			return;
+		}
+		event.preventDefault();
+		event.stopImmediatePropagation();
+		if (event.type === "mouseup") {
+			active.down = false;
+			active.released = event.timeStamp;
+		}
 		// Protect the chosen extent from native mouseup/click/dblclick selection.
 		if (selected) {
 			const kind = view.dom.closest("math-display") ? "math_display" : "math_inline";
-			if (view.state.selection.anchor !== selected.from || view.state.selection.head !== selected.to) PMBuffer.forMath(view, kind).setSelection(selected.from, selected.to);
+			if (view.state.selection.anchor !== selected.from || view.state.selection.head !== selected.to)
+				PMBuffer.forMath(view, kind).setSelection(selected.from, selected.to);
 		}
 		view.focus();
 		if (event.type === "click") {
 			lastClick = { gesture: active, time: event.timeStamp, x: event.clientX, y: event.clientY, detail: event.detail };
-			active.down = false;gesture = undefined;
+			active.down = false;
+			gesture = undefined;
 		}
 	}
 	function mousemove(event: MouseEvent) {
 		if (!gesture?.down || composing || !(event.buttons & 1)) return;
 		const { view, source, anchor } = gesture;
-		if (view.isDestroyed || view.editable === false || !view.dom.isConnected || view.state.doc.textContent !== source) { reset();return; }
+		if (view.isDestroyed || view.editable === false || !view.dom.isConnected || view.state.doc.textContent !== source) {
+			reset();
+			return;
+		}
 		const end = position(view, event);
-		if (end === null) { reset();return; }
+		if (end === null) {
+			reset();
+			return;
+		}
 		const kind = view.dom.closest("math-display") ? "math_display" : "math_inline";
-		const selection=gesture.extend?.(end) ?? {anchor,head:end};
-		if (view.state.selection.anchor !== selection.anchor || view.state.selection.head !== selection.head) PMBuffer.forMath(view, kind).setSelection(selection.anchor, selection.head);
+		const selection = gesture.extend?.(end) ?? { anchor, head: end };
+		if (view.state.selection.anchor !== selection.anchor || view.state.selection.head !== selection.head)
+			PMBuffer.forMath(view, kind).setSelection(selection.anchor, selection.head);
 		gesture.selected = { from: selection.anchor, to: selection.head };
-		gesture.x = event.clientX;gesture.y = event.clientY;
+		gesture.x = event.clientX;
+		gesture.y = event.clientY;
 		// A drag is not the start of a subsequent multi-click expansion series.
 		if (end !== anchor) series = undefined;
-		event.preventDefault();event.stopImmediatePropagation();
+		event.preventDefault();
+		event.stopImmediatePropagation();
 	}
 	function selectstart(event: Event) {
-		if (gesture?.down && gesture.view.dom.contains(event.target)) { event.preventDefault();event.stopImmediatePropagation(); }
+		if (gesture?.down && gesture.view.dom.contains(event.target)) {
+			event.preventDefault();
+			event.stopImmediatePropagation();
+		}
 	}
 	doc.addEventListener("mousedown", mousedown, true);
 	doc.addEventListener("mousemove", mousemove, true);
@@ -383,7 +597,8 @@ export function installMathMouseSelection(win: Window, onSelect: () => void = ()
 		doc.removeEventListener("keydown", reset, true);
 		doc.removeEventListener("beforeinput", reset, true);
 		win.removeEventListener("blur", reset);
-		win.removeEventListener("unload", stop);reset();
+		win.removeEventListener("unload", stop);
+		reset();
 	}
 	return stop;
 }

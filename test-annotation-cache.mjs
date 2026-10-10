@@ -1,36 +1,124 @@
-import assert from 'node:assert/strict';
-import vm from 'node:vm';
-import {readFileSync} from 'node:fs';
-const source=readFileSync('bootstrap.js','utf8');
-let notify, calls=0;
-let rows=[{id:1,libraryID:1,attachmentID:10,parentID:100,text:'needle',comment:'',type:1,page:'1',source:'Paper'}, {id:2,libraryID:2,attachmentID:20,parentID:200,text:'needle',comment:'',type:1,page:'1',source:'Other library'}];
-const context=vm.createContext({Zotero:{DB:{queryAsync:async()=>{calls++;return rows.map(r=>new Proxy({}, {get:(_,key)=>{if(!(key in r)) throw new Error('DB column '+String(key)+' not found');return r[key];}}));}},ItemFields:{getID:()=>1},Promise:{delay:async()=>{}},Notifier:{registerObserver:o=>{notify=o.notify;return 1;},unregisterObserver:()=>{}},debug:()=>{}}});
-vm.runInContext(source.slice(source.indexOf('const annotationCache ='),source.indexOf('function inject(')),context);
-const search=(q='needle',minimum=1)=>vm.runInContext(`searchAnnotationCache(1,${JSON.stringify(q)},${minimum})`,context);
-assert.equal((await search()).length,1);
-await search();assert.equal(calls,1,'shared cache avoids repeated SQL');
-rows=[{...rows[0],comment:'updated comment'}];notify('modify','item',[1]);
-assert.equal((await search('updated'))[0].id,1);
-rows=[];notify('trash','item',[100]);assert.equal((await search()).length,0,'parent trash clears descendants');
-rows=[{id:3,libraryID:1,attachmentID:30,parentID:300,text:'',comment:'',type:3,page:'7',source:'Area'}];notify('add','item',[3]);
-assert.equal((await search('7')).length,0,'page metadata is not searched');
-rows=[{...rows[0],comment:'area comment'}];notify('modify','item',[3]);
-assert.equal((await search('area comment'))[0].comment,'area comment');
-assert.deepEqual(Object.keys((await search('area comment'))[0]).sort(),['comment','id','source','text'],'only display fields and lookup ID returned');
-assert.equal(vm.runInContext("annotationInsertText({annotationText:'text',annotationComment:'comment'})",context),'text');
-assert.equal(vm.runInContext("annotationInsertText({annotationText:'  ',annotationComment:'comment'})",context),'comment');
-assert.throws(()=>vm.runInContext("annotationInsertText({})",context),/no text or comment/);
-rows=Array.from({length:80},(_,i)=>({id:1000+i,libraryID:1,attachmentID:30,parentID:300,text:i===79?'ab---zebra':'ab item',comment:'',type:1,page:'',source:''}));
-rows.push({...rows[0],id:2000,text:'a---b---zebra'});
-notify('modify','item',[300]);
-assert.equal((await search('ab',2)).length,50,'display is limited');
-assert.equal(vm.runInContext('Array.from(annotationCandidates.values())[0].length',context),80,'all literal candidates retained');
-assert.equal((await search('abzb',2))[0].id,1079,'fuzzy match beyond first fifty candidates');
-assert.equal((await search('abzb',2)).length,1,'first two characters must match literally');
-assert.equal((await search('ab',2)).length,50,'backspace restores original candidate set');
-assert.equal((await search('a',2)).length,0);
-assert.equal((await search('a-',2))[0].id,2000,'changed seed builds new candidates');
-rows=[];notify('delete','item',[300]);
-assert.equal((await search('abzb',2)).length,0,'notification invalidates candidate sets');
-vm.runInContext('stopAnnotationCache()',context);
-console.log('Shared annotation cache load, invalidation, parent trash, library isolation and empty content passed.');
+import assert from "node:assert/strict";
+import vm from "node:vm";
+import { readFileSync } from "node:fs";
+const source = readFileSync("bootstrap.js", "utf8");
+let notify,
+	calls = 0;
+let rows = [
+	{
+		id: 1,
+		libraryID: 1,
+		attachmentID: 10,
+		parentID: 100,
+		text: "needle",
+		comment: "",
+		type: 1,
+		page: "1",
+		source: "Paper",
+	},
+	{
+		id: 2,
+		libraryID: 2,
+		attachmentID: 20,
+		parentID: 200,
+		text: "needle",
+		comment: "",
+		type: 1,
+		page: "1",
+		source: "Other library",
+	},
+];
+const context = vm.createContext({
+	Zotero: {
+		DB: {
+			queryAsync: async () => {
+				calls++;
+				return rows.map(
+					r =>
+						new Proxy(
+							{},
+							{
+								get: (_, key) => {
+									if (!(key in r)) throw new Error("DB column " + String(key) + " not found");
+									return r[key];
+								},
+							},
+						),
+				);
+			},
+		},
+		ItemFields: { getID: () => 1 },
+		Promise: { delay: async () => {} },
+		Notifier: {
+			registerObserver: o => {
+				notify = o.notify;
+				return 1;
+			},
+			unregisterObserver: () => {},
+		},
+		debug: () => {},
+	},
+});
+vm.runInContext(source.slice(source.indexOf("const annotationCache ="), source.indexOf("function inject(")), context);
+const search = (q = "needle", minimum = 1) =>
+	vm.runInContext(`searchAnnotationCache(1,${JSON.stringify(q)},${minimum})`, context);
+assert.equal((await search()).length, 1);
+await search();
+assert.equal(calls, 1, "shared cache avoids repeated SQL");
+rows = [{ ...rows[0], comment: "updated comment" }];
+notify("modify", "item", [1]);
+assert.equal((await search("updated"))[0].id, 1);
+rows = [];
+notify("trash", "item", [100]);
+assert.equal((await search()).length, 0, "parent trash clears descendants");
+rows = [
+	{ id: 3, libraryID: 1, attachmentID: 30, parentID: 300, text: "", comment: "", type: 3, page: "7", source: "Area" },
+];
+notify("add", "item", [3]);
+assert.equal((await search("7")).length, 0, "page metadata is not searched");
+rows = [{ ...rows[0], comment: "area comment" }];
+notify("modify", "item", [3]);
+assert.equal((await search("area comment"))[0].comment, "area comment");
+assert.deepEqual(
+	Object.keys((await search("area comment"))[0]).sort(),
+	["comment", "id", "source", "text"],
+	"only display fields and lookup ID returned",
+);
+assert.equal(
+	vm.runInContext("annotationInsertText({annotationText:'text',annotationComment:'comment'})", context),
+	"text",
+);
+assert.equal(
+	vm.runInContext("annotationInsertText({annotationText:'  ',annotationComment:'comment'})", context),
+	"comment",
+);
+assert.throws(() => vm.runInContext("annotationInsertText({})", context), /no text or comment/);
+rows = Array.from({ length: 80 }, (_, i) => ({
+	id: 1000 + i,
+	libraryID: 1,
+	attachmentID: 30,
+	parentID: 300,
+	text: i === 79 ? "ab---zebra" : "ab item",
+	comment: "",
+	type: 1,
+	page: "",
+	source: "",
+}));
+rows.push({ ...rows[0], id: 2000, text: "a---b---zebra" });
+notify("modify", "item", [300]);
+assert.equal((await search("ab", 2)).length, 50, "display is limited");
+assert.equal(
+	vm.runInContext("Array.from(annotationCandidates.values())[0].length", context),
+	80,
+	"all literal candidates retained",
+);
+assert.equal((await search("abzb", 2))[0].id, 1079, "fuzzy match beyond first fifty candidates");
+assert.equal((await search("abzb", 2)).length, 1, "first two characters must match literally");
+assert.equal((await search("ab", 2)).length, 50, "backspace restores original candidate set");
+assert.equal((await search("a", 2)).length, 0);
+assert.equal((await search("a-", 2))[0].id, 2000, "changed seed builds new candidates");
+rows = [];
+notify("delete", "item", [300]);
+assert.equal((await search("abzb", 2)).length, 0, "notification invalidates candidate sets");
+vm.runInContext("stopAnnotationCache()", context);
+console.log("Shared annotation cache load, invalidation, parent trash, library isolation and empty content passed.");

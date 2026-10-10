@@ -10,10 +10,16 @@ import { JSDOM } from "jsdom";
 import * as ls from "./build/test-exports.mjs";
 
 /** Stands in for KaTeX: enough to tell rendered output from source. */
-const katex = { render: (tex, element) => { element.textContent = `«${tex}»`; } };
+const katex = {
+	render: (tex, element) => {
+		element.textContent = `«${tex}»`;
+	},
+};
 
 function field(html) {
-	const dom = new JSDOM(`<body><div class="comment"><div class="content" contenteditable="true">${html}</div></div></body>`);
+	const dom = new JSDOM(
+		`<body><div class="comment"><div class="content" contenteditable="true">${html}</div></div></body>`,
+	);
 	const el = dom.window.document.querySelector(".content");
 	return { dom, el, window: dom.window };
 }
@@ -81,8 +87,8 @@ export async function run() {
 		ls.renderMath(el, katex);
 		const { segments } = ls.segmentsOf(el);
 
-		const before = ls.domPointAt(el, segments, 2);   // inside "abc"
-		const after = ls.domPointAt(el, segments, 9);    // inside "def"
+		const before = ls.domPointAt(el, segments, 2); // inside "abc"
+		const after = ls.domPointAt(el, segments, 9); // inside "def"
 		assert.strictEqual(before.node.nodeType, 3, "before the equation is a text node");
 		assert.strictEqual(after.node.nodeType, 3, "after the equation is a text node");
 		assert.strictEqual(ls.offsetOfPoint(el, before.node, before.offset), 2);
@@ -98,7 +104,7 @@ export async function run() {
 	/* --- the caret's own equation is left as source, on either side --- */
 	{
 		const text = "abc $x$ def";
-		const rendered = (caret) => {
+		const rendered = caret => {
 			const { el } = field(text);
 			ls.renderMath(el, katex, caret);
 			return el.querySelectorAll("[data-latex-suite-source]").length;
@@ -123,7 +129,11 @@ export async function run() {
 		const popup = doc.querySelector(".annotation-popup");
 		const button = doc.querySelector(".latex-suite-enlarge");
 		assert.ok(button, "an open popup gets the button");
-		assert.strictEqual(button.previousElementSibling.className, "more", "it sits past Zotero's own menu, in the corner");
+		assert.strictEqual(
+			button.previousElementSibling.className,
+			"more",
+			"it sits past Zotero's own menu, in the corner",
+		);
 		assert.strictEqual(popup.hasAttribute("data-latex-suite-big"), false, "normal size by default");
 
 		button.click();
@@ -135,7 +145,7 @@ export async function run() {
 
 		// A popup opened later — the usual case — gets one too, and only one.
 		doc.body.insertAdjacentHTML("beforeend", popupHTML);
-		await new Promise((resolve) => setTimeout(resolve, 0));
+		await new Promise(resolve => setTimeout(resolve, 0));
 		assert.strictEqual(doc.querySelectorAll(".latex-suite-enlarge").length, 2, "one button per popup");
 
 		button.click();

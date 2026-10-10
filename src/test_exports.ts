@@ -9,7 +9,13 @@ export { asMathReplacement } from "./editor/insert_math";
 export { Options } from "./snippets/options";
 export { IncludedEnvironmentResult } from "./snippets/snippets";
 export { PMBuffer, rememberSelectionClass } from "./editor/pm";
-export { expandSnippet, setSelectionToNextTabstop, clearTabstops, clearTabstopsIfElsewhere, hasTabstops } from "./snippets/snippet_management";
+export {
+	expandSnippet,
+	setSelectionToNextTabstop,
+	clearTabstops,
+	clearTabstopsIfElsewhere,
+	hasTabstops,
+} from "./snippets/snippet_management";
 export { runSnippets, expand } from "./features/run_snippets";
 export { currentBuffer } from "./editor/index";
 export { autoEnlargeBrackets } from "./features/auto_enlarge_brackets";
@@ -25,7 +31,7 @@ export { installMathPreview } from "./features/math_preview";
 export { PREVIEW_CARET, previewMarkerColor, previewMarkerSource, renderPreviewMarker } from "./features/preview_marker";
 export { createMathSourceMap, mathCaretAt, installMathCaret } from "./features/math_caret";
 export { latexTokens, installMathHighlight } from "./features/math_highlight";
-export { concealRanges, concealDecorations } from './features/math_conceal';
+export { concealRanges, concealDecorations } from "./features/math_conceal";
 export { deleteMathWord } from "./features/math_delete";
 export { deleteMathNode } from "./editor/pm";
 export { installPrintDiagnostic } from "./features/print_diagnostic";
@@ -34,9 +40,16 @@ export { annotationToken, annotationMatches, installAnnotationCompletion } from 
 export { WordIndex, BufferWords, TextSources, textToken, parseWordList } from "./features/text_sources";
 export { installScrollPastEnd } from "./features/scroll_past_end";
 export { TextBuffer } from "./editor/contenteditable";
-export { mathSelectionRegions, mathDelimiterIndex, createMathSelection, createMathDragSelection, installMathMouseSelection, normalizeMathClickTimeout } from "./features/math_selection";
+export {
+	mathSelectionRegions,
+	mathDelimiterIndex,
+	createMathSelection,
+	createMathDragSelection,
+	installMathMouseSelection,
+	normalizeMathClickTimeout,
+} from "./features/math_selection";
 export { installMathVisibility } from "./features/math_visibility";
 export { installMathFocus } from "./features/math_focus";
 export { newlineMatrixShortcut, lineBreakMatrixShortcut, exitMatrixShortcut } from "./features/matrix_shortcuts";
-export { simplifyScriptOnExit } from './features/script_cleanup';
-export { createMathSiblingDrag } from './features/math_selection';
+export { simplifyScriptOnExit } from "./features/script_cleanup";
+export { createMathSiblingDrag } from "./features/math_selection";

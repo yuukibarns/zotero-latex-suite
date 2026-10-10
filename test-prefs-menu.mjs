@@ -1,32 +1,63 @@
-import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
-import {createRequire} from 'node:module';
-import {JSDOM} from 'jsdom';
-const {FIELDS,PREF}=createRequire(import.meta.url)('./bootstrap.js');
-const XUL='http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul';
-let stored=JSON.stringify({pdfTheme:'light',completionEnabled:false}), writes=0;
-function pane(native=true) {
- const dom=new JSDOM('<div id="ls-fields"></div>',{runScripts:'outside-only'}), win=dom.window;
- if(native)win.document.createXULElement=tag=>win.document.createElementNS(XUL,tag);
- win.Zotero={LatexSuite:{PREF,FIELDS,defaultSnippets:'export default []',defaultSnippetVariables:'export default {}'},Prefs:{get:()=>stored,set:(key,value)=>{assert.equal(key,PREF);stored=value;writes++;}},debug:message=>{throw new Error(message);}};
- win.eval(readFileSync('prefs.js','utf8'));
- return dom;
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { JSDOM } from "jsdom";
+const { FIELDS, PREF } = createRequire(import.meta.url)("./bootstrap.js");
+const XUL = "http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul";
+let stored = JSON.stringify({ pdfTheme: "light", completionEnabled: false }),
+	writes = 0;
+function pane(native = true) {
+	const dom = new JSDOM('<div id="ls-fields"></div>', { runScripts: "outside-only" }),
+		win = dom.window;
+	if (native) win.document.createXULElement = tag => win.document.createElementNS(XUL, tag);
+	win.Zotero = {
+		LatexSuite: { PREF, FIELDS, defaultSnippets: "export default []", defaultSnippetVariables: "export default {}" },
+		Prefs: {
+			get: () => stored,
+			set: (key, value) => {
+				assert.equal(key, PREF);
+				stored = value;
+				writes++;
+			},
+		},
+		debug: message => {
+			throw new Error(message);
+		},
+	};
+	win.eval(readFileSync("prefs.js", "utf8"));
+	return dom;
 }
-let dom=pane();
-let menu=dom.window.document.querySelector('[aria-label="PDF theme"]');
-assert.equal(menu.namespaceURI,XUL);assert.equal(menu.localName,'menulist');
-assert.equal(menu.getAttribute('native'),'true');assert.equal(menu.value,'light');
-assert.deepEqual([...menu.querySelectorAll('menuitem')].map(el=>[el.getAttribute('value'),el.getAttribute('label')]),[['auto','Follow note editor'],['light','Light'],['dark','Dark']]);
-menu.querySelector('[value="dark"]').dispatchEvent(new dom.window.Event('command',{bubbles:true}));
-assert.equal(JSON.parse(stored).pdfTheme,'dark');assert.equal(menu.value,'dark');assert.equal(writes,1);
-assert.equal(JSON.parse(stored).completionEnabled,false,'other settings preserved');
-dom.window.close();dom=pane(false);
-menu=dom.window.document.querySelector('[aria-label="PDF theme"]');
-assert.equal(menu.value,'dark','saved theme restored when reopening pane');
-menu.value='light';menu.dispatchEvent(new dom.window.Event('command',{bubbles:true}));
-assert.equal(JSON.parse(stored).pdfTheme,'light','menulist command accepted');
-menu.querySelector('[value="auto"]').dispatchEvent(new dom.window.Event('command',{bubbles:true}));
-assert.equal(JSON.parse(stored).pdfTheme,undefined,'default choice removes override');
-for(const control of dom.window.document.querySelectorAll('.ls-select'))assert.equal(control.namespaceURI,XUL,'all preference menus use native controls');
+let dom = pane();
+let menu = dom.window.document.querySelector('[aria-label="PDF theme"]');
+assert.equal(menu.namespaceURI, XUL);
+assert.equal(menu.localName, "menulist");
+assert.equal(menu.getAttribute("native"), "true");
+assert.equal(menu.value, "light");
+assert.deepEqual(
+	[...menu.querySelectorAll("menuitem")].map(el => [el.getAttribute("value"), el.getAttribute("label")]),
+	[
+		["auto", "Follow note editor"],
+		["light", "Light"],
+		["dark", "Dark"],
+	],
+);
+menu.querySelector('[value="dark"]').dispatchEvent(new dom.window.Event("command", { bubbles: true }));
+assert.equal(JSON.parse(stored).pdfTheme, "dark");
+assert.equal(menu.value, "dark");
+assert.equal(writes, 1);
+assert.equal(JSON.parse(stored).completionEnabled, false, "other settings preserved");
 dom.window.close();
-console.log('Native preference menus: options, command events, persistence, default reset and unrelated settings passed.');
+dom = pane(false);
+menu = dom.window.document.querySelector('[aria-label="PDF theme"]');
+assert.equal(menu.value, "dark", "saved theme restored when reopening pane");
+menu.value = "light";
+menu.dispatchEvent(new dom.window.Event("command", { bubbles: true }));
+assert.equal(JSON.parse(stored).pdfTheme, "light", "menulist command accepted");
+menu.querySelector('[value="auto"]').dispatchEvent(new dom.window.Event("command", { bubbles: true }));
+assert.equal(JSON.parse(stored).pdfTheme, undefined, "default choice removes override");
+for (const control of dom.window.document.querySelectorAll(".ls-select"))
+	assert.equal(control.namespaceURI, XUL, "all preference menus use native controls");
+dom.window.close();
+console.log(
+	"Native preference menus: options, command events, persistence, default reset and unrelated settings passed.",
+);

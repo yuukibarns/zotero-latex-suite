@@ -30,8 +30,14 @@ export function scanEquations(text: string): MathBounds[] {
 	let i = 0;
 
 	while (i < text.length) {
-		if (text[i] === "\\") { i += 2; continue; } // \$ is a literal dollar
-		if (text[i] !== "$") { i++; continue; }
+		if (text[i] === "\\") {
+			i += 2;
+			continue;
+		} // \$ is a literal dollar
+		if (text[i] !== "$") {
+			i++;
+			continue;
+		}
 
 		const display = text[i + 1] === "$";
 		const delim = display ? 2 : 1;
@@ -41,8 +47,14 @@ export function scanEquations(text: string): MathBounds[] {
 		let j = inner_start;
 		let close = -1;
 		while (j < text.length) {
-			if (text[j] === "\\") { j += 2; continue; }
-			if (text[j] === "$" && (!display || text[j + 1] === "$")) { close = j; break; }
+			if (text[j] === "\\") {
+				j += 2;
+				continue;
+			}
+			if (text[j] === "$" && (!display || text[j + 1] === "$")) {
+				close = j;
+				break;
+			}
 			j++;
 		}
 
@@ -77,7 +89,7 @@ export function mathBoundsAt(text: string, pos: number): MathBounds | null {
  * where an unclosed `$` you are still typing into has to count.
  */
 export function renderableEquations(text: string): MathBounds[] {
-	return scanEquations(text).filter((bounds) => {
+	return scanEquations(text).filter(bounds => {
 		if (!bounds.closed) return false;
 		const source = text.slice(bounds.inner_start, bounds.inner_end);
 		if (!source.trim()) return false;

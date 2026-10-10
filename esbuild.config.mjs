@@ -7,7 +7,7 @@ import path from "node:path";
 import { buildKatexSourceMap } from "./scripts/katex-source-map.mjs";
 
 await buildKatexSourceMap();
-await import('./scripts/build-modules.mjs');
+await import("./scripts/build-modules.mjs");
 
 // `import x from "./file.js?raw"` gives the file's source text. The default
 // snippets are shipped as editable JavaScript (regex literals, functions) and
@@ -15,11 +15,11 @@ await import('./scripts/build-modules.mjs');
 const rawImports = {
 	name: "raw-imports",
 	setup(build) {
-		build.onResolve({ filter: /\?raw$/ }, (args) => ({
+		build.onResolve({ filter: /\?raw$/ }, args => ({
 			path: path.resolve(args.resolveDir, args.path.replace(/\?raw$/, "")),
 			namespace: "raw",
 		}));
-		build.onLoad({ filter: /.*/, namespace: "raw" }, async (args) => ({
+		build.onLoad({ filter: /.*/, namespace: "raw" }, async args => ({
 			contents: await fs.readFile(args.path, "utf8"),
 			loader: "text",
 		}));

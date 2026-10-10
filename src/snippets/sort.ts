@@ -13,13 +13,15 @@ export function sortSnippets(snippets: Snippet[]): Snippet[] {
 	// by precomputing the values to sort by and associating each original element to these values,
 	// sorting with this intermediate representation,
 	// and retrieving back the original elements.
-	return snippets
-		// first precompute trigger lengths for each snippet while keeping a reference to the original snippet (via index in `snippets`),
-		.map((snippet, i) => [getPriority(snippet), getTriggerLength(snippet), i] as const)
-		// sort resultant tuples representing the snippets
-		.sort(schwartzianSnippetCompare)
-		// and get back the snippets
-		.map(([_p, _t, i]) => snippets[i]);
+	return (
+		snippets
+			// first precompute trigger lengths for each snippet while keeping a reference to the original snippet (via index in `snippets`),
+			.map((snippet, i) => [getPriority(snippet), getTriggerLength(snippet), i] as const)
+			// sort resultant tuples representing the snippets
+			.sort(schwartzianSnippetCompare)
+			// and get back the snippets
+			.map(([_p, _t, i]) => snippets[i])
+	);
 }
 
 type SchwartzianIntermediateValue = readonly [priority: number, triggerLength: number, i: number];
@@ -35,8 +37,12 @@ export function schwartzianSnippetCompare(a: SchwartzianIntermediateValue, b: Sc
  * Sorts snippets by trigger length so longer snippets will have higher priority
  */
 function compareTriggerLength(a: number, b: number) {
-	if (a < b) { return 1; }
-	if (a > b) { return -1; }
+	if (a < b) {
+		return 1;
+	}
+	if (a > b) {
+		return -1;
+	}
 	return 0;
 }
 
@@ -44,8 +50,12 @@ function compareTriggerLength(a: number, b: number) {
  * Sorts snippets in order of priority
  */
 function comparePriority(a: number, b: number) {
-	if (a < b) { return 1; }
-	if (a > b) { return -1; }
+	if (a < b) {
+		return 1;
+	}
+	if (a > b) {
+		return -1;
+	}
 	return 0;
 }
 
@@ -54,7 +64,5 @@ function getPriority(snippet: Snippet) {
 }
 
 function getTriggerLength(snippet: Snippet) {
-	return typeof snippet.trigger === "string"
-		? snippet.trigger.length
-		: snippet.trigger.source.length;
+	return typeof snippet.trigger === "string" ? snippet.trigger.length : snippet.trigger.source.length;
 }

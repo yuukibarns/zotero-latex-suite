@@ -102,7 +102,7 @@ function runSnippetCursor(
 			console.debug("latex-suite: expanding", snippet.description, "->", replacement.insert);
 		}
 
-		const containsTrigger = settings.autoEnlargeBracketsTriggers.some((word) => replacement.insert.includes(word));
+		const containsTrigger = settings.autoEnlargeBracketsTriggers.some(word => replacement.insert.includes(word));
 		expand(win, buffer, triggerPos, triggerEndPos, replacement);
 		return { success: true, shouldAutoEnlargeBrackets: containsTrigger };
 	}
@@ -138,5 +138,5 @@ function trimWhitespace(replacement: ResultInsert): ResultInsert {
 	if (insert === replacement.insert) return replacement;
 
 	const clamp = (n: number) => Math.min(n, insert.length);
-	return { insert, tabstops: replacement.tabstops.map((ts) => ({ ...ts, from: clamp(ts.from), to: clamp(ts.to) })) };
+	return { insert, tabstops: replacement.tabstops.map(ts => ({ ...ts, from: clamp(ts.from), to: clamp(ts.to) })) };
 }

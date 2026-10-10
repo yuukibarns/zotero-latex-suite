@@ -15,10 +15,20 @@ import { findMatchingBracket } from "src/utils/editor_utils";
 import { Settings } from "src/settings/settings";
 
 const SIZE_CONTROLS = [
-	"\\big", "\\Big", "\\bigg", "\\Bigg",
-	"\\bigl", "\\Bigl", "\\biggl", "\\Biggl",
-	"\\bigr", "\\Bigr", "\\biggr", "\\Biggr",
-	"\\left", "\\right",
+	"\\big",
+	"\\Big",
+	"\\bigg",
+	"\\Bigg",
+	"\\bigl",
+	"\\Bigl",
+	"\\biggl",
+	"\\Biggl",
+	"\\bigr",
+	"\\Bigr",
+	"\\biggr",
+	"\\Biggr",
+	"\\left",
+	"\\right",
 ];
 
 const PAIRS: [string, string][] = [
@@ -30,7 +40,7 @@ const PAIRS: [string, string][] = [
 /** Is `pos` immediately preceded by `\left`, `\big` and friends? */
 function afterSizeControl(text: string, pos: number): boolean {
 	const before = text.slice(0, pos).trimEnd();
-	return SIZE_CONTROLS.some((cmd) => before.endsWith(cmd));
+	return SIZE_CONTROLS.some(cmd => before.endsWith(cmd));
 }
 
 type Edit = { from: number; to: number; insert: string };
@@ -57,7 +67,7 @@ export function autoEnlargeBrackets(win: any, settings: Settings): boolean {
 		if (afterSizeControl(text, closeIndex)) continue;
 
 		const content = text.slice(i + open.length, closeIndex);
-		if (!settings.autoEnlargeBracketsTriggers.some((trigger) => content.includes(trigger))) continue;
+		if (!settings.autoEnlargeBracketsTriggers.some(trigger => content.includes(trigger))) continue;
 
 		edits.push({ from: i, to: i + open.length, insert: `\\left${open}${space}` });
 		edits.push({ from: closeIndex, to: closeIndex + close.length, insert: `${space}\\right${close}` });

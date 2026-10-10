@@ -13,6 +13,9 @@ export function installMathVisibility(win: Window): () => void {
 `;
 	win.document.head.append(style);
 	win.addEventListener("unload", stop);
-	function stop() { style.remove();win.removeEventListener("unload", stop); }
+	function stop() {
+		style.remove();
+		win.removeEventListener("unload", stop);
+	}
 	return stop;
 }

@@ -4,7 +4,13 @@
  * by a plain `{from, to}` in the current buffer.
  */
 import { Options } from "./options";
-import { ArrayNode, BaseNode, ResultInsert, SnippetTabstopOnlyNode, Options as InsertOptions } from "./luasnip_api/node";
+import {
+	ArrayNode,
+	BaseNode,
+	ResultInsert,
+	SnippetTabstopOnlyNode,
+	Options as InsertOptions,
+} from "./luasnip_api/node";
 import { MacroArea } from "src/utils/default_text_areas";
 import { isMacroArgumentCount, Scope } from "src/utils/context";
 
@@ -19,7 +25,7 @@ export type SnippetReplacementApi = { _view: unknown; _buffer: unknown; algorith
 function convertOutputToNode(rawReplacement: unknown): ArrayNode | null {
 	if (rawReplacement === false) return null;
 	if (typeof rawReplacement === "string") return new ArrayNode([new SnippetTabstopOnlyNode(rawReplacement)]);
-	if (Array.isArray(rawReplacement) && rawReplacement.every((n) => n instanceof BaseNode)) {
+	if (Array.isArray(rawReplacement) && rawReplacement.every(n => n instanceof BaseNode)) {
 		return new ArrayNode(rawReplacement);
 	}
 	console.error("latex-suite: invalid replacement output:", rawReplacement);
@@ -43,9 +49,7 @@ export type SnippetData<T extends SnippetType> = {
 	};
 }[T];
 
-export type ProcessSnippetResult =
-	| { triggerPos: number; replacement: ResultInsert; triggerEndPos?: number }
-	| null;
+export type ProcessSnippetResult = { triggerPos: number; replacement: ResultInsert; triggerEndPos?: number } | null;
 
 export enum IncludedEnvironmentResult {
 	None,
@@ -105,8 +109,12 @@ export abstract class Snippet<T extends SnippetType = SnippetType> {
 		this.triggerKey = triggerKey;
 	}
 
-	get trigger(): SnippetData<T>["trigger"] { return this.data.trigger; }
-	get replacement(): SnippetData<T>["replacement"] { return this.data.replacement; }
+	get trigger(): SnippetData<T>["trigger"] {
+		return this.data.trigger;
+	}
+	get replacement(): SnippetData<T>["replacement"] {
+		return this.data.replacement;
+	}
 
 	abstract process(args: ProcessArgs): ProcessSnippetResult;
 
@@ -145,8 +153,18 @@ export abstract class Snippet<T extends SnippetType = SnippetType> {
 
 export class VisualSnippet extends Snippet<"visual"> {
 	constructor(c: CreateSnippet<"visual">) {
-		super("visual", c.trigger, c.replacement, c.options, c.priority, c.description,
-			c.excludedEnvironments, c.excludedMacros, c.includedMacros, c.triggerKey);
+		super(
+			"visual",
+			c.trigger,
+			c.replacement,
+			c.options,
+			c.priority,
+			c.description,
+			c.excludedEnvironments,
+			c.excludedMacros,
+			c.includedMacros,
+			c.triggerKey,
+		);
 	}
 
 	process({ effectiveLine, range, sel, api }: ProcessArgs): ProcessSnippetResult {
@@ -171,8 +189,18 @@ export class VisualSnippet extends Snippet<"visual"> {
 
 export class RegexSnippet extends Snippet<"regex"> {
 	constructor(c: CreateSnippet<"regex">) {
-		super("regex", c.trigger, c.replacement, c.options, c.priority, c.description,
-			c.excludedEnvironments, c.excludedMacros, c.includedMacros, c.triggerKey);
+		super(
+			"regex",
+			c.trigger,
+			c.replacement,
+			c.options,
+			c.priority,
+			c.description,
+			c.excludedEnvironments,
+			c.excludedMacros,
+			c.includedMacros,
+			c.triggerKey,
+		);
 		this.data.triggerAfter = c.triggerAfter;
 	}
 
@@ -205,8 +233,18 @@ export class RegexSnippet extends Snippet<"regex"> {
 
 export class StringSnippet extends Snippet<"string"> {
 	constructor(c: CreateSnippet<"string">) {
-		super("string", c.trigger, c.replacement, c.options, c.priority, c.description,
-			c.excludedEnvironments, c.excludedMacros, c.includedMacros, c.triggerKey);
+		super(
+			"string",
+			c.trigger,
+			c.replacement,
+			c.options,
+			c.priority,
+			c.description,
+			c.excludedEnvironments,
+			c.excludedMacros,
+			c.includedMacros,
+			c.triggerKey,
+		);
 		this.data.triggerAfter = c.triggerAfter;
 	}
 

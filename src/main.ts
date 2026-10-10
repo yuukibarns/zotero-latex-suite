@@ -11,8 +11,19 @@ import { DEFAULT_SETTINGS, processSettings, RawSettings, Settings } from "./sett
 import { runSnippets } from "./features/run_snippets";
 import { runAutoFraction } from "./features/autofraction";
 import { shouldTaboutByCloseBracket, tabout } from "./features/tabout";
-import { addCellMatrixShortcut, exitMatrixShortcut, newlineMatrixShortcut, lineBreakMatrixShortcut, priorityTaboutMatrixShortcut } from "./features/matrix_shortcuts";
-import { clearTabstops, clearTabstopsIfElsewhere, hasTabstops, setSelectionToNextTabstop } from "./snippets/snippet_management";
+import {
+	addCellMatrixShortcut,
+	exitMatrixShortcut,
+	newlineMatrixShortcut,
+	lineBreakMatrixShortcut,
+	priorityTaboutMatrixShortcut,
+} from "./features/matrix_shortcuts";
+import {
+	clearTabstops,
+	clearTabstopsIfElsewhere,
+	hasTabstops,
+	setSelectionToNextTabstop,
+} from "./snippets/snippet_management";
 import { Snippet } from "./snippets/snippets";
 import { Context } from "./utils/context";
 import { installAnnotationRendering } from "./reader/annotations";
@@ -121,27 +132,56 @@ function loadSettings(json: string | undefined) {
 		}
 	}
 
-	automaticSnippets = settings ? settings.snippets.filter((s) => s.options.automatic) : [];
+	automaticSnippets = settings ? settings.snippets.filter(s => s.options.automatic) : [];
 	pdfTheme = raw.pdfTheme === "light" || raw.pdfTheme === "dark" ? raw.pdfTheme : "auto";
 	stopPrintDiagnostic?.();
-	stopPrintDiagnostic = raw.notePdfExportEnabled !== false && !isReaderWindow(window) && window.document.createElement ? installPrintDiagnostic(window, () => pdfTheme) : null;
+	stopPrintDiagnostic =
+		raw.notePdfExportEnabled !== false && !isReaderWindow(window) && window.document.createElement
+			? installPrintDiagnostic(window, () => pdfTheme)
+			: null;
 	completionMinimum = Math.max(1, Math.floor(Number(raw.completionMinLength) || 2));
 	mathClickTimeout = normalizeMathClickTimeout(raw.mathSelectionClickTimeoutMs);
 	if (window.document.createEvent) {
-		const event = window.document.createEvent("Event"); event.initEvent("latex-suite-settings-changed", false, false); window.document.dispatchEvent(event);
+		const event = window.document.createEvent("Event");
+		event.initEvent("latex-suite-settings-changed", false, false);
+		window.document.dispatchEvent(event);
 	}
 	completion?.destroy();
 	stopMathPreview?.();
 	stopMathHighlight?.();
 	stopMathVisibility?.();
 	stopMathVisibility = window.document.createElement && !isReaderWindow(window) ? installMathVisibility(window) : null;
-	stopMathHighlight = (raw.mathHighlightEnabled || raw.mathConcealEnabled) && window.document.createElement && !isReaderWindow(window) ? installMathHighlight(window, raw.mathConcealEnabled, raw.mathHighlightEnabled) : null;
-	stopMathPreview = window.document.createElement && !isReaderWindow(window) ? installMathPreview(window, Number(raw.mathPreviewDebounceMs), raw.inlineMathPreviewEnabled ?? raw.mathPreviewEnabled, raw.displayMathPreviewEnabled ?? raw.mathPreviewEnabled, { color: raw.mathPreviewMarkerColor, blink: raw.mathPreviewMarkerBlink === true, clickTimeout: mathClickTimeout }) : null;
+	stopMathHighlight =
+		(raw.mathHighlightEnabled || raw.mathConcealEnabled) && window.document.createElement && !isReaderWindow(window)
+			? installMathHighlight(window, raw.mathConcealEnabled, raw.mathHighlightEnabled)
+			: null;
+	stopMathPreview =
+		window.document.createElement && !isReaderWindow(window)
+			? installMathPreview(
+					window,
+					Number(raw.mathPreviewDebounceMs),
+					raw.inlineMathPreviewEnabled ?? raw.mathPreviewEnabled,
+					raw.displayMathPreviewEnabled ?? raw.mathPreviewEnabled,
+					{
+						color: raw.mathPreviewMarkerColor,
+						blink: raw.mathPreviewMarkerBlink === true,
+						clickTimeout: mathClickTimeout,
+					},
+				)
+			: null;
 	completion = null;
-	try { completionCommands = raw.completionCommands === undefined ? DEFAULT_COMMANDS : parseCommands(raw.completionCommands); }
-	catch (e) { console.error("latex-suite: invalid completion dictionary; retaining previous commands", e); }
+	try {
+		completionCommands =
+			raw.completionCommands === undefined ? DEFAULT_COMMANDS : parseCommands(raw.completionCommands);
+	} catch (e) {
+		console.error("latex-suite: invalid completion dictionary; retaining previous commands", e);
+	}
 	if (raw.completionEnabled && !isReaderWindow(window)) {
-		completion = installCompletion(window, completionCommands, Math.max(1, Math.floor(Number(raw.completionMinLength) || 2)));
+		completion = installCompletion(
+			window,
+			completionCommands,
+			Math.max(1, Math.floor(Number(raw.completionMinLength) || 2)),
+		);
 	}
 	manualByKey = new Map();
 	clearTabstops();
@@ -172,7 +212,7 @@ function manualSnippetsFor(key: string): Snippet[] {
 	const cached = manualByKey.get(key);
 	if (cached) return cached;
 	const matching = settings.snippets.filter(
-		(s) => s.triggerKey === key || (!s.triggerKey && !s.options.automatic && key === settings!.snippetsTrigger),
+		s => s.triggerKey === key || (!s.triggerKey && !s.options.automatic && key === settings!.snippetsTrigger),
 	);
 	manualByKey.set(key, matching);
 	return matching;
@@ -200,14 +240,24 @@ function handleKeydown(event: KeyboardEvent): boolean {
 	const where = isReaderWindow(window) ? "reader" : "note";
 
 	const buffer = currentBuffer(window);
-	const removeEquation = event.key === "Backspace" && event.ctrlKey && event.shiftKey && !event.altKey && !event.metaKey;
-	const plainDelete = ["Backspace", "Delete"].includes(event.key) && !event.ctrlKey && !event.shiftKey && !event.altKey && !event.metaKey;
+	const removeEquation =
+		event.key === "Backspace" && event.ctrlKey && event.shiftKey && !event.altKey && !event.metaKey;
+	const plainDelete =
+		["Backspace", "Delete"].includes(event.key) && !event.ctrlKey && !event.shiftKey && !event.altKey && !event.metaKey;
 	if ((removeEquation || plainDelete) && deleteMathNode(window, removeEquation, event.key === "Backspace")) {
 		completion?.suppress();
 		clearTabstops();
 		return true;
 	}
-	if (buffer && event.key === "Backspace" && event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey && deleteMathWord(buffer)) {
+	if (
+		buffer &&
+		event.key === "Backspace" &&
+		event.ctrlKey &&
+		!event.altKey &&
+		!event.metaKey &&
+		!event.shiftKey &&
+		deleteMathWord(buffer)
+	) {
 		completion?.suppress();
 		return true;
 	}
@@ -233,14 +283,20 @@ function handleKeydown(event: KeyboardEvent): boolean {
 
 	// 1. Automatic snippets, on any plain printable key.
 	if (settings.snippetsEnabled && event.key.length === 1 && !event.ctrlKey && !event.metaKey) {
-		if (runSnippets(window, { snippets: automaticSnippets, key: event.key }, settings, buffer)) { completion?.suppress(); return true; }
+		if (runSnippets(window, { snippets: automaticSnippets, key: event.key }, settings, buffer)) {
+			completion?.suppress();
+			return true;
+		}
 	}
 
 	// 2. Manual snippets (Tab by default, or the snippet's own triggerKey).
 	if (settings.snippetsEnabled) {
 		const manual = manualSnippetsFor(key);
 		trace.manual = manual.length;
-		if (manual.length && runSnippets(window, { snippets: manual }, settings, buffer)) { completion?.suppress(); return true; }
+		if (manual.length && runSnippets(window, { snippets: manual }, settings, buffer)) {
+			completion?.suppress();
+			return true;
+		}
 	}
 
 	// 3./4. Tabstops.
@@ -254,7 +310,10 @@ function handleKeydown(event: KeyboardEvent): boolean {
 
 	// 6.-9. Matrix shortcuts. Tabout inside brackets wins over adding a cell.
 	if (settings.matrixShortcutsEnabled) {
-		if (key === settings.matrixShortcutsLineBreakTrigger && lineBreakMatrixShortcut(window, settings)) { completion?.suppress(); return true; }
+		if (key === settings.matrixShortcutsLineBreakTrigger && lineBreakMatrixShortcut(window, settings)) {
+			completion?.suppress();
+			return true;
+		}
 		if (
 			settings.taboutEnabled &&
 			settings.taboutTrigger === settings.matrixShortcutsCellTrigger &&
@@ -270,7 +329,7 @@ function handleKeydown(event: KeyboardEvent): boolean {
 
 	// 10./11. Tabout.
 	if (settings.taboutEnabled) {
-		if (key === settings.taboutTrigger && tabout(window, settings, key === 'Tab')) return true;
+		if (key === settings.taboutTrigger && tabout(window, settings, key === "Tab")) return true;
 		if ([")", "}", "]"].includes(key) && shouldTaboutByCloseBracket(window, key) && tabout(window, settings)) {
 			return true;
 		}
@@ -291,11 +350,29 @@ function install() {
 	const stopMathPaste = isReaderWindow(window) ? null : installMathPaste(window);
 	const stopMathFocus = isReaderWindow(window) || !window.document.createElement ? null : installMathFocus(window);
 	const stopMathCaret = isReaderWindow(window) || !window.document.createElement ? null : installMathCaret(window);
-	const stopMathSelection = isReaderWindow(window) || !window.document.createElement ? null : installMathMouseSelection(window, () => completion?.suppress(), () => mathClickTimeout);
+	const stopMathSelection =
+		isReaderWindow(window) || !window.document.createElement
+			? null
+			: installMathMouseSelection(
+					window,
+					() => completion?.suppress(),
+					() => mathClickTimeout,
+				);
 	const stopImageResize = isReaderWindow(window) || !window.document.createElement ? null : installImageResize(window);
-	const stopScrollPastEnd = isReaderWindow(window) || !window.document.createElement ? null : installScrollPastEnd(window);
-	const stopAnnotations = isReaderWindow(window) || !window.document.createElement ? null : installAnnotationCompletion(window, () => completionMinimum,
-		() => ({ bufferCompletionEnabled: settings?.bufferCompletionEnabled ?? false, dictionaryCompletionEnabled: settings?.dictionaryCompletionEnabled ?? false, textDictionaryWords: settings?.textDictionaryWords }));
+	const stopScrollPastEnd =
+		isReaderWindow(window) || !window.document.createElement ? null : installScrollPastEnd(window);
+	const stopAnnotations =
+		isReaderWindow(window) || !window.document.createElement
+			? null
+			: installAnnotationCompletion(
+					window,
+					() => completionMinimum,
+					() => ({
+						bufferCompletionEnabled: settings?.bufferCompletionEnabled ?? false,
+						dictionaryCompletionEnabled: settings?.dictionaryCompletionEnabled ?? false,
+						textDictionaryWords: settings?.textDictionaryWords,
+					}),
+				);
 
 	// Set when we handled a printable key, so the insertion it would otherwise
 	// have caused can be cancelled again at `beforeinput`. Belt and braces:
@@ -396,8 +473,12 @@ function install() {
 
 	// Handy from the note editor's console.
 	window.__latexSuite = {
-		get settings() { return settings; },
-		get recent() { return recent; },
+		get settings() {
+			return settings;
+		},
+		get recent() {
+			return recent;
+		},
 		context: () => {
 			const buffer = currentBuffer(window);
 			return buffer ? Context.fromBuffer(buffer) : null;

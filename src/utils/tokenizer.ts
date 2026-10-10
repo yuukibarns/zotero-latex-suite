@@ -5,7 +5,6 @@ export interface Token {
 	readonly text: string;
 }
 
-
 export const tokenize = (latexString: string): Token[] => {
 	const tokens: Token[] = [];
 	let index = 0;
@@ -26,7 +25,6 @@ export const tokenize = (latexString: string): Token[] => {
 	return tokens;
 };
 
-
 const readNextToken = (latexString: string, start: number): { token: Token; nextIndex: number } => {
 	const char = latexString[start];
 
@@ -39,7 +37,6 @@ const readNextToken = (latexString: string, start: number): { token: Token; next
 			return readSingleCharacterToken(latexString, start);
 	}
 };
-
 
 const readCommentToken = (latexString: string, start: number): { token: Token; nextIndex: number } => {
 	const length = latexString.length;
@@ -57,7 +54,6 @@ const readCommentToken = (latexString: string, start: number): { token: Token; n
 
 	return { token, nextIndex: current };
 };
-
 
 const readEscapeToken = (latexString: string, start: number): { token: Token; nextIndex: number } => {
 	const length = latexString.length;
@@ -84,7 +80,6 @@ const readEscapeToken = (latexString: string, start: number): { token: Token; ne
 
 	return { token, nextIndex: current };
 };
-
 
 const readSingleCharacterToken = (latexString: string, start: number): { token: Token; nextIndex: number } => {
 	const end = start + 1;

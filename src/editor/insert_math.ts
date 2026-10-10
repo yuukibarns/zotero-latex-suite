@@ -26,7 +26,7 @@ export function asMathReplacement(result: ResultInsert): MathReplacement | null 
 	// `dm` is written as "$$\n$0\n$$": the newlines are markdown's way of making
 	// the block display, not part of the equation. Strip them, but never past a
 	// tabstop — in `dm` the tabstop sits between the two newlines.
-	const offsets = result.tabstops.map((ts) => ts.from - delim).concat(result.tabstops.map((ts) => ts.to - delim));
+	const offsets = result.tabstops.map(ts => ts.from - delim).concat(result.tabstops.map(ts => ts.to - delim));
 	const firstStop = offsets.length ? Math.min(...offsets) : inner.length;
 	const lastStop = offsets.length ? Math.max(...offsets) : 0;
 
@@ -38,8 +38,8 @@ export function asMathReplacement(result: ResultInsert): MathReplacement | null 
 
 	const shift = delim + lead;
 	const tabstops = result.tabstops
-		.map((ts) => ({ ...ts, from: ts.from - shift, to: ts.to - shift }))
-		.filter((ts) => ts.from >= 0 && ts.to <= inner.length);
+		.map(ts => ({ ...ts, from: ts.from - shift, to: ts.to - shift }))
+		.filter(ts => ts.from >= 0 && ts.to <= inner.length);
 
 	return { display: delim === 2, inner: { insert: inner, tabstops } };
 }

@@ -16,14 +16,17 @@
 
 	function init(fieldsEl) {
 		const { PREF, FIELDS, defaultSnippets, defaultSnippetVariables } = Zotero.LatexSuite;
-		const h = (tag) => document.createElementNS(XHTML, tag);
-		const x = (tag) => document.createXULElement ? document.createXULElement(tag) : document.createElementNS(XUL, tag);
+		const h = tag => document.createElementNS(XHTML, tag);
+		const x = tag => (document.createXULElement ? document.createXULElement(tag) : document.createElementNS(XUL, tag));
 
 		async function pick(input, folder) {
 			const { FilePicker } = ChromeUtils.importESModule("chrome://zotero/content/modules/filePicker.mjs");
 			const fp = new FilePicker();
-			fp.init(window, folder ? "Select a snippets folder" : "Select a snippets file",
-				folder ? fp.modeGetFolder : fp.modeOpen);
+			fp.init(
+				window,
+				folder ? "Select a snippets folder" : "Select a snippets file",
+				folder ? fp.modeGetFolder : fp.modeOpen,
+			);
 			if (!folder) {
 				// .md too: obsidian-latex-suite users keep snippets in the vault, where
 				// a .md file is editable in Obsidian itself. Contents are JS either way.
@@ -53,7 +56,10 @@
 		let pending = null;
 
 		const write = () => {
-			if (pending) { clearTimeout(pending); pending = null; }
+			if (pending) {
+				clearTimeout(pending);
+				pending = null;
+			}
 			Zotero.Prefs.set(PREF, JSON.stringify(overrides), true);
 		};
 		const writeSoon = () => {
@@ -112,7 +118,7 @@
 
 		// A cheap syntax check so a typo shows up here rather than silently in a
 		// note. The engine does the real parsing; this only has to catch garbage.
-		const checkModule = (label) => (source) => {
+		const checkModule = label => source => {
 			const body = /(^|[\s;}])export\s+default\s/.test(source)
 				? source.replace(/(^|[\s;}])export\s+default\s/, "$1return ")
 				: `return (\n${source}\n);`;
@@ -148,7 +154,12 @@
 		/* Whether a file actually loads is the whole question with this setting, so
 		 * say so rather than leaving it to be discovered in a note. */
 		const fileStatuses = [];
-		const sourceKeyFor = (key) => key.startsWith("completion") ? "completionCommands" : (key.startsWith("snippetVariables") ? "snippetVariables" : "snippets");
+		const sourceKeyFor = key =>
+			key.startsWith("completion")
+				? "completionCommands"
+				: key.startsWith("snippetVariables")
+					? "snippetVariables"
+					: "snippets";
 
 		async function refreshFileStatuses() {
 			for (const { field, input, status } of fileStatuses) {
@@ -161,7 +172,11 @@
 				const key = sourceKeyFor(field.key);
 				const loaded = Zotero.LatexSuite.fileStatus(key);
 				if (key === "completionCommands") {
-					status.textContent = loaded?.error || (loaded?.text ? `${loaded.text.length} completion entries loaded` : "Enable custom dictionary and reload to validate");
+					status.textContent =
+						loaded?.error ||
+						(loaded?.text
+							? `${loaded.text.length} completion entries loaded`
+							: "Enable custom dictionary and reload to validate");
 					status.classList.toggle("ls-error", !!loaded?.error);
 					continue;
 				}
@@ -176,9 +191,7 @@
 							throw new Error(files[i].leafName + ": " + (e.message || e));
 						}
 					});
-					status.textContent = files.length > 1
-						? `${files.length} files \u2014 ${counts.join(", ")}`
-						: counts[0];
+					status.textContent = files.length > 1 ? `${files.length} files \u2014 ${counts.join(", ")}` : counts[0];
 					status.classList.remove("ls-error");
 				} catch (e) {
 					status.textContent = String((loaded && loaded.error) || e.message || e);
@@ -194,7 +207,9 @@
 			if (field.group !== currentGroup) {
 				currentGroup = field.group;
 				const box = document.createElementNS(
-					"http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul", "groupbox");
+					"http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul",
+					"groupbox",
+				);
 				const title = h("h2");
 				title.textContent = currentGroup;
 				box.append(title);
@@ -223,7 +238,12 @@
 				if (field.step !== undefined) input.step = String(field.step);
 				input.value = String(stored);
 				input.addEventListener("input", () =>
-					setValue(field.key, Math.max(field.min ?? 0, Math.min(field.max ?? Infinity, parseInt(input.value, 10) || 0)), field.default));
+					setValue(
+						field.key,
+						Math.max(field.min ?? 0, Math.min(field.max ?? Infinity, parseInt(input.value, 10) || 0)),
+						field.default,
+					),
+				);
 			} else if (field.type === "select") {
 				// Chrome preference panes use native XUL menus. HTML select popups
 				// may not open in this window even though the control is painted.
@@ -242,7 +262,7 @@
 				const value = field.options.includes(stored) ? stored : field.default;
 				input.setAttribute("value", value);
 				input.value = value;
-				input.addEventListener("command", (event) => {
+				input.addEventListener("command", event => {
 					const value = event.target.localName === "menuitem" ? event.target.getAttribute("value") : input.value;
 					if (!field.options.includes(value)) return;
 					input.value = value;
@@ -279,7 +299,10 @@
 			else row.append(label, input);
 
 			if (field.type === "file") {
-				for (const [label, folder] of [["File\u2026", false], ["Folder\u2026", true]]) {
+				for (const [label, folder] of [
+					["File\u2026", false],
+					["Folder\u2026", true],
+				]) {
 					const browse = h("button");
 					browse.type = "button";
 					browse.textContent = label;

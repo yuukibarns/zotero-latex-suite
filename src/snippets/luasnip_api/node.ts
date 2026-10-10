@@ -33,21 +33,21 @@ export class BaseNode {
 
 		let offset = 0;
 		const tabstopResults = result
-			.map((node) => node.applyInsert(options))
+			.map(node => node.applyInsert(options))
 			.map(({ insert, tabstops }) => {
 				const currentOffset = offset;
 				offset += insert.length;
 				return {
 					insert,
 					tabstops: [
-						...tabstops.map((ts) => ({ ...ts, from: ts.from + currentOffset, to: ts.to + currentOffset })),
-						...this.tabstops.map((ts) => ({ ...ts, from: ts.from + currentOffset, to: ts.to + currentOffset })),
+						...tabstops.map(ts => ({ ...ts, from: ts.from + currentOffset, to: ts.to + currentOffset })),
+						...this.tabstops.map(ts => ({ ...ts, from: ts.from + currentOffset, to: ts.to + currentOffset })),
 					],
 				};
 			});
 		return {
-			insert: tabstopResults.map((r) => r.insert).join(""),
-			tabstops: tabstopResults.flatMap((r) => r.tabstops),
+			insert: tabstopResults.map(r => r.insert).join(""),
+			tabstops: tabstopResults.flatMap(r => r.tabstops),
 		};
 	}
 }
@@ -89,7 +89,7 @@ export function applyReplacements(str: string, replacements: Replacement[]): str
 
 export class SnippetStringNode extends BaseNode {
 	constructor(private snippet: string) {
-		super((options) => this.parseSnippet(options.captures));
+		super(options => this.parseSnippet(options.captures));
 	}
 
 	parseSnippet(captures: Captures): BaseNode[] {
@@ -132,7 +132,7 @@ export class SnippetStringNode extends BaseNode {
 
 export class VisualSnippetNode extends BaseNode {
 	constructor(public snippet: string) {
-		super((options) =>
+		super(options =>
 			new SnippetStringNode(this.expandVisual(options.captures)).parseSnippet({ match: [], groups: {} }),
 		);
 	}
@@ -140,9 +140,7 @@ export class VisualSnippetNode extends BaseNode {
 	expandVisual(captures: Captures): string {
 		const sel = captures.groups[VISUAL_SNIPPET_MAGIC_SELECTION_PLACEHOLDER];
 		if (sel === undefined) {
-			throw new Error(
-				`VisualSnippetNode requires a capture group named ${VISUAL_SNIPPET_MAGIC_SELECTION_PLACEHOLDER}`,
-			);
+			throw new Error(`VisualSnippetNode requires a capture group named ${VISUAL_SNIPPET_MAGIC_SELECTION_PLACEHOLDER}`);
 		}
 		return this.snippet.replaceAll(VISUAL_SNIPPET_MAGIC_SELECTION_PLACEHOLDER, sel);
 	}

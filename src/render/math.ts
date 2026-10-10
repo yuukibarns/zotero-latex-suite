@@ -105,7 +105,7 @@ export function renderMath(root: Element, katex: Katex, caret?: number | null): 
 
 	const { segments, text } = segmentsOf(root);
 	const equations = renderableEquations(text).filter(
-		(bounds) => caret == null || caret < bounds.outer_start || caret > bounds.outer_end,
+		bounds => caret == null || caret < bounds.outer_start || caret > bounds.outer_end,
 	);
 	if (!equations.length) return removed;
 
@@ -148,8 +148,8 @@ export function renderMath(root: Element, katex: Katex, caret?: number | null): 
 export function syncRender(root: Element, katex: Katex, caret?: number | null): boolean {
 	const { text } = segmentsOf(root);
 	const wanted = renderableEquations(text)
-		.filter((bounds) => caret == null || caret < bounds.outer_start || caret > bounds.outer_end)
-		.map((bounds) => `${bounds.outer_start}:${bounds.outer_end}`)
+		.filter(bounds => caret == null || caret < bounds.outer_start || caret > bounds.outer_end)
+		.map(bounds => `${bounds.outer_start}:${bounds.outer_end}`)
 		.join(",");
 
 	if (root.getAttribute(STATE_ATTR) === wanted) return false;

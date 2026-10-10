@@ -162,7 +162,7 @@ export function installAnnotationRendering(win: any): (() => void) | null {
 		if (!field || !field.isContentEditable) return;
 
 		const { segments } = segmentsOf(field);
-		const segment = segments.find((s) => s.node === span);
+		const segment = segments.find(s => s.node === span);
 		const source = span.getAttribute(SOURCE_ATTR) ?? "";
 		const delimiter = source.startsWith("$$") ? 2 : 1;
 

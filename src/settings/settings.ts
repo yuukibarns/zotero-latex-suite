@@ -89,7 +89,13 @@ export interface RawSettings {
 
 export type Settings = Omit<
 	RawSettings,
-	"snippets" | "snippetVariables" | "autofractionExcludedEnvs" | "matrixShortcutsEnvNames" | "matrixShortcutsMacroNames" | "taboutClosingSymbols" | "autoEnlargeBracketsTriggers"
+	| "snippets"
+	| "snippetVariables"
+	| "autofractionExcludedEnvs"
+	| "matrixShortcutsEnvNames"
+	| "matrixShortcutsMacroNames"
+	| "taboutClosingSymbols"
+	| "autoEnlargeBracketsTriggers"
 > & {
 	snippets: Snippet[];
 	autofractionExcludedEnvs: Environment[];
@@ -206,7 +212,7 @@ export function processSettings(raw: RawSettings): Settings {
 		matrixShortcutsMacroNames: strToArray(raw.matrixShortcutsMacroNames),
 		taboutClosingSymbols: new Set(strToArray(raw.taboutClosingSymbols)),
 		// LaTeX commands in the trigger list are written without their backslash
-		autoEnlargeBracketsTriggers: strToArray(raw.autoEnlargeBracketsTriggers).map((t) =>
+		autoEnlargeBracketsTriggers: strToArray(raw.autoEnlargeBracketsTriggers).map(t =>
 			/[A-Za-z]+/.test(t) ? `\\${t}` : t,
 		),
 	};

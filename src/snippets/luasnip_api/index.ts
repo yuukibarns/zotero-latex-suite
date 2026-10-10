@@ -7,7 +7,6 @@ export function api(snippetVariables: SnippetVariables) {
 		snippetVariables,
 		tabstop_node: (index: number, insert: string = ""): BaseNode => new TabstopNode(index, insert),
 		text_node: (text: string): BaseNode => new TextNode(text),
-		capture_node: (key: string | number, defaultValue: string = ""): BaseNode =>
-			new CaptureNode(key, defaultValue),
+		capture_node: (key: string | number, defaultValue: string = ""): BaseNode => new CaptureNode(key, defaultValue),
 	};
 }

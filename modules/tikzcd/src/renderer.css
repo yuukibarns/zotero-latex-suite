@@ -1,12 +1,61 @@
 /* Minimal render-only subset of Quiver's styling; see vendor/quiver/LICENSE. */
-.tikzcd-diagram { position: relative; display: inline-block; color: inherit; background: transparent; --cell-colour: currentColor; font-size: 26px; overflow: hidden; }
-.tikzcd-graph { position: absolute; left: 0; top: 0; width: 0; height: 0; }
-.tikzcd-diagram .vertex { position: absolute; }
-.tikzcd-diagram .vertex .content { position: absolute; transform: translate(-50%, -50%); z-index: 2; text-align: center; }
-.tikzcd-diagram .label { display: block; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-align: center; font-size: 1em; white-space: nowrap; color: var(--cell-colour); pointer-events: none; }
-.tikzcd-diagram .arrow { color: var(--cell-colour); }
-.tikzcd-diagram .arrow > svg { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
-.tikzcd-diagram .arrow > svg:nth-child(2) { z-index: 4; }
-.tikzcd-diagram .arrow.invalid, .tikzcd-diagram .arrow .invalid,
-.tikzcd-diagram .arrow-background, .tikzcd-diagram .arrow-endpoint { display: none; }
-.tikzcd-diagram .arrow .katex, .tikzcd-diagram .arrow .katex-error { font-size: 1em; }
+.tikzcd-diagram {
+	position: relative;
+	display: inline-block;
+	color: inherit;
+	background: transparent;
+	--cell-colour: currentColor;
+	font-size: 26px;
+	overflow: hidden;
+}
+.tikzcd-graph {
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 0;
+	height: 0;
+}
+.tikzcd-diagram .vertex {
+	position: absolute;
+}
+.tikzcd-diagram .vertex .content {
+	position: absolute;
+	transform: translate(-50%, -50%);
+	z-index: 2;
+	text-align: center;
+}
+.tikzcd-diagram .label {
+	display: block;
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	transform: translate(-50%, -50%);
+	text-align: center;
+	font-size: 1em;
+	white-space: nowrap;
+	color: var(--cell-colour);
+	pointer-events: none;
+}
+.tikzcd-diagram .arrow {
+	color: var(--cell-colour);
+}
+.tikzcd-diagram .arrow > svg {
+	position: absolute;
+	left: 0;
+	top: 0;
+	overflow: visible;
+	pointer-events: none;
+}
+.tikzcd-diagram .arrow > svg:nth-child(2) {
+	z-index: 4;
+}
+.tikzcd-diagram .arrow.invalid,
+.tikzcd-diagram .arrow .invalid,
+.tikzcd-diagram .arrow-background,
+.tikzcd-diagram .arrow-endpoint {
+	display: none;
+}
+.tikzcd-diagram .arrow .katex,
+.tikzcd-diagram .arrow .katex-error {
+	font-size: 1em;
+}

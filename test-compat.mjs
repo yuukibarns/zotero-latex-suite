@@ -24,7 +24,7 @@ function fire(snippet, before, key = "", { selection = "", after = "" } = {}) {
 	return {
 		insert: result.replacement.insert,
 		triggerPos: result.triggerPos,
-		tabstops: result.replacement.tabstops.map((t) => [t.index[0], t.from, t.to]),
+		tabstops: result.replacement.tabstops.map(t => [t.index[0], t.from, t.to]),
 	};
 }
 
@@ -34,7 +34,9 @@ export function run() {
 		const frac = one(`{trigger: "//", replacement: "\\\\frac{$0}{$1}$2", options: "mA"}`);
 		assert.strictEqual(fire(frac, "/", "/").insert, "\\frac{}{}");
 
-		const dint = one(`{trigger: "dint", replacement: "\\\\int_{\${0:0}}^{\${1:\\\\infty}} $2 d\${3:x}", options: "mA"}`);
+		const dint = one(
+			`{trigger: "dint", replacement: "\\\\int_{\${0:0}}^{\${1:\\\\infty}} $2 d\${3:x}", options: "mA"}`,
+		);
 		const dintResult = fire(dint, "din", "t");
 		assert.strictEqual(dintResult.insert, "\\int_{0}^{\\infty}  dx");
 		assert.deepStrictEqual(
@@ -44,7 +46,9 @@ export function run() {
 		);
 
 		// "Tabstops with the same number will all be selected at the same time."
-		const outp = one(`{trigger: "outp", replacement: "\\\\ket{\${0:\\\\psi}} \\\\bra{\${0:\\\\psi}} $1", options: "mA"}`);
+		const outp = one(
+			`{trigger: "outp", replacement: "\\\\ket{\${0:\\\\psi}} \\\\bra{\${0:\\\\psi}} $1", options: "mA"}`,
+		);
 		const outpResult = fire(outp, "out", "p");
 		assert.strictEqual(outpResult.insert, "\\ket{\\psi} \\bra{\\psi} ");
 		const groups = ls.tabstopSpecsToTabstopGroups(
@@ -97,10 +101,7 @@ export function run() {
 	{
 		const underbrace = one(`{trigger: "U", replacement: "\\\\underbrace{ \${VISUAL} }_{ $0 }", options: "mA"}`);
 		assert.strictEqual(underbrace.type, "visual", "a \${VISUAL} replacement is a visual snippet");
-		assert.strictEqual(
-			fire(underbrace, "abU", "", { selection: "ab" }).insert,
-			"\\underbrace{ ab }_{  }",
-		);
+		assert.strictEqual(fire(underbrace, "abU", "", { selection: "ab" }).insert, "\\underbrace{ ab }_{  }");
 		assert.strictEqual(fire(underbrace, "U", ""), null, "visual snippets need a selection");
 
 		// the v option with a function replacement
@@ -191,12 +192,15 @@ export function run() {
 			{trigger: "z", replacement: "0", options: "mA", priority: 3},
 			{trigger: "y", replacement: "-", options: "mA", priority: -1},
 		]`);
-		assert.deepStrictEqual(sorted.map((s) => s.trigger), ["z", "abc", "ab", "a", "y"]);
+		assert.deepStrictEqual(
+			sorted.map(s => s.trigger),
+			["z", "abc", "ab", "a", "y"],
+		);
 	}
 
 	/* --- DOCS: option letters --- */
 	{
-		const modeOf = (options) => one(`{trigger: "x", replacement: "y", options: "${options}"}`).options;
+		const modeOf = options => one(`{trigger: "x", replacement: "y", options: "${options}"}`).options;
 
 		assert.ok(modeOf("A").automatic);
 		assert.ok(!modeOf("").automatic);
@@ -221,7 +225,7 @@ export function run() {
 
 	/* --- DOCS: excludedEnvironments / excludedMacros / includedMacros --- */
 	{
-		const scopes = (equation) => ls.scanScopes(equation, equation.length);
+		const scopes = equation => ls.scanScopes(equation, equation.length);
 
 		const excludedEnv = one(`{trigger: "x", replacement: "y", options: "mA", excludedEnvironments: ["pmatrix"]}`);
 		assert.strictEqual(excludedEnv.isWithinExcludedScope(scopes("\\begin{pmatrix} ")), true);
@@ -288,7 +292,12 @@ export function run() {
 			"```",
 			"*/",
 		].join("\n");
-		assert.deepStrictEqual(compile(md).map((s) => s.trigger).sort(), ["@a", "pmat"]);
+		assert.deepStrictEqual(
+			compile(md)
+				.map(s => s.trigger)
+				.sort(),
+			["@a", "pmat"],
+		);
 
 		// a folder of snippet files: concatenated, then sorted as one list
 		const folder = ls.parseSnippets(
@@ -299,13 +308,14 @@ export function run() {
 			{},
 			"folder",
 		);
-		assert.deepStrictEqual(folder.map((s) => s.trigger), ["bb", "a"], "priority applies across files");
+		assert.deepStrictEqual(
+			folder.map(s => s.trigger),
+			["bb", "a"],
+			"priority applies across files",
+		);
 
 		// variables from several files are merged
-		const merged = ls.parseSnippetVariables(
-			[`export default {A: "x"}`, `export default {B: "y"}`],
-			"folder",
-		);
+		const merged = ls.parseSnippetVariables([`export default {A: "x"}`, `export default {B: "y"}`], "folder");
 		assert.deepStrictEqual(Object.keys(merged).sort(), ["${A}", "${B}"]);
 	}
 

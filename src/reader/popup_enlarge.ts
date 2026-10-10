@@ -57,8 +57,8 @@ function addButton(doc: Document, end: Element) {
 	button.tabIndex = -1;
 	update(button, popup.hasAttribute(ATTR));
 	// Keep the caret in the comment: a button that takes focus would end the edit.
-	button.addEventListener("mousedown", (event) => event.preventDefault());
-	button.addEventListener("click", (event) => {
+	button.addEventListener("mousedown", event => event.preventDefault());
+	button.addEventListener("click", event => {
 		event.stopPropagation();
 		const big = !popup.hasAttribute(ATTR);
 		popup.toggleAttribute(ATTR, big);
@@ -79,22 +79,22 @@ export function installPopupEnlarge(win: any): () => void {
 		(doc.head ?? doc.documentElement).appendChild(style);
 	}
 
-	const scan = () => doc.querySelectorAll(HEADER_END).forEach((end) => addButton(doc, end));
+	const scan = () => doc.querySelectorAll(HEADER_END).forEach(end => addButton(doc, end));
 	scan();
 
 	// The popup is created, and its header recreated, whenever an annotation is
 	// opened. Almost every mutation in the reader is something else, so only
 	// additions are looked at, and only while a popup exists at all.
 	const observer = new win.MutationObserver((mutations: MutationRecord[]) => {
-		if (!mutations.some((m) => m.addedNodes.length)) return;
+		if (!mutations.some(m => m.addedNodes.length)) return;
 		if (doc.querySelector(".annotation-popup")) scan();
 	});
 	observer.observe(doc.body ?? doc.documentElement, { childList: true, subtree: true });
 
 	return () => {
 		observer.disconnect();
-		doc.querySelectorAll(`.${BUTTON_CLASS}`).forEach((b) => b.remove());
-		doc.querySelectorAll(`[${ATTR}]`).forEach((p) => p.removeAttribute(ATTR));
+		doc.querySelectorAll(`.${BUTTON_CLASS}`).forEach(b => b.remove());
+		doc.querySelectorAll(`[${ATTR}]`).forEach(p => p.removeAttribute(ATTR));
 		doc.getElementById(STYLE_ID)?.remove();
 	};
 }
